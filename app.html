@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#160d08" />
+  <title>Gestão Rural • Acesso</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.webmanifest" />
+<link rel="apple-touch-icon" href="/assets/app-icone-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Gestão Rural" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="theme.css" />
+  <link rel="stylesheet" href="rural-modules.css" />
+  <link rel="stylesheet" href="operacao.css" />
+  <link rel="stylesheet" href="app-minimal.css" />
+  <link rel="stylesheet" href="temas-atividades.css" />
+  <link rel="stylesheet" href="analise-solo.css" />
+  <link rel="stylesheet" href="gestao.css" />
+  <link rel="stylesheet" href="evolucao.css" />
+  <link rel="stylesheet" href="maodeobra.css" />
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <section id="loginView" class="login-shell">
+    <div class="login-art">
+      <div class="login-copy">
+        <span class="eyebrow">GESTÃO RURAL</span>
+        <h1>Controle a operação<br>sem perder o campo de vista.</h1>
+        <p>Gestão<br><strong>Café, gado e grãos</strong></p>
+      </div>
+      <div class="harvest-note"><span>Gestão</span><strong>Café, gado e grãos no mesmo painel: lançamentos, estoque e pesagens.</strong></div>
+    </div>
+
+    <div class="login-panel">
+      <div class="login-card">
+        <div class="auth-switch" data-mode="login">
+          <button id="showLoginBtn" class="switch-btn active" type="button">Entrar</button>
+          <button id="showRegisterBtn" class="switch-btn" type="button">Registrar</button>
+        </div>
+
+        <form id="loginForm" class="auth-form">
+          <span class="eyebrow dark">ACESSO DO GRUPO</span>
+          <h2>Bem-vindo</h2>
+          <p class="muted">Informe o Código do Grupo, seu usuário e senha.</p>
+          <label>Código do Grupo<input id="loginGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="Ex.: 1001" required /></label>
+          <label>Usuário<input id="loginUser" autocomplete="username" required /></label>
+          <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
+          <button class="btn primary full" type="submit">Entrar no sistema</button>
+          <button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button>
+          <p class="security-note" id="cloudStatusNote">Os dados deste grupo são sincronizados pelo servidor.</p>
+        </form>
+
+        <form id="forgotForm" class="auth-form hidden">
+          <span class="eyebrow dark">RECUPERAR SENHA</span>
+          <h2>Receber código</h2>
+          <p class="muted">Informe os dados da sua conta. Enviaremos um código de 6 dígitos para o e-mail cadastrado.</p>
+          <label>Código do Grupo<input id="forgotGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="Ex.: 1001" required /></label>
+          <label>Usuário<input id="forgotUser" autocomplete="username" required /></label>
+          <label>E-mail<input id="forgotEmail" type="email" autocomplete="email" required /></label>
+          <button class="btn primary full" type="submit">Enviar código</button>
+          <button class="auth-link back-login" type="button">Voltar para entrar</button>
+        </form>
+
+        <form id="resetForm" class="auth-form hidden">
+          <span class="eyebrow dark">NOVO ACESSO</span>
+          <h2>Trocar senha</h2>
+          <p class="muted" id="resetEmailNote">Digite o código recebido por e-mail e escolha uma nova senha.</p>
+          <label>Código de 6 dígitos<input id="resetCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required /></label>
+          <label>Nova senha<input id="resetPassword" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <label>Confirmar nova senha<input id="resetPasswordConfirm" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <button class="btn primary full" type="submit">Alterar senha</button>
+          <button class="auth-link back-login" type="button">Cancelar e voltar</button>
+        </form>
+
+        <form id="registerForm" class="auth-form hidden">
+          <span class="eyebrow dark">SOLICITAÇÃO DE CADASTRO</span>
+          <h2>Registrar</h2>
+          <p class="muted">Envie seu pedido ao CEO do seu Grupo.</p>
+          <label>Código do Grupo<input name="groupCode" id="registerGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="Ex.: 1001" required></label>
+          <div class="form-grid compact-grid">
+            <label>Nome<input name="name" required></label>
+            <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
+            <label id="registerFunctionWrap">Função<select name="function" id="registerFunction" required><option value="">Selecione</option><option value="Tratorista">Tratorista</option><option value="Campo">Campo</option></select></label>
+            <label>Chave PIX (opcional)<input name="pixKey"></label>
+            <label>Perfil<input value="Contribuinte" disabled><input type="hidden" name="role" value="contribuinte"></label>
+            <label>Usuário<input name="username" required></label>
+            <label>Senha<input name="password" type="password" minlength="8" required></label>
+          </div>
+          <button class="btn primary full" type="submit">Enviar solicitação</button>
+          <p class="security-note">Após o envio, o cadastro ficará pendente até o CEO aceitar.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <section id="appView" class="app hidden">
+    <aside class="sidebar">
+      <div class="sidebar-brand">
+        <div><strong id="groupBrandName">Gestão Rural</strong><span id="groupBrandSub">Gestão de Fazendas</span></div>
+      </div>
+      <nav id="navMenu" aria-label="Menu do painel" tabindex="0"></nav>
+      <div class="sidebar-footer">
+        <div class="user-chip"><div id="userAvatar" class="avatar">U</div><div><strong id="userName">Usuário</strong><span id="userRole">Perfil</span></div></div>
+        <button id="logoutBtn" class="btn ghost full">Sair</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <span id="pageEyebrow" class="eyebrow dark">PAINEL</span>
+          <h1 id="pageTitle">Visão geral</h1>
+        </div>
+        <div class="topbar-actions">
+          <div id="syncStatus" class="sync-status" data-kind="ok" role="status" aria-live="polite" title="Salvo"><i aria-hidden="true"></i><span>Salvo</span></div>
+          <label class="farm-switcher"><span>Fazenda ativa</span><select id="farmSelect"></select></label>
+          <button id="logoutTop" class="btn" type="button" aria-label="Sair"></button>
+          <div id="quoteMini" class="quote-mini hidden"><span><i class="live-dot"></i>Café C • saca 60 kg</span><strong id="quoteMiniValue">—</strong></div>
+        </div>
+      </header>
+      <div id="pageContent" class="page-content"></div>
+    </main>
+  </section>
+
+  <script src="rural-domain.js"></script>
+  <script src="subscription-domain.js"></script>
+  <script src="culturas-quantidades.js"></script>
+  <script src="formularios-rurais.js"></script>
+  <script src="rural-modules.js"></script>
+  <script src="graos.js"></script>
+  <script src="talhoes-domain.js"></script>
+  <script src="talhoes-historico.js"></script>
+  <script src="safras-domain.js"></script>
+  <script src="safras-historico.js"></script>
+  <script src="operacao-domain.js"></script>
+  <script src="graficos-rurais.js"></script>
+  <script src="operacao.js"></script>
+  <script src="safra-painel.js"></script>
+  <script src="gado-config.js"></script>
+  <script src="analise-solo-domain.js"></script>
+<script src="analise-solo.js"></script>
+<script src="gestao-domain.js"></script>
+<script src="gestao.js"></script>
+<script src="campo-domain.js"></script>
+<script src="campo.js"></script>
+<script src="evolucao-domain.js"></script>
+<script src="evolucao.js"></script>
+<script src="maodeobra-domain.js"></script>
+<script src="maodeobra.js"></script>
+<script src="campo-offline.js"></script>
+<script src="lcdpr.js"></script>
+<script src="adm-access.js"></script>
+<script src="plan-features.js"></script>
+<script src="app.js"></script>
+<script src="adm-acesso.js"></script>
+<script src="menu.js"></script>
+<script src="fx.js"></script>
+</body>
+</html>
+

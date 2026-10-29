@@ -1,0 +1,24 @@
+/* Extensões dos módulos rurais; usa cores e componentes do tema existente. */
+.rural-filters{display:grid;grid-template-columns:minmax(160px,2fr) repeat(2,minmax(140px,1fr)) auto;gap:14px;align-items:end;margin:20px 0}
+.rural-filters label{min-width:0}
+.rural-cycle h3{margin-top:16px;overflow-wrap:anywhere}
+.rural-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}
+.rural-facts div{min-width:0}
+.rural-facts dt{font-size:12px;opacity:.75;margin-bottom:4px}
+.rural-facts dd{margin:0;font-weight:600;overflow-wrap:anywhere}
+.rural-mode-options{display:grid;gap:12px;margin-top:18px}
+.rural-mode-options .btn{width:100%;justify-content:flex-start}
+.plot-timeline{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.plot-event{min-width:0}
+.plot-event h3{margin-top:18px;overflow-wrap:anywhere}
+.plot-event p,.plot-event dd{overflow-wrap:anywhere}
+.plot-event time{font-size:12px}
+.plot-event-void{border-color:#c39689;background:#faf4ef}
+#plotHistoryFilters{grid-template-columns:minmax(200px,2fr) repeat(3,minmax(110px,1fr)) auto}
+@media(max-width:1000px){#plotHistoryFilters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){.plot-timeline{grid-template-columns:1fr}}
+@media(max-width:480px){#plotHistoryFilters{grid-template-columns:1fr}}
+.grid.kpis .card{min-width:0}
+.grid.kpis .kpi-value{font-size:clamp(20px,2.1vw,32px);overflow-wrap:anywhere;line-height:1.25}
+@media(max-width:900px){.rural-filters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:480px){.rural-filters,.rural-facts{grid-template-columns:1fr}.rural-cycle .row-actions{flex-wrap:wrap}.rural-filters .btn{width:100%}}

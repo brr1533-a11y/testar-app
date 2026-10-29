@@ -1,0 +1,97 @@
+VERSÃO ÚNICA + ETAPA 1 (mão de obra da colheita): leia VERSAO-UNICA-E-ETAPA-1.md
+
+GESTÃO RURAL — PACOTE COMPLETO
+
+1. Extraia o ZIP inteiro para uma pasta.
+   No Windows, pode abrir INICIAR.cmd para instalar e iniciar automaticamente.
+2. No VS Code, abra a pasta que contém package.json.
+3. Abra Terminal > Novo Terminal e execute:
+
+   npm.cmd install
+   npm.cmd start
+
+4. Mantenha o terminal aberto e visite:
+
+   http://localhost:3000/        Nova Visão geral e objetivo do sistema
+   http://localhost:3000/cafe    Página exclusiva do Café
+   http://localhost:3000/gado    Página inicial de Gado
+   http://localhost:3000/graos   Página inicial de Grãos
+   http://localhost:3000/app     Painel do sistema
+
+ACESSO LOCAL INICIAL
+Código do Grupo: 1001
+Usuário: jacquesmiari
+Senha: na primeira execução, o servidor gera uma senha e a mostra no terminal.
+Guarde essa senha. Ela não é gerada novamente em cada inicialização.
+
+ARQUIVOS PRINCIPAIS
+index.html: Visão geral e objetivo do sistema.
+cafe.html: página de Café, com a frase original.
+planos-atividades.json: valores mensais por combinação; todos a definir.
+subscription-domain.js: escolha de atividades e validação dos preços.
+gado.html: página inicial dedicada ao Gado.
+graos.html: página inicial dedicada a soja, milho e trigo.
+graos.js: módulo de Grãos do painel e rotinas de produção reutilizadas pelo Café.
+rural-modules.js: helpers comuns e página de desempenho/manejo do Gado.
+paginas-iniciais.css: seleção de páginas e identidade visual de Gado e Grãos.
+assets/: ilustrações locais usadas nas páginas.
+
+No painel, clique em “Atividade” e escolha “Grãos”. O CEO pode liberar essa
+atividade para os funcionários em Usuários. O acesso legado Café + Gado não
+ganha acesso a Grãos automaticamente.
+
+RECURSOS
+Safras, área, variedade, colheitas, vendas e saldo de soja, milho e trigo.
+Produção por safra/talhão no Café.
+Pesagens, ganho diário, metas e agenda de manejo no Gado.
+Estoque, notas e categorias financeiras por atividade.
+Os recebimentos das vendas são lançados separadamente no Financeiro.
+
+Não use Live Server para iniciar o projeto: ele depende de server.js.
+Não é necessário configurar PostgreSQL para testar localmente.
+Os dados locais são criados no arquivo .local-cloud.json; preserve esse arquivo.
+O pacote não contém senhas, dados de clientes, node_modules ou banco de testes.
+
+TESTES (opcionais; Node.js 20 ou superior)
+npm.cmd test
+npx.cmd playwright install chromium
+npm.cmd run test:browser
+npm.cmd run test:marketing
+npm.cmd run test:pages
+
+Para encerrar o servidor: Ctrl+C no terminal.
+
+PLANOS POR ATIVIDADE
+Escolha uma, duas ou três atividades. Os valores ficam a definir.
+Sem preço configurado, não há checkout nem cobrança.
+Grãos inclui soja, milho e trigo.
+
+NOVAS TELAS
+/demo — demonstração guiada com dados fictícios.
+No painel: Agenda, Resultados e custos, Entregas e Contas a receber.
+Safras > Qualidade e resultado: composição, cotação e terreiro.
+Safras > Safra em várias fazendas: participação de cada propriedade.
+Café > Qualidades do café: o CEO configura Especial e COC 01 a COC 16.
+Gado > Etapas do gado: configurações do CEO.
+Gado > Movimentações: entradas, saídas, transferências e piquetes.
+Cotações de safra/lote são referências informadas pelo responsável; não são preços em tempo real.
+
+GESTÃO E COMPRA DE INSUMOS (menu: Gestão e Compra de insumos)
+Financeiro, fiscal, conciliação bancária e contratos de venda são ferramentas de gestão:
+servem para organizar o dinheiro, as notas e as vendas da fazenda, não para comprar insumos.
+* Financeiro: contas a pagar e receber, custos e rateios.
+* Fiscal: emitir e receber notas fiscais (NF-e e MDF-e). Importa o XML da NF-e;
+  a transmissão oficial à SEFAZ continua no emissor com certificado digital.
+* Conciliação bancária: conferir se os lançamentos batem com o extrato do banco (OFX ou CSV).
+* Contratos de venda: registrar a venda da produção para o comprador e controlar as entregas.
+* Pedidos de compra: organizar e aprovar internamente o que a fazenda vai comprar,
+  não comprar pelo sistema.
+* Compra de insumos: mostra o que está acabando no estoque (adubo, diesel S10, sal mineral,
+  ração, peças...), a cotação de menor preço, o último preço pago em nota e atalhos para
+  pesquisar no Google Shopping e no Mercado Livre. Defina o "Estoque mínimo" de cada item.
+* Preço sempre atualizado: cotação com LINK do site é conferida sozinha a cada 6 horas
+  (e no botão "Conferir preços agora"); se o preço mudar, a cotação muda e aparece
+  "subiu" ou "caiu". Cotação de WHATSAPP vira "peça de novo" depois de 7 dias: o botão
+  "Pedir preço no WhatsApp" abre a conversa com a pergunta pronta, e "Preço novo" registra.
+  Alguns sites grandes bloqueiam leitura automática: aí aparece "Site não conferido".
+* Lista completa do que existe no sistema: LEVANTAMENTO-DO-SITE.md

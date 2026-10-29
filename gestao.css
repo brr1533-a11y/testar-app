@@ -1,0 +1,25 @@
+/* Gestão e compra de insumos */
+.g-tools{margin-top:18px}
+.g-tool{display:flex;flex-direction:column;gap:8px}
+.g-tool p{flex:1;margin:0}
+.g-tool .btn{align-self:flex-start}
+.g-buy,.g-watch{display:flex;gap:18px;align-items:center;justify-content:space-between;margin-top:18px;flex-wrap:wrap}
+.g-buy h3,.g-watch h3{margin:0 0 6px}
+.g-buy p,.g-watch p{margin:0;max-width:760px}
+.g-actions{flex-wrap:wrap;gap:6px}
+.g-key{font-size:11px;word-break:break-all}
+.g-contract details{margin-top:8px}
+.g-contract ul{margin:6px 0 0;padding-left:18px}
+.g-progress{height:8px;border-radius:999px;background:rgba(127,127,127,.18);overflow:hidden;margin:10px 0 4px}
+.g-progress span{display:block;height:100%;background:currentColor;opacity:.55}
+tr.muted td{opacity:.6}
+
+.g-watch{margin:18px 0}
+
+/* Permissões do ADM */
+.adm-access{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px}
+.adm-access fieldset{border:1px solid var(--line,#ddd);border-radius:12px;padding:10px 14px;margin:0}
+.adm-access legend{font-weight:700;padding:0 6px}
+.adm-access-item{display:flex;gap:8px;align-items:flex-start;padding:5px 0;cursor:pointer}
+.adm-access-item input{margin-top:3px}
+.adm-access>.muted,.adm-access>.form-actions{grid-column:1/-1}

@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a0f09" />
+  <title>Gestão de Gado | Lotes, pesagens e manejos</title>
+  <meta name="description" content="Organize lotes, pesagens, ganho diário e manejos do gado. Acompanhe o rebanho e conecte estoque, financeiro e equipe por fazenda." />
+  <meta property="og:title" content="Gestão de Gado | Lotes, pesagens e manejos" />
+  <meta property="og:description" content="Organize lotes, pesagens, ganho diário e manejos do gado. Acompanhe o rebanho e conecte estoque, financeiro e equipe por fazenda." />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="inicio.css" />
+  <link rel="stylesheet" href="paginas-iniciais.css" />
+</head>
+<body class="landing-cattle" data-landing="cattle">
+<a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
+<div id="salesToast" class="sales-toast" role="status" aria-live="polite"></div>
+
+<header class="nav">
+  <a class="marca" href="#topo" aria-label="Gestão, início">Gestão</a>
+  <nav class="links" aria-label="Principal">
+    <a class="ln" href="#sistema">O sistema</a>
+    <a class="ln" href="#duvidas">Dúvidas</a>
+    <a class="btn nav-plans" href="#planos">Ver planos</a>
+    <a class="ln" href="#como-funciona">Ver o sistema</a><a class="btn btn-entrar" href="/app?activity=cattle">Entrar</a>
+  </nav>
+</header>
+<nav class="landing-switch" aria-label="Páginas por atividade"><a href="/" >Visão geral</a><a href="/cafe" >Café</a><a href="/gado" aria-current="page">Gado</a><a href="/graos" >Grãos</a></nav>
+
+<main id="conteudo">
+<div class="cena" id="cena"><div class="fixo" id="fixo">
+<section class="hero" id="topo" aria-label="Apresentação">
+  <div class="foto" id="foto" role="img" aria-label="Ilustração de pastagens e silhuetas de gado ao amanhecer"></div>
+  <p class="hero-eyebrow">GESTÃO DE GADO</p>
+  <h1 class="titulo" id="titulo">Seu rebanho evolui.<br><em>Sua gestão acompanha.</em></h1>
+  <div class="brilho" id="brilho" aria-hidden="true"></div>
+  <p class="frase" id="frase" aria-hidden="true">Do campo à gestão.<br><em>Cada atividade no seu lugar.</em></p>
+  <canvas class="voo" id="voo" aria-hidden="true"></canvas>
+
+  <div class="hero-copy">
+    <p>Acompanhe lotes, pesagens, ganho diário e manejos. Conecte o que acontece no rebanho ao estoque, ao financeiro e à equipe da fazenda.</p>
+    <div class="hero-actions"><a class="btn hero-primary" href="/app?activity=cattle">Entrar no painel</a><a class="btn hero-secondary" href="#planos">Ver planos</a><a class="btn btn-entrar" href="#sistema">Ver gestão de gado</a></div>
+    <p class="hero-price">Escolha uma, duas ou três atividades. <strong>A partir de R$ 119/mês no anual, ou teste grátis por 14 dias.</strong></p>
+    <ul class="hero-tags" aria-label="Atividades atendidas"><li>Lotes</li><li>Pesagens</li><li>Manejos</li></ul>
+  </div>
+  <p class="rodape-hero">Do escritório ao campo, com acesso pelo navegador no computador e no celular.</p>
+</section>
+<div class="veu" id="veu" aria-hidden="true"></div>
+<section class="sistema" id="sistema" aria-labelledby="t-sis">
+  <div class="cab">
+    <div><div class="olho">Veja antes de escolher</div><h2 id="t-sis">Veja a rotina do rebanho em um painel.</h2></div>
+    <p>Explore lotes, piquetes, pesagens, desempenho, manejos e estoque do gado. Todas as informações abaixo são exemplos.</p>
+  </div>
+  <div class="app" aria-label="Prévia das páginas do sistema com dados de exemplo">
+    <aside role="tablist" aria-label="Páginas do sistema" aria-orientation="vertical">
+      <button class="m" role="tab" data-pv="visao" aria-controls="pv-visao">Visão geral</button>
+      <button class="m" role="tab" data-pv="gado" aria-controls="pv-gado">Lotes</button>
+      <button class="m" role="tab" data-pv="piquetes" aria-controls="pv-piquetes">Piquetes</button>
+      <button class="m" role="tab" data-pv="pesagens" aria-controls="pv-pesagens">Pesagens</button>
+      <button class="m" role="tab" data-pv="desempenho" aria-controls="pv-desempenho">Desempenho e metas</button>
+      <button class="m" role="tab" data-pv="manejos" aria-controls="pv-manejos">Manejos</button>
+      <button class="m" role="tab" data-pv="estoque" aria-controls="pv-estoque">Estoque do gado</button>
+      <button class="m" role="tab" data-pv="financeiro" aria-controls="pv-financeiro">Balanço financeiro</button>
+    </aside>
+    <div class="preview-content">
+      <div class="telas">
+        <section class="pv" id="pv-visao" role="tabpanel" aria-label="Visão geral do gado"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Centro de comando</div><h3>Sua pecuária em um painel</h3></div><span class="chip2">Dados de exemplo</span></div><div class="kpis"><div><span>Lotes</span><b>3</b></div><div><span>Cabeças</span><b>180</b></div><div><span>Piquetes</span><b>3</b></div><div><span>Manejos agendados</span><b>2</b></div></div><div class="caixa"><h4>Atenção na rotina</h4><ul class="lista"><li><span>Sal mineral<small>45 kg disponíveis · mínimo 80 kg</small></span><span class="chip2 alerta">Repor estoque</span></li><li><span>Conferência do Lote 02<small>31/10 · responsável definido na agenda</small></span><span class="chip2 uso">Agendado</span></li></ul></div></section>
+
+        <section class="pv" id="pv-gado" role="tabpanel" aria-label="Lotes do gado"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Rebanho</div><h3>Lotes por categoria e piquete</h3></div><span class="chip2">Dados de exemplo</span></div><table class="tab"><thead><tr><th>Lote</th><th>Piquete</th><th class="n">Cabeças</th><th class="n">Peso médio vivo</th></tr></thead><tbody><tr><td>Lote 01 · Recria</td><td>Baixada</td><td class="n">86</td><td class="n">312 kg</td></tr><tr><td>Lote 02 · Engorda</td><td>Represa</td><td class="n">54</td><td class="n">468 kg</td></tr><tr><td>Lote 03 · Bezerros</td><td>Sede</td><td class="n">40</td><td class="n">186 kg</td></tr></tbody></table><div class="caixa suave">Consulte a ficha do lote, sua localização, categoria e histórico de pesagens.</div></section>
+
+        <section class="pv" id="pv-piquetes" role="tabpanel" aria-label="Piquetes"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Pasto e localização</div><h3>Saiba onde cada lote está</h3></div><span class="chip2">Dados de exemplo</span></div><div class="mosaico"><div><b>Baixada</b><span>Lote 01 · 86 cabeças</span><span class="chip2 ok">Recria</span></div><div><b>Represa</b><span>Lote 02 · 54 cabeças</span><span class="chip2 uso">Engorda</span></div><div><b>Sede</b><span>Lote 03 · 40 cabeças</span><span class="chip2">Bezerros</span></div></div><div class="caixa suave">Cadastre referências e observações dos piquetes. Atualize a localização na ficha do lote.</div></section>
+
+        <section class="pv" id="pv-pesagens" role="tabpanel" aria-label="Pesagens"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Histórico do rebanho</div><h3>Compare o peso ao longo do tempo</h3></div><span class="chip2">Dados de exemplo</span></div><table class="tab"><thead><tr><th>Data / lote</th><th class="n">Animais</th><th class="n">Peso total</th><th class="n">Média viva</th></tr></thead><tbody><tr><td>20/10 · Lote 01</td><td class="n">86</td><td class="n">26.832 kg</td><td class="n">312 kg</td></tr><tr><td>20/10 · Lote 02</td><td class="n">54</td><td class="n">25.272 kg</td><td class="n">468 kg</td></tr><tr><td>20/10 · Lote 03</td><td class="n">40</td><td class="n">7.440 kg</td><td class="n">186 kg</td></tr></tbody></table><div class="caixa suave">Registre a data, os animais pesados e o peso total. A média por cabeça é calculada pelo sistema.</div></section>
+
+        <section class="pv" id="pv-desempenho" role="tabpanel" aria-label="Desempenho e metas"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Evolução dos lotes</div><h3>Peso atual, ganho diário e meta</h3></div><span class="chip2">Dados de exemplo</span></div><table class="tab"><thead><tr><th>Lote</th><th class="n">Peso vivo</th><th class="n">Ganho diário*</th><th class="n">Meta por cabeça</th></tr></thead><tbody><tr><td>Lote 01</td><td class="n">312 kg</td><td class="n">0,8 kg/dia</td><td class="n">320 kg</td></tr><tr><td>Lote 02</td><td class="n">468 kg</td><td class="n">1,1 kg/dia</td><td class="n">500 kg</td></tr><tr><td>Lote 03</td><td class="n">186 kg</td><td class="n">0,6 kg/dia</td><td class="n">230 kg</td></tr></tbody></table><div class="caixa suave">* Exemplo ilustrativo. O ganho é calculado entre as duas últimas datas distintas de pesagem. As metas são definidas pelo responsável.</div></section>
+
+        <section class="pv" id="pv-manejos" role="tabpanel" aria-label="Agenda de manejo"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Rotina do rebanho</div><h3>Cada manejo com data e responsável</h3></div><span class="chip2">Dados de exemplo</span></div><ul class="lista"><li><span>Conferência do Lote 02<small>31/10 · Inspeção · João, responsável pelo lote</small></span><span class="chip2 uso">Agendado</span></li><li><span>Revisão do manejo do Lote 01<small>03/11 · Inspeção · responsável técnico</small></span><span class="chip2 uso">Agendado</span></li><li><span>Conferência do Lote 03<small>20/10 · registro da data de conclusão</small></span><span class="chip2 ok">Realizado</span></li></ul><div class="caixa suave">Organize os manejos definidos pelo responsável técnico e registre a realização de cada tarefa.</div></section>
+
+        <section class="pv" id="pv-estoque" role="tabpanel" aria-label="Estoque do gado"><div class="topo"><div><div class="olho" style="color:#7a5c1e">Insumos da pecuária</div><h3>Ração, sal mineral e materiais</h3></div><span class="chip2">Dados de exemplo</span></div><table class="tab"><thead><tr><th>Item</th><th>Categoria</th><th class="n">Quantidade</th><th class="n">Mínimo</th></tr></thead><tbody><tr><td>Ração de engorda</td><td>Ração</td><td class="n">900 kg</td><td class="n">600 kg</td></tr><tr><td>Sal mineral</td><td>Sal mineral</td><td class="n">45 kg</td><td class="n">80 kg</td></tr><tr><td>Arame liso</td><td>Cercas</td><td class="n">4 rolos</td><td class="n">2 rolos</td></tr></tbody></table><div class="caixa suave">Acompanhe os insumos do gado e os alertas de quantidade mínima por fazenda.</div></section>
+
+        <section class="pv" id="pv-financeiro" role="tabpanel" aria-label="Balanço financeiro">
+          <div class="topo"><div><div class="olho" style="color:#7a5c1e">Financeiro</div><h3>Entradas, gastos e lucro</h3></div><div class="sel">Últimos 6 meses</div></div>
+          <div class="grafico">
+            <div class="leg"><span><i style="background:#c8a45c"></i>Entradas</span><span><i style="background:#a39080"></i>Gastos</span><span><i style="background:#5a7a4a"></i>Resultado</span></div>
+            <div class="barras" id="barras"></div>
+            <div class="meses"><span>Mai</span><span>Jun</span><span>Jul</span><span>Ago</span><span>Set</span><span>Out</span></div>
+          </div>
+        </section>
+      </div>
+      <div class="rodape"><p class="amostra">Telas com dados de exemplo. No sistema, tudo vem dos lançamentos do seu grupo.</p><div class="pontos" id="pontos" aria-hidden="true"></div></div>
+    </div>
+  </div>
+</section>
+</div></div>
+
+<section class="marketing-section benefits" id="beneficios" aria-labelledby="t-beneficios">
+  <div class="marketing-heading"><span class="olho">Menos registros espalhados</span><h2 id="t-beneficios">Do lote ao resultado da pesagem.</h2><p>Confira o peso vivo médio atual, acompanhe a evolução dos lotes e organize as próximas tarefas com o responsável pelo manejo.</p></div>
+  <div class="benefit-grid">
+    <article class="benefit-card"><span class="benefit-number">01 / REBANHO</span><h3>Veja como cada lote evolui.</h3><p>Consulte a ficha, as pesagens e o ganho diário por cabeça. Defina metas de peso e acompanhe a evolução.</p><a href="#sistema" data-preview="gado">Ver lotes e pesagens <span aria-hidden="true">↗</span></a></article>
+    <article class="benefit-card"><span class="benefit-number">02 / PIQUETES</span><h3>Cada lote no seu lugar.</h3><p>Cadastre os piquetes, suas referências e observações. Mantenha a localização dos lotes atualizada.</p><a href="#sistema" data-preview="piquetes">Ver piquetes <span aria-hidden="true">↗</span></a></article>
+    <article class="benefit-card"><span class="benefit-number">03 / MANEJOS</span><h3>Organize a próxima tarefa.</h3><p>Registre os manejos definidos pelo responsável técnico, com data, responsável e confirmação de realização.</p><a href="#sistema" data-preview="manejos">Ver agenda de manejo <span aria-hidden="true">↗</span></a></article>
+  </div>
+  <div class="shared-benefits"><p><strong>O restante da operação também fica conectado.</strong> Estoque, notas, financeiro, máquinas e equipe no mesmo sistema, com permissões por perfil.</p><a class="btn btn-cafe" href="#planos">Comparar planos</a></div>
+</section>
+
+
+<section class="marketing-section video-section" id="como-funciona" aria-labelledby="t-video"><div class="marketing-heading"><span class="olho">Conheça antes de começar</span><h2 id="t-video">Veja a gestão acontecer.</h2><p>Do cadastro da safra ao acompanhamento dos resultados. Conheça o painel de café, gado e grãos em pouco mais de um minuto.</p></div><figure class="system-video"><video controls muted playsinline preload="none" poster="/assets/gestao-rural-previa.png" width="1920" height="1080" aria-label="Apresentação da Gestão Rural: café, gado e grãos, sem áudio"><source src="/assets/gestao-rural-previa.mp4" type="video/mp4">Seu navegador não reproduz este vídeo. <a href="/assets/gestao-rural-previa.mp4">Abrir o vídeo</a>.</video><figcaption><span>1 min 10 s · Sem áudio · Telas do sistema com dados fictícios.</span><a href="/assets/gestao-rural-previa.mp4" target="_blank" rel="noopener">Abrir o vídeo em outra aba ↗</a></figcaption></figure></section>
+<section class="marketing-section getting-started" aria-labelledby="t-comecar">
+  <div class="marketing-heading"><span class="olho">Como começar</span><h2 id="t-comecar">Da escolha do plano ao primeiro registro.</h2></div>
+  <ol class="start-steps"><li><span>1</span><div><h3>Escolha o porte da operação.</h3><p>Uma fazenda, até cinco ou até quinze propriedades no mesmo grupo.</p></div></li><li><span>2</span><div><h3>Confira sua escolha.</h3><p>Selecione as atividades e o porte e veja o preço na hora. Se preferir, comece pelo teste grátis de 14 dias.</p></div></li><li><span>3</span><div><h3>Conheça a rotina na prática.</h3><p>Assista à apresentação do painel e veja como os registros se conectam.</p></div></li></ol>
+</section>
+
+<section class="planos" id="planos" aria-labelledby="t-pl">
+  <div class="cab">
+    <div><div class="olho">Planos</div><h2 id="t-pl">Escolha pelo número de fazendas.</h2></div>
+    <p>Escolha as atividades e o porte da operação. Você pode contratar um módulo, combinar dois ou reunir os três. Quanto maior o período, maior o desconto.</p>
+  </div>
+
+  <div class="activity-plan-picker" aria-labelledby="t-activities"><div><span class="olho">1. Escolha as atividades</span><h3 id="t-activities">Uma, duas ou as três.</h3><p>Selecione os módulos da sua assinatura.</p></div><div class="activity-plan-options"><label><input type="checkbox" name="subscriptionActivity" value="coffee"><span><strong>Café</strong><small>Safras, talhões e colheitas</small></span></label><label><input type="checkbox" name="subscriptionActivity" value="cattle"><span><strong>Gado</strong><small>Lotes, piquetes e manejos</small></span></label><label><input type="checkbox" name="subscriptionActivity" value="grains"><span><strong>Grãos</strong><small>Soja, milho e trigo</small></span></label></div><button type="button" class="btn" id="selectAllActivities">Escolher as três</button><p id="activitySelectionSummary" role="status" aria-live="polite">Escolha pelo menos uma atividade.</p></div><p class="plan-size-intro"><span class="olho">2. Escolha o porte da operação</span></p>
+  <div class="billing-wrap" aria-label="Período de cobrança">
+    <div class="billing-switch" id="billingSwitch">
+      <button type="button" class="active" data-cycle="monthly">Mensal</button>
+      <button type="button" data-cycle="quarterly">Trimestral <small>−5%</small></button>
+      <button type="button" data-cycle="semiannual">Semestral <small>−10%</small></button>
+      <button type="button" class="best-cycle" data-cycle="annual">Anual <small>−20%</small></button>
+    </div>
+  </div>
+
+  <div class="plan-grid" id="planGrid">
+    <article class="plan-card" data-plan="essential">
+      <div class="plan-card-head"><span class="selo plano-selo">ESSENCIAL</span><h3>Essencial</h3><p>Para centralizar a rotina de uma propriedade.</p></div>
+      <div class="plan-value"><small data-currency hidden>R$</small><strong data-price>A definir</strong><span data-period></span></div>
+      <div class="plan-saving" data-saving>Escolha as atividades para ver o preço.</div>
+      <ul class="plan-features"><li>1 fazenda</li><li>Até 10 usuários</li><li>Visão geral, Mercado e Agenda</li><li>Estoque, equipamentos e aviso de insumos acabando</li><li>Contas a pagar e receber, resultados e custos</li><li>Notas fiscais (NF-e, MDF-e, XML) e Livro Caixa (LCDPR)</li><li class="included-activity-features">Selecione as atividades acima.</li></ul>
+      <button class="btn btn-cafe xl buy-plan" data-plan="essential" type="button">Selecionar este porte</button>
+    </article>
+
+    <article class="plan-card featured" data-plan="pro">
+      <div class="popular-ribbon">PARA GRUPOS DE ATÉ 5 FAZENDAS</div>
+      <div class="plan-card-head"><span class="selo plano-selo">PROFISSIONAL</span><h3>Profissional</h3><p>Para acompanhar até cinco propriedades no mesmo grupo.</p></div>
+      <div class="plan-value"><small data-currency hidden>R$</small><strong data-price>A definir</strong><span data-period></span></div>
+      <div class="plan-saving" data-saving>Escolha as atividades para ver o preço.</div>
+      <ul class="plan-features"><li>Até 5 fazendas</li><li>Até 10 usuários por fazenda</li><li>Tudo do Essencial</li><li>Melhor cotação e preço automático dos insumos</li><li>Conciliação bancária e contratos de venda</li><li>Pedidos de compra com aprovação</li><li>Permissão por fazenda e atividade</li><li>Histórico de alterações e visão consolidada</li><li class="included-activity-features">Selecione as atividades acima.</li></ul>
+      <button class="btn btn-cafe xl buy-plan" data-plan="pro" type="button">Selecionar este porte</button>
+    </article>
+
+    <article class="plan-card" data-plan="group">
+      <div class="plan-card-head"><span class="selo plano-selo">GRUPO</span><h3>Grupo</h3><p>Para reunir até 15 propriedades, com atendimento prioritário.</p></div>
+      <div class="plan-value"><small data-currency hidden>R$</small><strong data-price>A definir</strong><span data-period></span></div>
+      <div class="plan-saving" data-saving>Escolha as atividades para ver o preço.</div>
+      <ul class="plan-features"><li>Até 15 fazendas</li><li>Até 10 usuários por fazenda</li><li>Tudo do Profissional</li><li>Atendimento prioritário</li><li>Implantação acompanhada</li><li class="included-activity-features">Selecione as atividades acima.</li></ul>
+      <button class="btn btn-cafe xl buy-plan" data-plan="group" type="button">Selecionar este porte</button>
+    </article>
+  </div>
+
+  <div class="trial-box" id="trialBox"><div><strong>Teste grátis por 14 dias</strong><span>Sem cartão. Você usa as funções do Profissional com as atividades escolhidas acima. No fim do teste, assine e continue com os mesmos dados.</span></div><button type="button" class="btn btn-cafe" id="startTrial">Começar teste grátis</button></div>
+  <div class="plan-compare" aria-labelledby="t-cmp"><h3 id="t-cmp">Funções por plano</h3><div class="cmp-wrap"><table><thead><tr><th>Função</th><th>Essencial</th><th>Profissional</th><th>Grupo</th></tr></thead><tbody><tr><td>Fazendas</td><td>1</td><td>até 5</td><td>até 15*</td></tr><tr><td>Usuários</td><td>10</td><td>10 por fazenda</td><td>10 por fazenda</td></tr><tr><td>Visão geral, Mercado e Agenda</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Atividades contratadas (Café, Gado, Grãos)</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Estoque e equipamentos</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Compra de insumos: aviso do que está acabando</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Compra de insumos: melhor cotação e preço automático</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Contas a pagar e receber, resultados e custos</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Notas fiscais (NF-e, MDF-e, XML)</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Livro Caixa do Produtor Rural (LCDPR)</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Pós-colheita do café e monitoramento de pragas</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Reprodução, sanidade, GTA e gado de leite</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Uso no campo sem internet</td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Conciliação bancária</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Contratos de venda</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Pedidos de compra com aprovação</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Permissão por fazenda e atividade</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Histórico de alterações</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Visão consolidada de todas as fazendas</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Atendimento prioritário</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr><tr><td>Implantação acompanhada</td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-no" aria-label="Não incluído">—</span></td><td><span class="cmp-yes" aria-label="Incluído">✓</span></td></tr></tbody></table></div><p class="dica">* Mais de 15 fazendas: fale com a gente. Pós-colheita e pragas fazem parte do Café; reprodução, sanidade e leite fazem parte do Gado.</p></div>
+  <div id="subscriptionChoice" class="subscription-choice hidden" role="status" aria-live="polite"></div>
+  <div class="purchase-box">
+    <label for="buyerEmail">Seu e-mail para contratar<input id="buyerEmail" type="email" placeholder="voce@empresa.com.br" autocomplete="email"></label>
+    <div class="purchase-copy"><strong>Monte a assinatura que faz sentido para você.</strong><span>Pagamento seguro pelo Mercado Pago. Depois da confirmação você cria o Grupo e já começa a usar.</span></div>
+  </div>
+  <p id="paymentHint" class="dica plans-note">O porte define os limites de fazendas e usuários e as funções de gestão; as atividades são as que você selecionar. Valores em reais, cobrados pelo período escolhido.</p>
+</section>
+
+<section class="marketing-section faq-section" id="duvidas" aria-labelledby="t-duvidas">
+  <div class="marketing-heading"><span class="olho">Antes de escolher</span><h2 id="t-duvidas">Respostas para decidir com clareza.</h2><p>Entenda o acesso, os limites do plano e os primeiros passos.</p></div>
+  <div class="faq-list">
+    <details><summary>Como funciona o teste grátis?</summary><p>São 14 dias com as funções do Profissional, sem cartão. Ao terminar, o acesso pausa até a assinatura. Na hora de assinar, marque "Já tenho um Grupo de teste" e informe o código: seus dados continuam.</p></details>
+    <details><summary>Posso organizar os lotes por piquete?</summary><p>Sim. Cadastre os piquetes e atualize a localização de cada lote. A ficha do lote reúne categoria, número de cabeças, localização e pesagens.</p></details>
+    <details><summary>Funciona no computador e no celular?</summary><p>Sim. O acesso é pelo navegador, com telas adaptadas para computador e celular. No campo, sem sinal, o painel continua abrindo e guarda os lançamentos no aparelho; quando a internet volta, tudo é enviado sozinho.</p></details>
+    <details><summary>Quantas fazendas e pessoas cabem no plano?</summary><p>O Essencial permite 1 fazenda; o Profissional, até 5; e o Grupo, até 15 (mais que isso, fale com a gente). Cada fazenda permite até 10 usuários. O responsável cadastra os acessos da equipe.</p></details>
+    <details><summary>O preço maior é uma parcela ou o período inteiro?</summary><p>O valor mostrado é o total do período escolhido. No trimestral há 5% de desconto, no semestral 10% e no anual 20%; embaixo do preço aparece quanto isso dá por mês.</p></details>
+    <details><summary>O que acontece depois do pagamento?</summary><p>Após a confirmação, você cria seu grupo e o primeiro responsável (CEO). O sistema gera um Código do Grupo para o acesso. Esse responsável pode cadastrar fazendas e organizar os perfis da equipe.</p></details>
+    <details><summary>Todos os funcionários veem o financeiro?</summary><p>Não. O CEO vê tudo e escolhe quais páginas o cargo ADM abre, inclusive se ele pode ou não ver valores. Contribuintes registram o trabalho do dia na fazenda e nas atividades autorizadas.</p></details>
+    <details><summary>Posso conhecer as telas antes de contratar?</summary><p>Sim. <a href="#sistema">Explore a prévia do sistema</a> nesta página. As informações mostradas são exemplos para apresentar as funções e não pertencem a clientes.</p></details>
+  </div>
+</section>
+
+<section id="onboarding" class="onboarding hidden" aria-labelledby="t-onb">
+  <div class="cab">
+    <div><div class="olho">Assinatura confirmada</div><h2 id="t-onb">Crie seu Grupo e o primeiro CEO.</h2></div>
+    <p>Esse primeiro CEO terá acesso total e poderá cadastrar o restante da equipe.</p>
+  </div>
+  <form id="onboardingForm" class="onb-card">
+    <div class="onb-grid">
+      <label class="wide trial-convert"><input type="checkbox" id="hasTrial"> Já tenho um Grupo de teste e quero continuar com os mesmos dados</label>
+      <label for="trialGroupCode" class="trial-only hidden">Código do Grupo de teste<input id="trialGroupCode" name="trialGroupCode" inputmode="numeric" placeholder="Ex.: 4821"></label>
+      <label for="groupName">Nome do Grupo<input id="groupName" name="groupName" required placeholder="Ex.: Grupo Oliveira"></label>
+      <label for="ceoName">Nome do CEO<input id="ceoName" name="ceoName" required placeholder="Nome completo"></label>
+      <label for="ceoUser">Usuário do CEO<input id="ceoUser" name="ceoUser" required placeholder="Ex.: carlosoliveira" pattern="[a-zA-Z0-9._-]{3,30}"></label>
+      <label for="ceoPassword" class="wide">Senha do CEO<input id="ceoPassword" name="ceoPassword" type="password" minlength="8" required placeholder="Mínimo 8 caracteres"></label>
+    </div>
+    <div><button class="btn btn-cafe xl" type="submit">Criar meu Grupo</button></div>
+    <p class="dica">A compra só pode criar um Grupo. O Código do Grupo é gerado automaticamente.</p>
+  </form>
+  <div id="onboardingDone" class="onb-pronto hidden"></div>
+</section>
+
+<section class="cta" aria-labelledby="t-cta">
+  <div class="cta-in"><div><div class="olho">Sua próxima rotina, mais organizada</div><h2 id="t-cta">Acompanhe o rebanho. Organize a rotina.</h2><p>Comece pelo plano que acompanha o porte da sua operação.</p></div><div class="final-actions"><a class="btn hero-primary xl" href="#planos">Escolher meu plano</a><a href="/app?activity=cattle">Já sou cliente: entrar</a></div></div>
+</section>
+</main>
+
+<footer class="rodape-site"><div>
+  <span class="marca">Gestão</span>
+  <span>Gestão de gado, piquetes, lotes e manejos em um só lugar.</span>
+  <a href="/app?activity=cattle">Área do cliente</a>
+</div></footer>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="gg" cx="33%" cy="26%" r="90%"><stop offset="0" stop-color="#9a6644"/><stop offset=".3" stop-color="#6a3f28"/><stop offset=".7" stop-color="#3a1f12"/><stop offset="1" stop-color="#150905"/></radialGradient>
+    <linearGradient id="gs" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".5"/></linearGradient>
+    <radialGradient id="ghl"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="rug" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency=".55" numOctaves="3" seed="7" result="n"/><feSpecularLighting in="n" surfaceScale="2" specularConstant=".6" specularExponent="16" lighting-color="#ffd9a6" result="s"><feDistantLight azimuth="225" elevation="48"/></feSpecularLighting><feComposite in="s" in2="SourceAlpha" operator="in" result="sc"/><feComposite in="SourceGraphic" in2="sc" operator="arithmetic" k1="0" k2="1" k3=".55" k4="0"/></filter>
+    <g id="grao-simbolo">
+      <path d="M2 -62C33 -61 49 -32 47 3C45 38 27 63 -2 62C-31 61 -48 33 -46 -2C-44 -35 -26 -63 2 -62Z" fill="url(#gg)" filter="url(#rug)"/>
+      <path d="M2 -62C33 -61 49 -32 47 3C45 38 27 63 -2 62C-31 61 -48 33 -46 -2C-44 -35 -26 -63 2 -62Z" fill="url(#gs)"/>
+      <path d="M0 -58C-22 -32 20 -10 -2 16C-16 36 10 48 3 60" fill="none" stroke="#000" stroke-opacity=".38" stroke-width="14" stroke-linecap="round"/>
+      <path d="M0 -58C-22 -32 20 -10 -2 16C-16 36 10 48 3 60" fill="none" stroke="#070201" stroke-width="5.5" stroke-linecap="round"/>
+      <path d="M4 -58C-18 -32 24 -10 2 16C-12 36 14 48 7 60" fill="none" stroke="#b98058" stroke-opacity=".6" stroke-width="1.5" stroke-linecap="round"/>
+      <ellipse cx="-22" cy="-32" rx="12" ry="21" transform="rotate(28 -22 -32)" fill="url(#ghl)"/>
+    </g>
+    <radialGradient id="terraG" cx="40%" cy="30%" r="80%"><stop offset="0" stop-color="#c9784a"/><stop offset=".45" stop-color="#9a5530"/><stop offset="1" stop-color="#4a2412"/></radialGradient>
+    <linearGradient id="folhaG" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f8a3e"/><stop offset=".5" stop-color="#2f5f2a"/><stop offset="1" stop-color="#173818"/></linearGradient>
+    <linearGradient id="folhaB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".28"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <radialGradient id="cerejaG" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#ff7a5c"/><stop offset=".5" stop-color="#c0261a"/><stop offset="1" stop-color="#5e0d08"/></radialGradient>
+    <radialGradient id="verdeG" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#d7e27a"/><stop offset=".55" stop-color="#8aa83a"/><stop offset="1" stop-color="#3f5a14"/></radialGradient>
+    <filter id="terraTex" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="3" seed="11" result="n"/><feDiffuseLighting in="n" surfaceScale="3" lighting-color="#ffd2b0" result="l"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting><feComposite in="l" in2="SourceAlpha" operator="in" result="lc"/><feBlend in="SourceGraphic" in2="lc" mode="multiply"/></filter>
+    <radialGradient id="sombraG"><stop offset="0" stop-color="#000" stop-opacity=".6"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>
+</svg>
+<script src="inicio.js"></script>
+<script src="subscription-domain.js"></script>
+<script src="sales.js"></script>
+</body>
+</html>
+

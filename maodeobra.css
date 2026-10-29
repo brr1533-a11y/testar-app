@@ -1,0 +1,44 @@
+/* Mão de obra da colheita: tela do fiscal (celular, botões grandes) e impressão de recibos. */
+.hf{display:grid;gap:14px;padding-bottom:96px}
+.hf-top{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hf-top label{display:grid;gap:6px;font-weight:600}
+.hf-top select,.hf-top input,.hf-search{min-height:52px;font-size:17px;padding:0 12px;border-radius:12px}
+.hf-search{width:100%;border:1px solid rgba(0,0,0,.15)}
+.hf-closed{background:#fff6e0;border:1px solid #f0d58c}
+.hf-list{display:grid;gap:10px}
+.hf-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border-radius:16px;background:var(--card,#fff);border:1px solid rgba(0,0,0,.08)}
+.hf-row.on{border-color:#2f6b45;box-shadow:0 0 0 2px rgba(47,107,69,.15)}
+.hf-name{display:grid;gap:2px;min-width:0}
+.hf-name b{font-size:18px;overflow-wrap:anywhere}
+.hf-name small{opacity:.65;font-size:13px}
+.hf-ctrl{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.hf-btn{width:56px;height:56px;border-radius:14px;border:0;font-size:30px;font-weight:700;background:#ece6d8;color:#1a110c;cursor:pointer;touch-action:manipulation}
+.hf-btn.plus{background:#2f6b45;color:#fff}
+.hf-btn:disabled,.hf-day:disabled{opacity:.4}
+.hf-count{min-width:44px;text-align:center;font-size:24px;font-weight:700}
+.hf-day{height:56px;padding:0 14px;border-radius:14px;border:2px solid #9a791c;background:transparent;font-weight:700;font-size:15px;cursor:pointer}
+.hf-day.on{background:#9a791c;color:#fff}
+.hf-save{position:sticky;bottom:calc(76px + env(safe-area-inset-bottom));z-index:5;display:grid;gap:6px;padding:12px;border-radius:18px;background:rgba(246,241,231,.96);box-shadow:0 -4px 18px rgba(0,0,0,.08)}
+.hf-save-btn{min-height:60px;font-size:19px}
+.hf-done{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:6px}
+.hf-done li{display:flex;justify-content:space-between;align-items:center;gap:10px}
+@media(min-width:721px){.hf-save{bottom:12px}}
+@media(max-width:420px){.hf-top{grid-template-columns:1fr}.hf-btn{width:52px;height:52px}.hf-row{flex-wrap:wrap}.hf-ctrl{width:100%;justify-content:flex-end}}
+.lb-week{gap:10px;align-items:center}
+.lb-void td{opacity:.55;text-decoration:line-through}
+.lb-void td:last-child,.lb-void td:nth-child(5){text-decoration:none}
+.lb-safra{margin-top:18px}
+/* Recibos: fora da tela, só aparecem na impressão. */
+.print-receipts{position:absolute;left:-10000px;top:0}
+@media print{
+  body.printing-receipts>*:not(.print-receipts){display:none!important}
+  body.printing-receipts .print-receipts{position:static}
+  .receipt{page-break-inside:avoid;border:1px solid #000;border-radius:6px;padding:14px 18px;margin:0 0 14px;font:13px/1.5 Arial,sans-serif;color:#000}
+  .receipt h4{margin:0 0 4px;font-size:15px}.receipt p{margin:2px 0}
+  .receipt table{width:100%;border-collapse:collapse;margin:8px 0}.receipt td{padding:3px 0;border-bottom:1px dotted #999}.receipt td:last-child{text-align:right}
+  .receipt tr.total td{font-weight:700;border-bottom:2px solid #000}
+  .receipt .sign{margin-top:18px}
+}
+
+/* Modo de campo: passo a passo de instalar e usar sem internet */
+.field-steps ol{margin:8px 0 0;padding-left:20px;display:grid;gap:8px;line-height:1.5}

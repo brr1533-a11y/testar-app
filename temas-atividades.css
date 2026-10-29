@@ -1,0 +1,41 @@
+/* Identidade por atividade, mantendo contraste e componentes compartilhados. */
+body[data-activity=coffee]{--accent:#80613f;--accent-2:#60442c;--bg:#f5efe5;--surface:#fffdf8}
+body[data-activity=cattle]{--accent:#436046;--accent-2:#304c35;--bg:#f0f3ea;--surface:#fffef9}
+body[data-activity=grains]{--accent:#8b733d;--accent-2:#6f592b;--bg:#f6f1df;--surface:#fffdf5}
+body .main{background:var(--bg)}
+body .topbar{position:relative;background:transparent!important;backdrop-filter:none;border:0;min-height:72px;padding-top:22px;padding-bottom:8px}
+body .page-content{padding-top:20px}
+body[data-activity=coffee] .sidebar{background:linear-gradient(170deg,#35271e,#1d1712)}
+body[data-activity=cattle] .sidebar{background:linear-gradient(170deg,#344a36,#1c3024)}
+body[data-activity=grains] .sidebar{background:linear-gradient(170deg,#665c37,#343b26)}
+body[data-activity=coffee] .hero-surface{background:linear-gradient(90deg,rgba(38,22,14,.9),rgba(38,22,14,.35)),url('assets/cafe-paisagem.svg') center/cover;color:#fff8e9}
+body[data-activity=cattle] .hero-surface{background:linear-gradient(90deg,rgba(26,50,33,.9),rgba(26,50,33,.25)),url('assets/gado-paisagem.svg') center/cover;color:#f5f6e9}
+body[data-activity=grains] .hero-surface{background:linear-gradient(90deg,rgba(76,59,29,.9),rgba(76,59,29,.2)),url('assets/graos-paisagem.svg') center/cover;color:#fff7df}
+body[data-activity] .hero-surface .eyebrow{color:inherit;opacity:.8}
+body[data-activity] .hero-surface p{color:inherit;opacity:.88}
+body[data-activity=coffee] #appView :is(button,a,select,summary,[role=button],label[for],input[type=checkbox],input[type=file]){cursor:url('assets/cursor-cafe.svg') 16 16,pointer}
+body[data-login-activity=coffee] .login-art{background:linear-gradient(90deg,rgba(37,22,14,.85),rgba(37,22,14,.15)),url('assets/cafe-paisagem.svg') center/cover}
+body[data-login-activity=cattle] .login-art{background:linear-gradient(90deg,rgba(27,49,33,.65),rgba(27,49,33,.15)),url('assets/gado-paisagem.svg') center/cover}
+body[data-login-activity=grains] .login-art{background:linear-gradient(90deg,rgba(75,59,30,.65),rgba(75,59,30,.12)),url('assets/graos-paisagem.svg') center/cover}
+body[data-login-activity] .login-art::after{background:none}
+.choice-field{min-width:0;border:0;padding:0;margin:16px 0 0}.choice-field legend{font-size:13px;font-weight:600;margin-bottom:10px}.choice-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.choice-card{display:flex;align-items:center;gap:10px;min-height:56px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin:0;cursor:pointer}.choice-card:has(input:checked){border-color:var(--accent);background:var(--accent-soft)}.choice-card input{flex-shrink:0}.choice-card span{overflow-wrap:anywhere}
+.quantity-preview{display:grid;gap:8px;padding:14px;border-radius:12px;background:var(--accent-soft);margin-top:14px;font-size:13px}.quantity-preview output{font-weight:600}
+@media(max-width:480px){.choice-grid{grid-template-columns:1fr}.topbar{gap:10px}}
+
+.getting-started-inline{margin:18px 0 24px}.getting-started-inline h3{font-size:14px;margin:0 0 12px}.getting-started-inline .ops-step{display:flex;flex-direction:column;gap:7px;background:var(--surface);text-align:left;color:var(--ink);font:inherit;cursor:pointer}.getting-started-inline .ops-step:hover{border-color:var(--accent);background:var(--accent-soft)}.getting-started-inline .ops-step small{margin-top:auto;color:var(--accent);font-weight:600}.getting-started-inline .ops-step:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.dlg-grid>.choice-field.wide,.dlg-grid>.quantity-preview.wide{grid-column:1/-1}.choice-grid{grid-template-columns:repeat(2,minmax(0,1fr))}@media(max-width:480px){.choice-grid{grid-template-columns:1fr}}
+.ceo-donut-stats{min-width:0}.ceo-donut-stat strong{white-space:normal;overflow-wrap:anywhere}@media(max-width:1100px){.ceo-balance-card{grid-template-columns:minmax(0,1fr)}.ceo-donut-stat div{flex-wrap:wrap}}
+
+.dlg-grid [hidden]{display:none!important}
+body[data-activity] .hero-surface{padding:24px 28px;border-radius:18px;overflow:hidden;gap:16px}body[data-activity=coffee] .hero-surface{background-position:center 25%}@media(max-width:600px){body[data-activity] .hero-surface{padding:20px 18px}}
+
+/* Rolagem discreta, com trilho transparente e indicação ao interagir. */
+html{scrollbar-width:thin;scrollbar-color:transparent transparent}
+html:hover,html:focus-within{scrollbar-color:rgba(105,116,91,.35) transparent}
+html::-webkit-scrollbar{width:5px;height:5px}
+html::-webkit-scrollbar-track{background:transparent}
+html::-webkit-scrollbar-thumb{background:transparent;border-radius:10px}
+html:hover::-webkit-scrollbar-thumb,html:focus-within::-webkit-scrollbar-thumb{background:rgba(105,116,91,.35)}
+body[data-activity=coffee]{cursor:url('assets/cursor-cafe.svg') 16 16,auto}
+body:not([data-activity=coffee]){cursor:auto}

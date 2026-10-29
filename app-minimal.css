@@ -1,0 +1,37 @@
+/* Base neutra do painel; páginas de apresentação mantêm seus próprios temas. */
+body{--accent:#48634f;--accent-2:#354c3b;--accent-soft:#e9eee7;--dark:#1d2922}
+body[data-activity=coffee]{--accent:#786345;--accent-2:#5d4c34;--accent-soft:#f1ece3}
+body[data-activity=cattle]{--accent:#48634f;--accent-2:#354c3b;--accent-soft:#e9eee7}
+body[data-activity=grains]{--accent:#817039;--accent-2:#64562b;--accent-soft:#f0eddf}
+body .sidebar{background:#1d2922}
+body .nav-btn.active{background:rgba(238,244,235,.12)}
+body .nav-btn.active::before{background:#b5c4ac}
+body .logo-mark{background:#e4ebe1!important;background-image:none!important;box-shadow:none;color:#314638!important;font-size:12px!important;border-radius:9px}
+body .logo-mark::before,body .logo-mark::after{display:none!important}
+body .avatar{background:#657959;color:#fff}
+body .btn.primary:not(.danger),body .login-card .switch-btn.active{
+ background:var(--accent)!important;background-image:none!important;border:1px solid var(--accent)!important;
+ color:#fff!important;text-shadow:none;box-shadow:none;filter:none;transform:none
+}
+body .btn.primary:not(.danger):hover{background:var(--accent-2)!important;border-color:var(--accent-2)!important;box-shadow:none;filter:none;transform:none}
+body .btn.primary:not(.danger):active,body .login-card .switch-btn.active:active{transform:translateY(1px);box-shadow:none}
+body .btn::after,body .switch-btn::after,body .nav-btn:not(.mode-switch-btn)::after{display:none}
+body .mode-switch-btn::after{background:#b5c4ac!important;box-shadow:none!important}
+body :is(button,a,select,summary,[role=button],label[for],.nav-btn,.btn,.switch-btn,input[type=checkbox],input[type=file]){cursor:pointer}
+body .login-art{background:radial-gradient(ellipse at 85% 15%,rgba(149,174,135,.18),transparent 55%),linear-gradient(155deg,#304238,#1c2b23);padding-top:clamp(36px,5vw,72px)}
+body .login-art::after{background:repeating-linear-gradient(162deg,transparent 0 85px,rgba(216,230,205,.035) 86px 87px);opacity:1}
+body .login-copy{margin:auto 0;max-width:570px}
+body .login-copy h1{font-size:clamp(32px,3.6vw,52px);line-height:1.12}
+body .harvest-note{border-color:rgba(233,243,225,.16)}
+body .login-card{box-shadow:0 14px 45px -28px rgba(28,43,35,.25);border-radius:16px}
+body .auth-switch{box-shadow:none;background:#eeeee5}
+body .login-card .switch-btn{font-size:13px}
+body .login-panel .eyebrow{color:#48634f}
+body .login-panel .auth-link{color:#48634f}
+#navMenu{scrollbar-width:thin;scrollbar-color:transparent transparent}
+#navMenu:hover,#navMenu:focus-within{scrollbar-color:rgba(225,236,217,.28) transparent}
+#navMenu::-webkit-scrollbar{width:4px;height:4px}
+#navMenu::-webkit-scrollbar-track{background:transparent}
+#navMenu::-webkit-scrollbar-thumb{background:transparent;border-radius:10px}
+#navMenu:hover::-webkit-scrollbar-thumb,#navMenu:focus-within::-webkit-scrollbar-thumb{background:rgba(225,236,217,.28)}
+#navMenu:focus-visible{outline:1px solid rgba(225,236,217,.4);outline-offset:3px}
