@@ -57,7 +57,7 @@ test('fechar a semana trava os lançamentos e gera uma conta a pagar por pessoa,
   assert.throws(() => run(s, f => f.labor.closings.push({ id: 'c2', weekStart: week, weekEnd: H.weekEnd(week), lines: [] })), /já foi fechada/);
 });
 
-test('fiscal: lança sacos e diárias, mas não cria pessoas, valores, adiantamentos ou fechamentos, nem corrige o lançamento de outro', () => {
+test('fiscal: lança sacos e diárias e inclui pessoa nova (só nome e função), mas não cria valores, adiantamentos ou fechamentos, nem corrige o lançamento de outro', () => {
   const fiscal = { role: 'contribuinte', function: H.FISCAL, name: 'Fiscal', labor: 'fiscal' };
   const s = { farms: [farm()] };
   const a = run(s, f => {
@@ -68,7 +68,7 @@ test('fiscal: lança sacos e diárias, mas não cria pessoas, valores, adiantame
   }, fiscal);
   const L = a.farms[0].labor;
   assert.equal(L.entries[0].rate, 15); assert.equal(L.entries[0].recordedBy, 'Fiscal');
-  assert.equal(L.workers.length, 2); assert.equal(L.adjustments.length, 0); assert.equal(L.closings.length, 0);
+  assert.equal(L.workers.length, 3); assert.equal(L.workers[2].pendingData, true); assert.equal(L.adjustments.length, 0); assert.equal(L.closings.length, 0);
   assert.throws(() => run(a, f => { f.labor.entries[0].bags = 50; }, { ...fiscal, name: 'Outro fiscal' }), /próprios apontamentos/);
   // A visão do fiscal não tem CPF, Pix, valores nem adiantamentos.
   const seen = H.forFiscal(a.farms[0].labor);
@@ -97,4 +97,25 @@ test('API: fiscal de colheita só recebe a tela de apontamento e o CEO fecha a s
   full = (await api('/api/state', ceo)).json.state.farms[0];
   assert.deepEqual(full.management.payables.filter(p => p.laborClosingId).map(p => [p.supplier, p.amount]).sort(), [['Ana', 100], ['Beto', 80]]);
   assert.equal((await put(fis, st => st.farms[0].labor.entries.push({ id: 'ap3', date: day(1), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 1 }))).status, 403);
+});
+
+test('fiscal cadastra pessoa nova só com nome e função; apontamento sem valor trava o fechamento até o escritório definir', () => {
+  const fiscal = { role: 'contribuinte', function: H.FISCAL, name: 'Fiscal', labor: 'fiscal' };
+  let s = run({ farms: [farm()] }, f => {
+    f.labor.workers.push({ id: 'nova', name: '  Rita  ', role: 'diarista', cpf: '52998224725', pix: 'x', dailyRate: 500, active: true });
+    f.labor.workers[0].name = 'Ana Trocada';
+    f.labor.entries.push({ id: 'd1', date: day(0), plotId: 'fraco', workerId: 'nova', kind: 'diaria' });
+  }, fiscal);
+  const rita = s.farms[0].labor.workers.find(w => w.id === 'nova');
+  assert.deepEqual([rita.name, rita.role, rita.pendingData, rita.cpf, rita.dailyRate], ['Rita', 'diarista', true, undefined, undefined]);
+  assert.equal(s.farms[0].labor.workers.find(w => w.id === 'ana').name, 'Ana'); // pessoa existente não muda
+  assert.equal(s.farms[0].labor.entries[0].rate, null); // sem diária: apontamento aceito, sem valor
+  assert.equal(H.pendingRates(s.farms[0].labor, week).length, 1);
+  assert.throws(() => run(s, f => f.labor.closings.push({ id: 'c1', weekStart: week, weekEnd: H.weekEnd(week), lines: [] })), /sem valor nesta semana \(Rita\)/);
+  // O escritório completa a diária: o valor entra no apontamento e a semana fecha.
+  s = run(s, f => { Object.assign(f.labor.workers.find(w => w.id === 'nova'), { dailyRate: 100, pendingData: false }); });
+  assert.equal(s.farms[0].labor.entries[0].rate, 100);
+  s = run(s, f => f.labor.closings.push({ id: 'c1', weekStart: week, weekEnd: H.weekEnd(week), lines: [] }));
+  assert.deepEqual(s.farms[0].management.payables.map(p => [p.supplier, p.amount]), [['Rita', 100]]);
+  assert.throws(() => run({ farms: [farm()] }, f => f.labor.workers.push({ id: 'semnome', name: ' ', role: 'panhador' }), fiscal), /nome e a função/);
 });
