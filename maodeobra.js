@@ -198,8 +198,8 @@ async function laborReceipts(farm, c) {
 // Safras e produção (café): sacos colhidos da roça por talhão, só leitura. Rendimento e custo por saca ficam para depois.
 {
   const pageBefore = renderPage;
-  renderPage = function () {
-    pageBefore();
+  renderPage = function (options) {
+    pageBefore(options);
     if (currentPage !== 'safras' || selectedType() !== 'coffee' || !isLaborManager() || isGeneralView() || (typeof ruralSeasonSelection !== 'undefined' && ruralSeasonSelection)) return;
     const farm = activeFarm(); if (!farm?.labor?.entries?.length) return;
     const open = (farm.agriculture?.cycles || []).filter(c => c.activity === 'coffee' && c.stage !== 'Encerrada' && !c.archived);

@@ -2,7 +2,7 @@
  * Valores reais, SVG acessível, casos vazios/zero e movimento reduzido. */
 (function(){
  'use strict';
- const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const reduced=()=>window.matchMedia('(prefers-reduced-motion: reduce)').matches || Boolean(document.getElementById('pageContent')?.classList.contains('sync-refresh'));
  function line(svg,values,labels,unit=''){
   const data=values.map(Number);if(!data.length||data.some(v=>!Number.isFinite(v)))return;
   const path=svg.querySelector('.traco'),dots=svg.querySelector('.pontos');

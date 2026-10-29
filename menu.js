@@ -58,8 +58,8 @@ function menuActive(page) { return TAB_PARENT[page] || ({ 'finance-entradas': 'f
 // Abas no topo das páginas que juntaram duas telas.
 {
   const pageBefore = renderPage;
-  renderPage = function () {
-    pageBefore();
+  renderPage = function (options) {
+    pageBefore(options);
     // Teste grátis: dias restantes no topo (o CEO vê o atalho para assinar).
     const trial = currentGroup?.trial;
     if (trial && currentUser && currentUser.role !== 'contribuinte') {

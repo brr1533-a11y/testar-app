@@ -35,3 +35,6 @@ body .login-panel .auth-link{color:#48634f}
 #navMenu::-webkit-scrollbar-thumb{background:transparent;border-radius:10px}
 #navMenu:hover::-webkit-scrollbar-thumb,#navMenu:focus-within::-webkit-scrollbar-thumb{background:rgba(225,236,217,.28)}
 #navMenu:focus-visible{outline:1px solid rgba(225,236,217,.4);outline-offset:3px}
+
+/* A sincronização atualiza os dados sem repetir a entrada dos cartões. */
+#pageContent.sync-refresh>*,#pageContent.sync-refresh .grid>*,#pageContent.sync-refresh .bar,#pageContent.sync-refresh .ceo-donut{animation:none!important}

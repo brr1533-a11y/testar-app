@@ -91,7 +91,9 @@ function askForm({ title, text = "", fields = [], okText = "Salvar", danger = fa
 // ---------- Junção de alterações (três vias) ----------
 // base = última versão do servidor que esta tela conhecia; local = como está nesta tela; remote = versão nova do servidor.
 // O que só um lado mudou é mantido. Itens de listas são casados pelo id, então dois lançamentos novos nunca se apagam.
-const sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// PostgreSQL JSONB pode devolver as chaves em outra ordem; isso não é uma edição.
+const orderedJSON = value => JSON.stringify(value, (key, item) => item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.keys(item).sort().map(k => [k, item[k]])) : item);
+const sameJSON = (a, b) => orderedJSON(a) === orderedJSON(b);
 function isIdList(arr) { return Array.isArray(arr) && arr.length > 0 && arr.every(x => x && typeof x === "object" && "id" in x); }
 function merge3(base, local, remote) {
   if (sameJSON(local, base)) return remote === undefined ? undefined : JSON.parse(JSON.stringify(remote));
@@ -331,6 +333,8 @@ let serverBase = null;      // última versão do servidor conhecida por esta te
 let serverRev = 0;
 let syncRetryTimer = null;
 let pendingRerender = false;
+let lastRenderedPageState = "";
+let lastEntryPageKey = "";
 let formDirty = false;
 let cattleSubView = "lots";
 let selectedCattleLotId = "";
@@ -502,6 +506,18 @@ function setSyncStatus(kind, text) {
   el.querySelector("span").textContent = text;
   el.title = text;
 }
+function showSyncFailure(error) {
+  if (!navigator.onLine) {
+    const stored = typeof FieldMode !== "undefined" && FieldMode.enabled();
+    setSyncStatus("offline", hasLocalChanges() ? (stored ? "Sem internet · alterações no cofre deste aparelho" : "Sem internet · alterações pendentes nesta sessão") : "Sem internet");
+  } else if (error?.status === 409) {
+    setSyncStatus("error", "Muitas alterações simultâneas · tentando novamente");
+  } else if (error?.status) {
+    setSyncStatus("error", "Falha do servidor (HTTP " + error.status + ") · tentando novamente");
+  } else {
+    setSyncStatus("error", "Não foi possível alcançar o servidor · tentando novamente");
+  }
+}
 function hasLocalChanges() { return Boolean(serverBase) && !sameJSON(data, serverBase); }
 function saveData() {
   formDirty = false;
@@ -524,12 +540,14 @@ function adoptServerPayload(payload) {
 async function pushStateToServer(attempt = 0) {
   if (!currentUser || !cloudToken) return;
   // Sem sinal: fica no cofre do aparelho e sobe quando a conexão voltar.
-  if (!navigator.onLine) { setSyncStatus("offline", "Modo de campo · alterações guardadas no aparelho"); if (typeof FieldMode !== "undefined") FieldMode.schedule(); return; }
+  if (!navigator.onLine) { showSyncFailure(); if (typeof FieldMode !== "undefined") FieldMode.schedule(); return; }
   if (cloudSaving) { cloudSaveAgain = true; return; }
   if (!hasLocalChanges() && attempt === 0 && serverBase) { setSyncStatus("ok", "Salvo"); return; }
   cloudSaving = true;
   clearTimeout(syncRetryTimer);
+  syncRetryTimer = null;
   const sent = JSON.parse(JSON.stringify(data));
+  let retryAttempt = null;
   try {
     const payload = await api("/api/state", { method: "PUT", body: JSON.stringify({ state: sent, baseRev: serverRev }) });
     const fresh = adoptServerPayload(payload);
@@ -546,8 +564,8 @@ async function pushStateToServer(attempt = 0) {
       const remote = adoptServerPayload(error.payload);
       replaceData(merge3(base, data, remote));
       afterServerUpdate(true);
-      cloudSaving = false;
-      return pushStateToServer(attempt + 1);
+      retryAttempt = attempt + 1;
+      return;
     }
     if (error.status === 401) return logout(true);
     if (error.status === 403 && error.payload?.status === "suspended") return logout(true);
@@ -562,12 +580,14 @@ async function pushStateToServer(attempt = 0) {
     }
     else {
       console.error("Falha ao sincronizar:", error);
-      setSyncStatus("offline", hasLocalChanges() ? "Sem internet · lançamentos guardados no aparelho" : "Sem conexão. Tentando de novo…");
+      showSyncFailure(error);
       syncRetryTimer = setTimeout(() => pushStateToServer(), 15000);
     }
   } finally {
     cloudSaving = false;
-    if (cloudSaveAgain) { cloudSaveAgain = false; pushStateToServer(); }
+    // A próxima tentativa só começa depois de liberar esta gravação.
+    if (retryAttempt !== null) return pushStateToServer(retryAttempt);
+    if (cloudSaveAgain) { cloudSaveAgain = false; if (!syncRetryTimer) pushStateToServer(); }
   }
 }
 function isUserEditing() {
@@ -575,12 +595,28 @@ function isUserEditing() {
   const typing = el && el.closest && el.closest("#pageContent, .dlg") && /^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName);
   return Boolean(typing || formDirty || document.querySelector(".dlg-back"));
 }
+// Atualizações de sincronização só redesenham quando o conteúdo realmente mudou.
+function pageRenderFingerprint() {
+  const { _rev, audit, ...state } = data;
+  return orderedJSON({ page: currentPage, farm: activeFarmId, mode: selectedType(), userId: currentUser?.id, group: currentGroup, state, audit: currentPage === "historico" ? audit : undefined });
+}
+function animatePageEntry() {
+  const key = currentPage + "|" + activeFarmId + "|" + selectedType();
+  if (key === lastEntryPageKey) return;
+  lastEntryPageKey = key;
+  const pc = $("#pageContent");
+  [...pc.children].forEach((el, i) => el.style.setProperty("--i", Math.min(i, 6)));
+  pc.querySelectorAll(".grid").forEach(g => [...g.children].forEach((el, i) => el.style.setProperty("--i", Math.min(i + 1, 6))));
+  pc.setAttribute("data-enter", "");
+  window.__enter = setTimeout(() => pc.removeAttribute("data-enter"), 1400);
+}
 function afterServerUpdate(forceRender) {
   const previousUsername = currentUser?.username;
   currentUser = data.users.find(u => u.id === currentUser?.id) || data.users.find(u => u.username === previousUsername) || currentUser;
   writeCache();
   updateGroupBrand();
   if ($("#appView").classList.contains("hidden") || !currentUser) return;
+  if (!forceRender && lastRenderedPageState === pageRenderFingerprint()) return;
   if (isUserEditing() && !forceRender) { pendingRerender = true; return; }
   rerenderAfterSync();
 }
@@ -589,7 +625,7 @@ function rerenderAfterSync() {
   if (currentUser.role === "contribuinte") activeFarmId = preferredFarmForUser(currentUser);
   else if (!isGeneralView() && !data.farms.some(f => f.id === activeFarmId)) activeFarmId = preferredFarmForUser(currentUser);
   const y = window.scrollY;
-  renderFarmSelector(); renderNav(); renderPage();
+  renderFarmSelector(); renderNav(); renderPage({ animate: false });
   window.scrollTo(0, y);
 }
 
@@ -621,7 +657,7 @@ async function pullStateFromServer({ rerender = true } = {}) {
     if (error.status === 428) mustChangePasswordAgain();
     else if (error.status === 402 && error.payload?.trialExpired) { logout(true); showTrialEnded(error.message); }
     else if (error.status === 401 || error.status === 403) logout(true);
-    else if (rerender) setSyncStatus("offline", hasLocalChanges() ? "Sem internet · lançamentos guardados no aparelho" : "Sem conexão. Tentando de novo…");
+    else if (rerender) showSyncFailure(error);
     return false;
   }
 }
@@ -1170,7 +1206,11 @@ function openApp() {
   if (selectedType() === "coffee" && currentUser.role !== "contribuinte") refreshQuote(); else $("#quoteMini").classList.add("hidden");
 }
 
-function renderPage() {
+function renderPage({ animate = true } = {}) {
+  const pageContent = $("#pageContent");
+  pageContent.classList.toggle("sync-refresh", !animate);
+  pageContent.removeAttribute("data-enter");
+  clearTimeout(window.__enter);
   document.body.dataset.activity=selectedType()||"coffee";
   formDirty = false;
   pendingRerender = false;
@@ -1236,6 +1276,8 @@ function renderPage() {
   };
   pages[currentPage]();
   enhanceTables();
+  lastRenderedPageState = pageRenderFingerprint();
+  if (animate) animatePageEntry();
 }
 
 async function refreshQuote() {
@@ -2778,20 +2820,6 @@ syncRegisterFields();
 $("#logoutBtn").onclick = () => logout(false);
 $("#logoutTop").innerHTML = ico("logout");
 $("#logoutTop").onclick = () => logout(false);
-{
-  const pc = $("#pageContent");
-  let lastKey = "";
-  new MutationObserver(() => {
-    const key = currentPage + "|" + activeFarmId;
-    if (key === lastKey) return;
-    lastKey = key;
-    [...pc.children].forEach((el, i) => el.style.setProperty("--i", i));
-    pc.querySelectorAll(".grid").forEach(g => [...g.children].forEach((el, i) => el.style.setProperty("--i", i + 1)));
-    pc.setAttribute("data-enter", "");
-    clearTimeout(window.__enter);
-    window.__enter = setTimeout(() => pc.removeAttribute("data-enter"), 1400);
-  }).observe(pc, { childList: true });
-}
 showAuthMode("login");
 const requestedTheme=new URLSearchParams(location.search).get("activity");if(RuralDomain.ACTIVITIES.includes(requestedTheme))document.body.dataset.loginActivity=requestedTheme;
 restoreSession();
