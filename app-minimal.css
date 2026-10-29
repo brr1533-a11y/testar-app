@@ -38,3 +38,5 @@ body .login-panel .auth-link{color:#48634f}
 
 /* A sincronização atualiza os dados sem repetir a entrada dos cartões. */
 #pageContent.sync-refresh>*,#pageContent.sync-refresh .grid>*,#pageContent.sync-refresh .bar,#pageContent.sync-refresh .ceo-donut{animation:none!important}
+
+.remember-login{display:flex!important;flex-direction:row!important;align-items:center;gap:.65rem;font-size:.9rem}.remember-login input{width:18px!important;height:18px;min-height:18px;margin:0;flex:none;accent-color:var(--gold,#8a6a29)}.session-restore{min-height:100dvh;display:grid;place-content:center;padding:24px;background:var(--bg,#f5f0e7);color:var(--ink,#30251c)}

@@ -323,7 +323,33 @@ let currentPage = "dashboard";
 let activeFarmId = data.farms[0]?.id || "";
 let quote = null;
 let marketRefreshTimer = null;
-let cloudToken = sessionStorage.getItem("gestaoRuralToken") || "";
+const SAVED_SESSION_KEY = "gestaoRuralSessaoLembrada";
+function savedDeviceSession() {
+  try {
+    const record = JSON.parse(localStorage.getItem(SAVED_SESSION_KEY) || "null");
+    if (record && typeof record.token === "string" && record.token && Date.parse(record.expiresAt) > Date.now()) return record;
+    localStorage.removeItem(SAVED_SESSION_KEY);
+  } catch (_) {}
+  return null;
+}
+function tabSessionToken() { try { return sessionStorage.getItem("gestaoRuralToken") || ""; } catch (_) { return ""; } }
+let keepSignedIn = Boolean(savedDeviceSession());
+let sessionExpiresAt = savedDeviceSession()?.expiresAt || "";
+let cloudToken = tabSessionToken() || savedDeviceSession()?.token || "";
+function storeSessionToken(token, expiresAt) {
+  cloudToken = token;
+  if (expiresAt) sessionExpiresAt = expiresAt;
+  try { sessionStorage.setItem("gestaoRuralToken", token); } catch (_) {}
+  try {
+    if (keepSignedIn && Date.parse(sessionExpiresAt) > Date.now()) localStorage.setItem(SAVED_SESSION_KEY, JSON.stringify({ token, expiresAt: sessionExpiresAt }));
+    else localStorage.removeItem(SAVED_SESSION_KEY);
+  } catch (_) { keepSignedIn = false; toast("Acesso aberto. Este navegador não permitiu manter a sessão após fechar."); }
+}
+function forgetDeviceSession() {
+  keepSignedIn = false; sessionExpiresAt = "";
+  try { sessionStorage.removeItem("gestaoRuralToken"); } catch (_) {}
+  try { localStorage.removeItem(SAVED_SESSION_KEY); } catch (_) {}
+}
 let currentGroup = null;
 let cloudSaveTimer = null;
 let cloudSyncTimer = null;
@@ -788,9 +814,9 @@ async function login(groupCode, username, password) {
       method: "POST",
       body: JSON.stringify({ groupCode, username, password })
     });
-    cloudToken = payload.token;
+    keepSignedIn = Boolean($("#rememberLogin")?.checked);
+    storeSessionToken(payload.token, payload.expiresAt);
     currentGroup = payload.group;
-    sessionStorage.setItem("gestaoRuralToken", cloudToken);
     localStorage.setItem("lastGroupCode", currentGroup.code || groupCode);
     localStorage.setItem("lastGroupSlug", currentGroup.slug || "");
     if ($("#loginGroup")) $("#loginGroup").value = currentGroup.code || groupCode;
@@ -862,7 +888,7 @@ async function forcePasswordChange(currentPassword) {
     if (v.newPassword !== v.confirm) { toast("As duas senhas não são iguais."); continue; }
     try {
       const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword: v.newPassword }) });
-      cloudToken = r.token; sessionStorage.setItem("gestaoRuralToken", cloudToken);
+      storeSessionToken(r.token, r.expiresAt);
       toast("Senha alterada.");
       return true;
     } catch (e) { toast(e.message); }
@@ -884,24 +910,32 @@ async function changeOwnPassword() {
   if (v.newPassword !== v.confirm) return toast("As duas senhas não são iguais.");
   try {
     const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword: v.currentPassword, newPassword: v.newPassword }) });
-    cloudToken = r.token; sessionStorage.setItem("gestaoRuralToken", cloudToken);
+    storeSessionToken(r.token, r.expiresAt);
     absorbServerPayload(r);
     toast("Senha alterada. Os outros aparelhos foram desconectados.");
   } catch (e) { toast(e.message); }
 }
 
 async function restoreSession() {
-  cloudToken = sessionStorage.getItem("gestaoRuralToken") || "";
+  cloudToken = tabSessionToken() || savedDeviceSession()?.token || "";
   const urlGroup = new URLSearchParams(location.search).get("grupo");
   const lastGroup = urlGroup || localStorage.getItem("lastGroupCode") || "1001";
   if ($("#loginGroup")) $("#loginGroup").value = lastGroup;
   if ($("#registerGroup")) $("#registerGroup").value = lastGroup;
-  if (!cloudToken) return;
-  const payload = await pullStateFromServer({ rerender: false });
-  if (payload && currentUser) {
-    activeFarmId = preferredFarmForUser(currentUser);
-    openApp();
-    startCloudSync();
+  if ($("#rememberLogin")) $("#rememberLogin").checked = keepSignedIn;
+  if (!cloudToken || !navigator.onLine) return;
+  $("#loginView").classList.add("hidden");
+  $("#sessionRestore").classList.remove("hidden");
+  try {
+    const payload = await pullStateFromServer({ rerender: false });
+    if (payload && currentUser) {
+      activeFarmId = preferredFarmForUser(currentUser);
+      openApp();
+      startCloudSync();
+    }
+  } finally {
+    $("#sessionRestore").classList.add("hidden");
+    if (!currentUser) $("#loginView").classList.remove("hidden");
   }
 }
 
@@ -919,7 +953,7 @@ async function logout(silent = false) {
   cloudToken = "";
   clearInterval(cloudSyncTimer);
   clearTimeout(cloudSaveTimer);
-  sessionStorage.removeItem("gestaoRuralToken");
+  forgetDeviceSession();
   clearTimeout(syncRetryTimer);
   // Sessão vencida (saída automática) não apaga lançamentos feitos sem internet que ainda não foram enviados; sair pelo botão apaga.
   try { Object.keys(localStorage).filter(k => k.startsWith(STORAGE_KEY)).forEach(k => localStorage.removeItem(k)); Object.keys(sessionStorage).filter(k => k.startsWith(STORAGE_KEY)).forEach(k => sessionStorage.removeItem(k)); } catch (_) {}
@@ -2308,7 +2342,7 @@ function renderProfile() {
   $("#changePassBtn").onclick = changeOwnPassword;
   $("#logoutOthersBtn").onclick = async () => {
     if (!await ask("Encerrar todas as outras sessões deste usuário? Este aparelho continuará conectado.", { title: "Outros aparelhos", okText: "Encerrar sessões" })) return;
-    try { const r = await api("/api/auth/logout-others", { method: "POST" }); cloudToken = r.token; sessionStorage.setItem("gestaoRuralToken", cloudToken); toast(r.message || "Outros aparelhos desconectados."); } catch (e) { toast(e.message); }
+    try { const r = await api("/api/auth/logout-others", { method: "POST" }); storeSessionToken(r.token, r.expiresAt); toast(r.message || "Outros aparelhos desconectados."); } catch (e) { toast(e.message); }
   };
   $("#changeEmailBtn").onclick = async () => {
     const v = await askForm({ title: "Alterar e-mail", text: "Esse e-mail é usado para recuperar sua senha.", okText: "Alterar e-mail", fields: [
