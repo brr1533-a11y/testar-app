@@ -1458,7 +1458,7 @@ app.put("/api/state", auth, async (req, res, next) => {
     const allowedState = mergeStateByRole(group.state, incoming, user);
     if (user.role === "contribuinte" && user.function === HarvestLabor.FISCAL) {
       const sent = (incoming.farms || []).find(f => String(f.id) === String(user.allowedFarmId)), mine = (allowedState.farms || []).find(f => String(f.id) === String(user.allowedFarmId));
-      if (sent && mine) mine.labor = { ...(mine.labor || {}), entries: Array.isArray(sent.labor?.entries) ? sent.labor.entries : [] };
+      if (sent && mine) mine.labor = { ...(mine.labor || {}), entries: Array.isArray(sent.labor?.entries) ? sent.labor.entries : [], workers: Array.isArray(sent.labor?.workers) ? sent.labor.workers : (mine.labor?.workers || []) };
     }
     // Funções que o plano não inclui (cotações, conciliação, contratos, pedidos de compra) ficam como estavam.
     PlanFeatures.restoreLocked(before, allowedState, group.plan);

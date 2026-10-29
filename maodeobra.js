@@ -14,7 +14,7 @@ function laborChange(farm, change) {
   try {
     const live = data.farms.find(x => x.id === farm.id) || farm;
     const f = JSON.parse(JSON.stringify(live)); HarvestLabor.init(f); change(f.labor, f);
-    if (!isFiscal()) { for (const e of f.labor.entries) if (!e.rate) e.rate = HarvestLabor.rateFor(f.labor, e) || 0; HarvestLabor.validateFarm(f); }
+    if (!isFiscal()) { for (const e of f.labor.entries) if (e.rate == null && !e.voided) { const r = HarvestLabor.rateFor(f.labor, e); if (r) e.rate = r; } HarvestLabor.validateFarm(f); }
     Object.assign(live, f); saveData(); return true;
   } catch (e) { toast(e.message); return false; }
 }
@@ -53,10 +53,10 @@ function renderHarvestField() {
       <label>Data<input type="date" id="hfDate" value="${hfDate}" max="${todayISO()}"></label>
     </div>
     ${closed ? '<div class="card hf-closed">Esta semana já foi fechada. Escolha outra data.</div>' : ''}
-    ${!L.workers.length ? `<div class="card empty">Nenhuma pessoa cadastrada. ${isLaborManager() ? 'Cadastre em Lavoura › Mão de obra da colheita.' : 'Peça ao responsável para cadastrar a turma.'}</div>` : ''}
-    ${L.workers.length > 12 ? `<input class="hf-search" id="hfSearch" type="search" placeholder="Procurar pessoa" value="${lbEsc(hfSearch)}">` : ''}
+    ${!L.workers.length ? `<div class="card empty">Nenhuma pessoa cadastrada ainda. Toque em <b>+ Nova pessoa</b> para incluir quem está colhendo.</div>` : ''}
+    <div class="hf-tools">${L.workers.length > 12 ? `<input class="hf-search" id="hfSearch" type="search" placeholder="Procurar pessoa" value="${lbEsc(hfSearch)}">` : ''}<button type="button" class="btn hf-new" id="hfNewWorker">+ Nova pessoa</button></div>
     <div class="hf-list">${workers.map(w => { const c = hfCounts[w.id] || { bags: 0, diaria: false }, prev = doneBy(w.id), prevBags = prev.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0), prevDay = prev.some(e => e.kind === 'diaria');
-      return `<div class="hf-row ${c.bags || c.diaria ? 'on' : ''}"><div class="hf-name"><b>${lbEsc(w.name)}</b><small>${lbEsc(HarvestLabor.ROLES[w.role] || '')}${prevBags ? ` · já lançado: ${lbNum(prevBags, 1)} sc` : ''}${prevDay ? ' · diária lançada' : ''}</small></div>
+      return `<div class="hf-row ${c.bags || c.diaria ? 'on' : ''}"><div class="hf-name"><b>${lbEsc(w.name)}</b><small>${lbEsc(HarvestLabor.ROLES[w.role] || '')}${w.pendingData ? ' · cadastro novo' : ''}${prevBags ? ` · já lançado: ${lbNum(prevBags, 1)} sc` : ''}${prevDay ? ' · diária lançada' : ''}</small></div>
         <div class="hf-ctrl">${w.role === 'diarista' ? '' : `<button type="button" class="hf-btn" data-w="${lbEsc(w.id)}" data-d="-1" aria-label="Menos um saco" ${closed ? 'disabled' : ''}>−</button><span class="hf-count" aria-live="polite">${lbNum(c.bags, 1)}</span><button type="button" class="hf-btn plus" data-w="${lbEsc(w.id)}" data-d="1" aria-label="Mais um saco" ${closed ? 'disabled' : ''}>+</button>`}
         <button type="button" class="hf-day ${c.diaria ? 'on' : ''}" data-w="${lbEsc(w.id)}" ${closed || prevDay ? 'disabled' : ''}>Diária</button></div></div>`; }).join('')}</div>
     <div class="hf-save"><button class="btn primary hf-save-btn" id="hfSave" ${pending.length && !closed ? '' : 'disabled'}>Salvar ${pending.length ? pending.length + (pending.length > 1 ? ' pessoas' : ' pessoa') : ''}</button><span class="muted">${navigator.onLine ? 'Conectado' : 'Sem internet: fica guardado no aparelho (Modo de campo) e envia quando pegar sinal.'}</span></div>
@@ -72,8 +72,15 @@ function renderHarvestField() {
     if (!hfPlot) return toast('Escolha o talhão.');
     const rows = Object.entries(hfCounts).flatMap(([workerId, c]) => [...(c.bags > 0 ? [{ id: uid(), date: hfDate, plotId: hfPlot, workerId, kind: 'saco', bags: c.bags }] : []), ...(c.diaria ? [{ id: uid(), date: hfDate, plotId: hfPlot, workerId, kind: 'diaria' }] : [])]);
     if (!rows.length) return;
-    if (isLaborManager()) for (const r of rows) if (!HarvestLabor.rateFor(farm.labor, r)) return toast(r.kind === 'diaria' ? 'Defina a diária de ' + (farm.labor.workers.find(w => w.id === r.workerId)?.name || 'pessoa') + ' em Mão de obra › Pessoas.' : 'Defina o valor do saco deste talhão em Mão de obra › Valores por talhão.');
-    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) salvo(s).`); renderHarvestField(); }
+    const noRate = isLaborManager() ? rows.filter(r => !HarvestLabor.rateFor(farm.labor, r)).length : 0;
+    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) salvo(s).` + (noRate ? ` ${noRate} sem valor: defina a diária ou o valor do saco antes de fechar a semana.` : '')); renderHarvestField(); }
+  };
+  $('#hfNewWorker').onclick = async () => {
+    const v = await askForm({ title: 'Nova pessoa', text: isFiscal() ? 'Só o nome e a função. O escritório completa CPF, Pix e valores depois.' : 'Cadastro rápido. Complete CPF, Pix e diária em Mão de obra › Pessoas.', fields: [{ name: 'name', label: 'Nome', required: true, autofocus: true }, { name: 'role', label: 'Função', type: 'select', value: 'panhador', options: Object.entries(HarvestLabor.ROLES) }] });
+    if (!v || !v.name.trim()) return;
+    const name = v.name.trim();
+    if (farm.labor.workers.some(w => w.active !== false && w.name.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR'))) return toast('Já existe uma pessoa ativa com esse nome.');
+    if (laborChange(farm, Lb => Lb.workers.push({ id: uid(), name, role: v.role, active: true, pendingData: true }))) { toast(name + ' incluído(a). Já pode lançar.'); renderHarvestField(); }
   };
   $$('.hf-fix').forEach(b => b.onclick = async () => {
     const e = farm.labor.entries.find(x => x.id === b.dataset.id); if (!e) return;
@@ -100,7 +107,7 @@ function renderHarvestLabor() {
   let body = '';
   if (lbTab === 'pessoas') {
     body = `<div class="section-head"><div><h2>Pessoas da colheita</h2><p>Panhadores, safristas e diaristas. CPF e Pix aparecem só aqui; o fiscal vê apenas o nome.</p></div><button class="btn primary" id="lbNewWorker">Nova pessoa</button></div>
-      ${L.workers.length ? `<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Função</th><th>CPF</th><th>Pix</th><th>WhatsApp</th><th>Diária</th><th>Saco (próprio)</th><th>Situação</th><th></th></tr></thead><tbody>${[...L.workers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(w => `<tr><td><b>${lbEsc(w.name)}</b></td><td>${lbEsc(HarvestLabor.ROLES[w.role])}</td><td>${w.cpf ? lbEsc(w.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')) : '—'}</td><td>${lbEsc(w.pix || '—')}</td><td>${lbEsc(w.phone || '—')}</td><td>${w.dailyRate ? money(w.dailyRate) : '—'}</td><td>${w.bagRate ? money(w.bagRate) : 'do talhão'}</td><td><span class="badge ${w.active === false ? '' : 'green'}">${w.active === false ? 'Inativo' : 'Ativo'}</span></td><td><button class="btn small lb-edit" data-id="${lbEsc(w.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Cadastre a turma da colheita.</div>'}`;
+      ${L.workers.length ? `<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Função</th><th>CPF</th><th>Pix</th><th>WhatsApp</th><th>Diária</th><th>Saco (próprio)</th><th>Situação</th><th></th></tr></thead><tbody>${[...L.workers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(w => `<tr><td><b>${lbEsc(w.name)}</b>${w.pendingData ? '<br><span class="badge gold">Completar dados</span>' : ''}</td><td>${lbEsc(HarvestLabor.ROLES[w.role])}</td><td>${w.cpf ? lbEsc(w.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')) : '—'}</td><td>${lbEsc(w.pix || '—')}</td><td>${lbEsc(w.phone || '—')}</td><td>${w.dailyRate ? money(w.dailyRate) : '—'}</td><td>${w.bagRate ? money(w.bagRate) : 'do talhão'}</td><td><span class="badge ${w.active === false ? '' : 'green'}">${w.active === false ? 'Inativo' : 'Ativo'}</span></td><td><button class="btn small lb-edit" data-id="${lbEsc(w.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Cadastre a turma da colheita.</div>'}`;
   } else if (lbTab === 'valores') {
     const plots = farm.talhoes || [];
     body = `<div class="section-head"><div><h2>Valor do saco por talhão</h2><p>Lavoura carregada paga diferente de lavoura fraca. Cada apontamento guarda o valor do dia em que foi lançado: mudar o valor não mexe no que já foi apontado.</p></div><button class="btn primary" id="lbNewRate" ${plots.length ? '' : 'disabled'}>Definir valor</button></div>
@@ -111,9 +118,9 @@ function renderHarvestLabor() {
     const name = id => L.workers.find(w => w.id === id)?.name || '—', plot = id => (farm.talhoes || []).find(t => t.id === id)?.name || '—';
     body = `<div class="section-head"><div class="inline lb-week"><button class="btn small" id="lbPrev">‹</button><b>Semana ${dateBR(lbWeek)} a ${dateBR(end)}</b><button class="btn small" id="lbNext">›</button>${closedWeek ? '<span class="badge green">Fechada</span>' : '<span class="badge gold">Aberta</span>'}</div><div class="inline"><button class="btn" id="lbGoField">Apontar colheita</button><button class="btn" id="lbAdj" ${closedWeek ? 'disabled' : ''}>Adiantamento ou desconto</button></div></div>
       <h3>Prévia do fechamento</h3>
-      ${preview.lines.length ? `<div class="table-wrap"><table><thead><tr><th>Pessoa</th><th>Sacos</th><th>Valor sacos</th><th>Diárias</th><th>Valor diárias</th><th>Adiantamentos</th><th>Descontos</th><th>Saldo anterior</th><th>A receber</th></tr></thead><tbody>${preview.lines.map(l => `<tr><td><b>${lbEsc(l.name)}</b></td><td>${lbNum(l.bags, 1)}</td><td>${money(l.bagsValue)}</td><td>${l.days}</td><td>${money(l.daysValue)}</td><td>${l.advances ? '−' + money(l.advances) : '—'}</td><td>${l.discounts ? '−' + money(l.discounts) : '—'}</td><td>${l.previousDebt ? '−' + money(l.previousDebt) : '—'}</td><td><b>${money(l.total)}</b>${l.newDebt ? `<br><span class="muted">fica −${money(l.newDebt)}</span>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum apontamento nesta semana.</div>'}
+      ${preview.lines.length ? `<div class="table-wrap"><table><thead><tr><th>Pessoa</th><th>Sacos</th><th>Valor sacos</th><th>Diárias</th><th>Valor diárias</th><th>Adiantamentos</th><th>Descontos</th><th>Saldo anterior</th><th>A receber</th></tr></thead><tbody>${preview.lines.map(l => `<tr><td><b>${lbEsc(l.name)}</b></td><td>${lbNum(l.bags, 1)}</td><td>${money(l.bagsValue)}</td><td>${l.days}</td><td>${money(l.daysValue)}</td><td>${l.advances ? '−' + money(l.advances) : '—'}</td><td>${l.discounts ? '−' + money(l.discounts) : '—'}</td><td>${l.previousDebt ? '−' + money(l.previousDebt) : '—'}</td><td><b>${money(l.total)}</b>${l.newDebt ? `<br><span class="muted">fica −${money(l.newDebt)}</span>` : ''}${l.pending ? `<br><span class="badge gold">${l.pending} sem valor</span>` : ''}</td></tr>`).join('')}</tbody></table></div>${preview.lines.some(l => l.pending) ? '<p class="muted">Há apontamentos sem valor: defina a diária da pessoa (aba Pessoas) ou o valor do saco do talhão (aba Valores por talhão). A semana só fecha depois disso.</p>' : ''}` : '<div class="card empty">Nenhum apontamento nesta semana.</div>'}
       <h3>Apontamentos</h3>
-      ${entries.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Pessoa</th><th>Talhão</th><th>Tipo</th><th>Valor</th><th>Lançado por</th><th></th></tr></thead><tbody>${entries.map(e => `<tr class="${e.voided ? 'lb-void' : ''}"><td>${dateBR(e.date)}</td><td>${lbEsc(name(e.workerId))}</td><td>${lbEsc(plot(e.plotId))}</td><td>${e.kind === 'diaria' ? 'Diária' : lbNum(e.bags, 1) + ' sc × ' + money(e.rate)}</td><td>${e.voided ? 'Estornado: ' + lbEsc(e.voidReason) : money(HarvestLabor.entryAmount(e))}</td><td>${lbEsc(e.recordedBy || 'Salvando')}</td><td>${!closedWeek && !e.voided ? `<button class="btn small lb-void" data-id="${lbEsc(e.id)}" data-k="entries">Estornar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
+      ${entries.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Pessoa</th><th>Talhão</th><th>Tipo</th><th>Valor</th><th>Lançado por</th><th></th></tr></thead><tbody>${entries.map(e => `<tr class="${e.voided ? 'lb-void' : ''}"><td>${dateBR(e.date)}</td><td>${lbEsc(name(e.workerId))}</td><td>${lbEsc(plot(e.plotId))}</td><td>${e.kind === 'diaria' ? 'Diária' : lbNum(e.bags, 1) + ' sc' + (e.rate == null ? '' : ' × ' + money(e.rate))}</td><td>${e.voided ? 'Estornado: ' + lbEsc(e.voidReason) : e.rate == null ? '<span class="badge gold">Sem valor</span>' : money(HarvestLabor.entryAmount(e))}</td><td>${lbEsc(e.recordedBy || 'Salvando')}</td><td>${!closedWeek && !e.voided ? `<button class="btn small lb-void" data-id="${lbEsc(e.id)}" data-k="entries">Estornar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
       ${adj.length ? `<h3>Adiantamentos e descontos</h3><div class="table-wrap"><table><thead><tr><th>Data</th><th>Pessoa</th><th>Tipo</th><th>Valor</th><th>Motivo</th><th></th></tr></thead><tbody>${adj.map(a => `<tr class="${a.voided ? 'lb-void' : ''}"><td>${dateBR(a.date)}</td><td>${lbEsc(name(a.workerId))}</td><td>${a.kind === 'adiantamento' ? 'Adiantamento' : 'Desconto'}</td><td>${money(a.amount)}</td><td>${lbEsc(a.voided ? 'Estornado: ' + a.voidReason : a.reason)}</td><td>${!closedWeek && !a.voided ? `<button class="btn small lb-void" data-id="${lbEsc(a.id)}" data-k="adjustments">Estornar</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}`;
   } else {
     body = `<div class="section-head"><div><h2>Fechamentos semanais</h2><p>O fechamento soma sacos × valor + diárias − adiantamentos − descontos, trava a semana e cria uma conta a pagar por pessoa em Contas a pagar.</p></div><button class="btn primary" id="lbClose">Fechar semana</button></div>
@@ -156,7 +163,7 @@ async function laborWorkerDialog(farm, w) {
   if (!v) return;
   const cpf = String(v.cpf || '').replace(/\D/g, ''), phone = String(v.phone || '').replace(/\D/g, '');
   if (cpf && !HarvestLabor.validCPF(cpf)) return toast('CPF inválido.');
-  const row = { name: v.name.trim(), role: v.role, cpf, pix: v.pix.trim(), phone, dailyRate: v.dailyRate === '' ? null : Number(v.dailyRate), bagRate: v.bagRate === '' ? null : Number(v.bagRate), active: v.active !== 'false' };
+  const row = { name: v.name.trim(), role: v.role, cpf, pix: v.pix.trim(), phone, dailyRate: v.dailyRate === '' ? null : Number(v.dailyRate), bagRate: v.bagRate === '' ? null : Number(v.bagRate), active: v.active !== 'false', pendingData: false };
   if (laborChange(farm, Lb => { if (w) Object.assign(Lb.workers.find(x => x.id === w.id), row); else Lb.workers.push({ id: uid(), ...row }); })) { toast(w ? 'Pessoa atualizada.' : 'Pessoa cadastrada.'); renderHarvestLabor(); }
 }
 async function laborCloseDialog(farm) {
@@ -167,6 +174,8 @@ async function laborCloseDialog(farm) {
   if (!v) return;
   const calc = HarvestLabor.computeClosing(L, v.week);
   if (!calc.lines.length) return toast('Nada para fechar nesta semana.');
+  const missing = [...new Set(HarvestLabor.pendingRates(L, v.week).map(e => L.workers.find(w => w.id === e.workerId)?.name || '—'))];
+  if (missing.length) return toast('Há apontamentos sem valor (' + missing.join(', ') + '). Defina a diária ou o valor do saco antes de fechar.');
   const ok = await ask(`${calc.lines.length} pessoa(s), total ${money(calc.total)}. A semana fica travada e cada pessoa com valor a receber ganha uma conta em Contas a pagar. Confirmar?`, { title: 'Fechar semana ' + dateBR(v.week), okText: 'Fechar semana' });
   if (!ok) return;
   const id = uid();

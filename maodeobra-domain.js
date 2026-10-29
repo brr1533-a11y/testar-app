@@ -45,7 +45,9 @@
     if (entry.kind === 'diaria') return w.dailyRate > 0 ? w.dailyRate : null;
     return w.bagRate > 0 ? w.bagRate : plotRate(labor, entry.plotId, entry.date);
   }
-  function entryAmount(e) { return e.kind === 'diaria' ? reais(cents(e.rate)) : reais(Math.round(cents(e.rate) * e.bags)); }
+  function entryAmount(e) { if (e.rate == null) return 0; return e.kind === 'diaria' ? reais(cents(e.rate)) : reais(Math.round(cents(e.rate) * e.bags)); }
+  // Apontamentos ainda sem valor numa semana (o fechamento fica bloqueado até o escritório definir).
+  function pendingRates(labor, start) { const end = weekEnd(start); return (labor.entries || []).filter(e => !e.voided && e.date >= start && e.date <= end && e.rate == null); }
 
   // Fechamento de uma semana, por pessoa: sacos × valor + diárias − adiantamentos − descontos − saldo devedor anterior.
   // Total negativo vira R$ 0 e a diferença passa como saldo devedor para a próxima semana.
@@ -63,7 +65,8 @@
       const days = es.filter(e => e.kind === 'diaria').length, daysC = es.filter(e => e.kind === 'diaria').reduce((n, e) => n + cents(entryAmount(e)), 0);
       const advC = as.filter(a => a.kind === 'adiantamento').reduce((n, a) => n + cents(a.amount), 0), discC = as.filter(a => a.kind === 'desconto').reduce((n, a) => n + cents(a.amount), 0);
       const debtC = cents(lastDebt(wid)), grossC = bagsC + daysC, netC = grossC - advC - discC - debtC;
-      return { workerId: wid, name: w.name || '—', bags, bagsValue: reais(bagsC), days, daysValue: reais(daysC), advances: reais(advC), discounts: reais(discC), previousDebt: reais(debtC), gross: reais(grossC), total: reais(Math.max(0, netC)), newDebt: reais(Math.max(0, -netC)) };
+      const pending = es.filter(e => e.rate == null).length;
+      return { workerId: wid, name: w.name || '—', pending, bags, bagsValue: reais(bagsC), days, daysValue: reais(daysC), advances: reais(advC), discounts: reais(discC), previousDebt: reais(debtC), gross: reais(grossC), total: reais(Math.max(0, netC)), newDebt: reais(Math.max(0, -netC)) };
     }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     return { weekStart: start, weekEnd: end, lines, total: reais(lines.reduce((n, l) => n + cents(l.total), 0)) };
   }
@@ -82,7 +85,7 @@
     for (const e of L.entries) {
       check(D.validDate(e.date) && plots.has(e.plotId) && workers.has(e.workerId) && ['saco', 'diaria'].includes(e.kind), 'Confira data, talhão, pessoa e tipo do apontamento.');
       check(e.kind === 'diaria' ? e.bags == null || e.bags === 0 : num(e.bags, 0.5, 200) && Number.isInteger(e.bags * 2), 'Sacos: de meio em meio, até 200 por apontamento.');
-      check(num(e.rate, 0.01, 100000), 'Apontamento sem valor: defina o valor do saco do talhão ou a diária da pessoa.');
+      check(e.rate == null || num(e.rate, 0.01, 100000), 'Valor do apontamento inválido.');
       check(!e.voided || filled(e.voidReason, 300), 'Informe o motivo do estorno.');
     }
     for (const a of L.adjustments) check(D.validDate(a.date) && workers.has(a.workerId) && ['adiantamento', 'desconto'].includes(a.kind) && num(a.amount, 0.01, 1000000) && filled(a.reason, 300) && (!a.voided || filled(a.voidReason, 300)), 'Confira pessoa, data, valor e motivo do adiantamento ou desconto.');
@@ -104,7 +107,12 @@
       if (!user.labor) { f.labor = clone(oldFarm.labor || { workers: [], plotRates: [], entries: [], adjustments: [], closings: [] }); continue; }
       if (user.labor === 'fiscal') {
         // O fiscal não vê nem altera pessoas, valores, adiantamentos e fechamentos: ficam como estão.
+        const sentWorkers = Array.isArray(L.workers) ? L.workers : [];
         for (const k of ['workers', 'plotRates', 'adjustments', 'closings']) L[k] = clone(old[k]);
+        for (const w of sentWorkers.filter(w => w && !old.workers.some(o => o.id === w.id))) {
+          check(id(w.id) && filled(w.name, 120) && ROLES[w.role], 'Informe o nome e a função da pessoa.');
+          L.workers.push({ id: w.id, name: w.name.trim(), role: w.role, active: true, pendingData: true, addedBy: who, createdAt: now });
+        }
         // Ele recebe só os apontamentos recentes: o que enviou é juntado ao histórico completo (o que não veio continua igual).
         const sent = L.entries;
         L.entries = old.entries.map(o => sent.find(x => x.id === o.id) || clone(o)).concat(sent.filter(x => !old.entries.some(o => o.id === x.id)));
@@ -131,6 +139,7 @@
         if (!e.voided) { delete keep.voided; delete keep.voidReason; delete keep.voidedBy; delete keep.voidedAt; }
         Object.keys(e).forEach(k => delete e[k]); Object.assign(e, keep);
       }
+      for (const e of L.entries) if (e.rate == null && !e.voided && !locked(e.date)) { const r = rateFor(L, e); if (r) e.rate = r; }
       if (user.labor !== 'manager') { validateFarm(f); continue; }
       for (const a of L.adjustments) {
         const prev = old.adjustments.find(x => x.id === a.id);
@@ -147,6 +156,8 @@
         check(!old.closings.some(o => o.weekStart === c.weekStart), 'Esta semana já foi fechada.');
         const calc = computeClosing({ ...L, closings: old.closings }, c.weekStart);
         check(calc.lines.length > 0, 'Nada para fechar nesta semana.');
+        const missing = [...new Set(pendingRates({ ...L, closings: old.closings }, c.weekStart).map(e => (L.workers.find(w => w.id === e.workerId) || {}).name || '—'))];
+        check(!missing.length, 'Há apontamentos sem valor nesta semana (' + missing.join(', ') + '). Defina a diária da pessoa ou o valor do saco do talhão antes de fechar.');
         Object.keys(c).forEach(k => { if (k !== 'id') delete c[k]; });
         Object.assign(c, calc, { closedBy: who, closedAt: now, payableIds: [] });
         const m = f.management ||= {}; m.payables ||= [];
@@ -167,12 +178,12 @@
   function forFiscal(labor) {
     const L = init({ labor: clone(labor || {}) });
     return {
-      workers: L.workers.filter(w => w.active !== false).map(w => ({ id: w.id, name: w.name, role: w.role, active: true })),
+      workers: L.workers.filter(w => w.active !== false).map(w => ({ id: w.id, name: w.name, role: w.role, active: true, ...(w.pendingData ? { pendingData: true } : {}) })),
       plotRates: [], adjustments: [],
       entries: L.entries.filter(e => e.date >= new Date(Date.now() - 35 * 86400000).toISOString().slice(0, 10)).map(({ rate, ...e }) => e),
       closings: L.closings.map(c => ({ id: c.id, weekStart: c.weekStart, weekEnd: c.weekEnd, lines: [] }))
     };
   }
 
-  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, entryAmount, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, entryAmount, pendingRates, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

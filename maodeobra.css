@@ -42,3 +42,8 @@
 
 /* Modo de campo: passo a passo de instalar e usar sem internet */
 .field-steps ol{margin:8px 0 0;padding-left:20px;display:grid;gap:8px;line-height:1.5}
+
+/* Cadastro rápido de pessoa no Apontar colheita */
+.hf-tools{display:flex;gap:10px;align-items:center}
+.hf-tools .hf-search{flex:1}
+.hf-new{min-height:52px;font-size:16px;font-weight:700;white-space:nowrap;margin-left:auto}
