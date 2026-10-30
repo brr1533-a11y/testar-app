@@ -51,7 +51,9 @@ test('fechar a semana trava os lançamentos e gera uma conta a pagar por pessoa,
   assert.equal(s.farms[0].labor.closings[0].total, 75); // recalculado pelo servidor
   s = run(s, () => {});
   assert.equal(s.farms[0].management.payables.length, 2);
-  assert.throws(() => run(s, f => f.labor.entries.push({ id: 'e9', date: day(3), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 1 })), /já foi fechada/);
+  // Apontamento que chega depois do fechamento não reabre a semana: vai para revisão e para a semana de acerto.
+  const late = run(s, f => f.labor.entries.push({ id: 'e9', date: day(3), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 1 })).farms[0].labor.entries.find(e => e.id === 'e9');
+  assert.equal(late.lateStatus, 'pending'); assert.equal(late.late.closedWeek, week); assert.ok(late.late.settleWeek > week);
   assert.throws(() => run(s, f => { f.labor.closings = []; }), /não pode ser apagado/);
   assert.throws(() => run(s, f => { f.management.payables[0].amount = 1; }), /não pode ter valor/);
   assert.throws(() => run(s, f => f.labor.closings.push({ id: 'c2', weekStart: week, weekEnd: H.weekEnd(week), lines: [] })), /já foi fechada/);

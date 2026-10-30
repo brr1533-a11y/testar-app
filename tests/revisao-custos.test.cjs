@@ -64,6 +64,21 @@ test('banho concluído entra como insumo pelo custo do estoque, dividido pela á
   assert.equal(cost(f), 0);
 });
 
+test('banho com quantidade real por talhão: cada safra leva o que foi usado no seu talhão, não a divisão por área', () => {
+  const f = farm();
+  f.agriculture.cycles[0].plotIds = ['t1'];
+  f.agriculture.cycles.push({ id: 'c2', activity: 'coffee', crop: 'Café arábica', name: 'Café T2', areaHa: 4, bagKg: 60, stage: 'Em colheita', startDate: iso(100), plotIds: ['t2'] });
+  f.stock = [{ id: 's', activity: 'coffee', item: 'Inseticida X', unit: 'L', quantity: 7, unitCost: 100 }];
+  // Planejado 3 L; usou 1 L no T1 (6 ha) e 2 L no T2 (4 ha). Pela área daria 60% / 40%.
+  f.banho = { orders: [{ id: 'o1', status: 'completed', completedAt: new Date().toISOString(), stockDeducted: true, stockDeductedItems: ['Inseticida X 3 L'], talhaoIds: ['t1', 't2'], products: [{ productId: 'p', name: 'Inseticida X', quantity: 3, unit: 'L' }], usage: [{ plotId: 't1', productId: 'p', quantity: 1 }, { plotId: 't2', productId: 'p', quantity: 2 }] }] };
+  const byCycle = Object.fromEntries(X.costSources(f).filter(s => s.key.startsWith('bath:')).map(r => [r.cycleId, r.amount]));
+  assert.deepEqual(byCycle, { c1: 100, c2: 200 });
+  // Usou menos que o planejado: estoque e custo seguem o real (2,5 L).
+  f.banho.orders[0].usage = [{ plotId: 't1', productId: 'p', quantity: 0.5 }, { plotId: 't2', productId: 'p', quantity: 2 }];
+  f.banho.orders[0].stockDeductedItems = ['Inseticida X 2.5 L'];
+  assert.equal(X.costSources(f).filter(s => s.key.startsWith('bath:')).reduce((n, r) => n + r.amount, 0), 250);
+});
+
 test('orçamento: mão de obra da colheita e banho caem nas categorias certas', () => {
   const f = farm();
   f.stock = [{ id: 's', activity: 'coffee', item: 'Adubo foliar', unit: 'kg', quantity: 10, unitCost: 50 }];

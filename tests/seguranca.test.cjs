@@ -29,10 +29,10 @@ test('senha antiga fora da regra entra, mas obriga a trocar antes de usar o pain
   const login = await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: old });
   assert.equal(login.status, 200); assert.equal(login.json.mustChangePassword, true);
   assert.equal((await api('/api/state', login.json.token)).status, 428);
-  const changed = await api('/api/auth/change-password', login.json.token, { currentPassword: old, newPassword: 'Fazenda@2026' });
+  const changed = await api('/api/auth/change-password', login.json.token, { currentPassword: old, newPassword: 'Mimosa#Leite47' });
   assert.equal(changed.status, 200);
   assert.equal((await api('/api/state', changed.json.token)).status, 200);
-  const again = await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: 'Fazenda@2026' });
+  const again = await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: 'Mimosa#Leite47' });
   assert.equal(again.json.mustChangePassword, false);
 });
 
