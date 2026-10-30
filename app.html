@@ -53,7 +53,7 @@
           <label>Código do Grupo<input id="loginGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="Ex.: 1001" required /></label>
           <label>Usuário<input id="loginUser" autocomplete="username" required /></label>
           <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
-          <label class="remember-login"><input id="rememberLogin" type="checkbox" />Manter conectado neste aparelho</label>
+          <div class="remember-login"><input id="rememberLogin" type="checkbox" aria-label="Manter conectado neste aparelho" /><span aria-hidden="true">Manter conectado neste aparelho</span></div>
           <button class="btn primary full" type="submit">Entrar no sistema</button>
           <button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button>
           <p class="security-note" id="cloudStatusNote">Os dados deste grupo são sincronizados pelo servidor.</p>

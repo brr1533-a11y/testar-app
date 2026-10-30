@@ -156,12 +156,7 @@ function defaultData() {
     interfaceMode: "coffee",
     users: [],
     pendingRegistrations: [],
-    farms: [
-      newFarm("Fazenda Santa Clara"),
-      newFarm("Fazenda Boa Vista"),
-      newFarm("Fazenda Monte Verde"),
-      newFarm("Fazenda São Bento")
-    ],
+    farms: [newFarm("Minha Fazenda")],
     receipts: []
   };
 }
@@ -2128,7 +2123,7 @@ function renderFarms() {
   $("#pageContent").innerHTML = `
     <div class="grid two"><form id="newFarmForm" class="form-card"><div class="inline"><h3>Criar nova fazenda</h3><span class="badge gold right">Somente CEO</span></div><div class="form-grid" style="margin-top:18px"><label class="wide">Nome<input name="name" required placeholder="Nome da fazenda"></label></div><div class="form-actions"><button class="btn primary">Criar fazenda</button></div></form><div class="card soft"><span class="eyebrow dark">ESTRUTURA</span><h2>${data.farms.length} fazendas</h2><p class="muted">Todas as fazendas possuem os três módulos: Café, Gado e Grãos. Escolha a atividade no menu para mudar a operação visível.</p><div class="inline" style="margin-top:14px"><span class="badge green">Café</span><span class="badge gold">Gado</span><span class="badge">Grãos</span><span class="badge">Interface atual: ${modeName}</span></div></div></div>
     <div class="section-head"><h2>Fazendas cadastradas</h2></div>
-    <div class="grid two">${data.farms.map(f => `<form class="form-card farm-edit" data-id="${f.id}"><div class="inline"><span class="badge green">Café</span><span class="badge gold">Gado</span><span class="badge">Grãos</span>${f.id === activeFarmId ? `<span class="badge">Ativa</span>` : ""}</div><label>Nome<input name="name" value="${escapeHTML(f.name)}" required></label><div class="form-actions">${selectedType() !== "cattle" ? `<button type="button" class="btn farm-plots" data-id="${f.id}">Gerenciar talhões</button>` : ""}<button type="button" class="btn danger farm-delete" data-id="${f.id}">Excluir</button><button class="btn primary">Salvar alterações</button></div></form>`).join("")}</div>`;
+    <div class="grid two">${data.farms.map(f => `<form class="form-card farm-edit" data-id="${f.id}"><div class="inline"><span class="badge green">Café</span><span class="badge gold">Gado</span><span class="badge">Grãos</span>${f.id === activeFarmId ? `<span class="badge">Ativa</span>` : ""}</div><label>Nome<input name="name" value="${escapeHTML(f.name)}" required></label><div class="form-actions">${selectedType() !== "cattle" ? `<button type="button" class="btn farm-plots" data-id="${f.id}">Gerenciar talhões</button>` : ""}<button type="button" class="btn farm-wipe" data-id="${f.id}">Limpar dados</button><button type="button" class="btn danger farm-delete" data-id="${f.id}">Excluir</button><button class="btn primary">Salvar alterações</button></div></form>`).join("")}</div>`;
 
   $("#newFarmForm").onsubmit = e => {
     e.preventDefault();
@@ -2159,6 +2154,22 @@ function renderFarms() {
     renderFarmSelector();
     renderNav();
     renderPage();
+  });
+  // Limpar dados (CEO): apaga o conteúdo da fazenda no servidor; pede o nome da fazenda e a senha porque não tem volta.
+  $$(".farm-wipe").forEach(btn => btn.onclick = async () => {
+    const farm = data.farms.find(f => f.id === btn.dataset.id);
+    if (!farm) return;
+    if (hasLocalChanges()) return toast("Aguarde salvar as alterações antes de limpar a fazenda.");
+    const v = await askForm({ title: "Limpar dados · " + farm.name, danger: true, okText: "Apagar os dados", text: "Apaga talhões, tratores, implementos, estoque, safras, colheitas, vendas, gado, financeiro, notas, gestão, pós-colheita, pragas, leite e mão de obra desta fazenda. A fazenda, o nome e os usuários continuam. Não tem como desfazer.", fields: [
+      { name: "confirmName", label: "Digite o nome da fazenda: " + farm.name, required: true, autocomplete: "off" },
+      { name: "password", label: "Sua senha", type: "password", required: true, autocomplete: "current-password" }
+    ] });
+    if (!v) return;
+    try {
+      const payload = await api("/api/farms/" + encodeURIComponent(farm.id) + "/reset", { method: "POST", body: JSON.stringify({ confirmName: v.confirmName, password: v.password }) });
+      absorbServerPayload(payload); writeCache(); renderFarmSelector(); renderNav(); renderFarms();
+      toast("Dados de " + farm.name + " apagados.");
+    } catch (e) { toast(e.message); }
   });
   $$(".farm-delete").forEach(btn => btn.onclick = async () => {
     if (data.farms.length <= 1) return toast("É necessário manter pelo menos uma fazenda.");
@@ -2858,5 +2869,4 @@ $("#logoutTop").onclick = () => logout(false);
 showAuthMode("login");
 const requestedTheme=new URLSearchParams(location.search).get("activity");if(RuralDomain.ACTIVITIES.includes(requestedTheme))document.body.dataset.loginActivity=requestedTheme;
 restoreSession();
-
 

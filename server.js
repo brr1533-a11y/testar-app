@@ -156,7 +156,8 @@ const cleanGroupCode = value => String(value || "").replace(/\D/g, "").slice(0, 
 function makeFarm(name) {
   return {
     id: uid(), name, type: "mixed", photo: "", tractors: [], implements: [], stock: [], finances: [], notes: [],
-    assignments: [], equipmentLogs: [], talhoes: [], banho: { products: [], orders: [] }, cattle: { paddocks: [], lots: [], weighings: [] }
+    assignments: [], equipmentLogs: [], talhoes: [], plotProcedures: [], soilAnalyses: [], banho: { products: [], orders: [] },
+    cattle: { paddocks: [], lots: [], weighings: [], healthEvents: [] }, agriculture: { cycles: [], harvests: [], sales: [] }
   };
 }
 
@@ -170,7 +171,8 @@ function makeDefaultState({ ceoName, ceoUser, ceoPasswordHash, ceoEmail = "" }) 
       mustChangePassword: false, createdAt: nowIso(), createdBy: "sistema"
     }],
     pendingRegistrations: [],
-    farms: [makeFarm("Fazenda Santa Clara"), makeFarm("Fazenda Boa Vista"), makeFarm("Fazenda Monte Verde"), makeFarm("Fazenda São Bento")],
+    // Começa com uma fazenda vazia; o CEO renomeia e cadastra as demais em Configurações › Fazendas.
+    farms: [makeFarm("Minha Fazenda")],
     receipts: []
   };
 }
@@ -2347,6 +2349,29 @@ app.get("/api/mercado", async (req,res)=>{
 });
 app.get("/api/cotacao-cafe", async (req,res)=>{try{if(cache.data&&Date.now()-cache.at<CACHE_MS)return res.json(cache.data);const [coffeeCentsLb,usdBrl]=await Promise.all([yahooChart("KC=F"),yahooChart("BRL=X")]);const poundsPer60kg=132.277357,usdPerSaca=(coffeeCentsLb/100)*poundsPer60kg,brlPerSaca=usdPerSaca*usdBrl;const payload={symbol:"KC=F",coffeeCentsLb,usdBrl,usdPerSaca,brlPerSaca,timestamp:nowIso(),methodology:"Coffee C × 132,277357 lb por 60 kg × USD/BRL",warning:"Estimativa de referência; não é preço físico local."};cache={at:Date.now(),data:payload};res.json(payload);}catch(error){res.status(503).json({error:"Cotação temporariamente indisponível",detail:error.message});}});
 
+// ---------- Limpar os dados de uma fazenda (CEO) ----------
+// Apaga talhões, máquinas, estoque, produção, gado, financeiro, gestão, campo e mão de obra; mantém a fazenda, o nome e
+// os usuários. Não tem volta: exige a senha do CEO e o nome da fazenda digitado, e fica registrado no histórico.
+app.post("/api/farms/:id/reset", auth, requireRole("ceo"), async (req, res, next) => {
+  try {
+    if (!rateHit(`farm-reset|${req.auth.user.id}`, 5, 3600_000)) return res.status(429).json({ error: "Muitas tentativas. Aguarde uma hora." });
+    const farmId = String(req.params.id || ""), norm = v => String(v || "").trim().toLocaleLowerCase("pt-BR");
+    const farm = (req.auth.group.state.farms || []).find(f => String(f.id) === farmId);
+    if (!farm) return res.status(404).json({ error: "Fazenda não encontrada." });
+    if (norm(req.body?.confirmName) !== norm(farm.name)) return res.status(400).json({ error: "Digite o nome da fazenda exatamente como aparece." });
+    const me = (req.auth.group.state.users || []).find(u => String(u.id) === String(req.auth.user.id));
+    if (!me?.passwordHash || !(await bcrypt.compare(String(req.body?.password || ""), me.passwordHash))) return res.status(403).json({ error: "Senha incorreta." });
+    const { saved } = await mutateGroup(req.auth.group.id, g => {
+      const i = (g.state.farms || []).findIndex(f => String(f.id) === farmId);
+      if (i < 0) throw httpError(404, "Fazenda não encontrada.");
+      const old = g.state.farms[i];
+      g.state.farms[i] = { ...makeFarm(old.name), id: old.id, type: old.type || "mixed", photo: old.photo || "" };
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "limpou", area: "Fazenda", label: `${old.name} · todos os dados da fazenda apagados`, farm: old.name }].slice(-1500);
+    });
+    res.json(statePayload(saved, req.auth.user));
+  } catch (e) { next(e); }
+});
+
 // ---------- Monitor de preços das cotações (links de oferta) ----------
 // A cada PRICE_WATCH_HOURS (padrão 6; 0 desliga) o servidor confere as cotações com link e "conferir sozinho" ligado.
 // As páginas são baixadas fora da gravação (podem demorar); depois o resultado entra no Grupo pelo mutateGroup.
@@ -2415,7 +2440,15 @@ function startPriceWatch() {
 }
 
 // Só os arquivos do site são públicos. server.js, README, package.json, .env e o banco local nunca são servidos.
-const PUBLIC_FILES = new Set(["/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/campo-sw.js", "/maodeobra-domain.js", "/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+const PUBLIC_FILES = new Set(["/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/maodeobra-domain.js", "/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+// Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
+// Sem cache no navegador, para o celular sempre conferir se há versão nova.
+let SERVICE_WORKER = "";
+try { SERVICE_WORKER = require("./gerar-worker.cjs").build(PUBLIC_DIR); } catch (e) { console.error("[app de campo] service worker não gerado:", e.message); }
+app.get("/campo-sw.js", (req, res) => {
+  if (!SERVICE_WORKER) return res.status(404).end();
+  res.setHeader("Content-Type", "application/javascript; charset=utf-8"); res.setHeader("Cache-Control", "no-cache"); res.send(SERVICE_WORKER);
+});
 const staticFiles = express.static(PUBLIC_DIR, { index: false, dotfiles: "deny", maxAge: "1h" });
 app.use((req, res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD") return next();
