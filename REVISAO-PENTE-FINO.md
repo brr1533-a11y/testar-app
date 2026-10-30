@@ -92,7 +92,25 @@ Pacote revisado: `gestao-rural-etapas-3-a-8-local.zip`. O pacote não foi altera
    - **Produtos sem quantidade informada:** continuam divididos pela área.
 6. **Teste com dados reais:** continua pendente. Precisa de uma fazenda de verdade para conferir custo, comercialização e orçamento antes de vender.
 
-**Testes novos:** `tests/pontos-atencao.test.cjs` (7 casos) e mais um caso em `tests/revisao-custos.test.cjs`. **`npm test`: 137 de 137.**
+**Testes novos:** `tests/pontos-atencao.test.cjs` (8 casos), `tests/cofre-pin.test.cjs` (6 casos) e mais um caso em `tests/revisao-custos.test.cjs`. **`npm test`: 144 de 144.**
+
+### Como cada ponto foi conferido
+- **PIN:**
+  - **Regra:** ficou em `cofre-pin.js`, usado pelo app, com 6 testes automáticos.
+  - **No navegador, com um cofre real cifrado com PIN e aberto pela função do próprio app:**
+    - erros 1 a 4: "Restam 4… 1 tentativa(s)";
+    - erro 5: "Cofre bloqueado por 5 min", e o PIN certo durante a espera nem é perguntado;
+    - depois da espera, o PIN certo abre e zera o contador;
+    - esperas a partir do 5º erro: 5, 10, 20, 40, 80 e 160 min;
+    - erro 10: na tela de entrada, sem login, o PIN não é perguntado; depois de entrar, o cofre é liberado;
+    - aparelho desconectado pelo CEO: o cofre foi apagado.
+- **Apontamento atrasado:**
+  - **Testes de regra:** 3 testes.
+  - **Teste completo pelo servidor:** o CEO fecha e paga (R$ 40) → o celular do fiscal envia depois → fica em revisão e a conta paga não muda → a semana de acerto não fecha → o fiscal não aprova → o CEO aprova → o próximo fechamento gera R$ 30 numa conta nova.
+- **Bug antigo achado por esse teste** (existia desde a Etapa 1):
+  - **Causa:** o celular do fiscal recebe os apontamentos sem o valor e os devolve assim ao salvar. O servidor via isso como alteração de apontamento de semana fechada e recusava.
+  - **Efeito:** depois de cada fechamento, o envio do fiscal falhava enquanto a semana fechada estivesse nos últimos 35 dias.
+  - **Correção:** o valor volta do servidor antes da comparação (`maodeobra-domain.js`).
 
 ## O que falta, por etapa (a maior parte depende de algo externo)
 - **Etapa 3, nota fiscal:**

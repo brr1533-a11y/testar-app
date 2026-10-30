@@ -145,8 +145,10 @@
           L.workers.push({ id: w.id, name: w.name.trim(), role: w.role, active: true, pendingData: true, addedBy: who, createdAt: now });
         }
         // Ele recebe só os apontamentos recentes: o que enviou é juntado ao histórico completo (o que não veio continua igual).
+        // O valor (rate) não vai para o celular do fiscal: volta do servidor, senão todo apontamento "mudaria" ao salvar
+        // (e os de semana já fechada seriam recusados, travando o envio do fiscal depois de cada fechamento).
         const sent = L.entries;
-        L.entries = old.entries.map(o => sent.find(x => x.id === o.id) || clone(o)).concat(sent.filter(x => !old.entries.some(o => o.id === x.id)));
+        L.entries = old.entries.map(o => { const x = sent.find(y => y.id === o.id); return x ? { ...clone(o), ...x, rate: o.rate } : clone(o); }).concat(sent.filter(x => !old.entries.some(o => o.id === x.id)));
       }
       // Fechamento e cadastros não somem.
       for (const k of ['workers', 'plotRates', 'entries', 'adjustments', 'closings']) for (const r of old[k]) check(L[k].some(x => x.id === r.id), k === 'closings' ? 'Fechamento não pode ser apagado.' : 'Registro de mão de obra não pode ser apagado; desative ou estorne.', 403);
