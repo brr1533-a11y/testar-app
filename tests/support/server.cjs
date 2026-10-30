@@ -7,7 +7,7 @@ const { spawn } = require('node:child_process');
 exports.startServer = async function (extraEnv = {}) {
   const root = path.resolve(__dirname, '../..');
   const folder = fs.mkdtempSync(path.join(os.tmpdir(), 'rural-tests-'));
-  for (const file of fs.readdirSync(root)) if (/\.(js|html|css)$/.test(file) || file === 'planos-atividades.json') fs.copyFileSync(path.join(root,file),path.join(folder,file));
+  for (const file of fs.readdirSync(root)) if (/\.(js|html|css)$/.test(file) || ['planos-atividades.json', 'manifest.webmanifest', 'gerar-worker.cjs'].includes(file)) fs.copyFileSync(path.join(root,file),path.join(folder,file));
   if (fs.existsSync(path.join(root,"assets"))) fs.cpSync(path.join(root,"assets"),path.join(folder,"assets"),{recursive:true});
   const listener = net.createServer();
   await new Promise(resolve => listener.listen(0,'127.0.0.1',resolve));
