@@ -850,6 +850,7 @@ async function login(groupCode, username, password) {
     activeFarmId = preferredFarmForUser(currentUser);
     openApp();
     startCloudSync();
+    if (typeof FieldMode !== "undefined") FieldMode.afterLogin();
     return true;
   } catch (error) {
     console.error(error);
@@ -932,6 +933,7 @@ async function restoreSession() {
       activeFarmId = preferredFarmForUser(currentUser);
       openApp();
       startCloudSync();
+      if (typeof FieldMode !== "undefined") FieldMode.afterLogin();
     }
   } finally {
     $("#sessionRestore").classList.add("hidden");
