@@ -60,3 +60,36 @@ test('ADM não vê preço de venda nem custo da produção, e não reescreve ven
   const kept = (await api('/api/state', ceo)).json.state.farms[0].agriculture;
   assert.equal(kept.sales[0].kg, 100); assert.equal(kept.sales[0].pricePerKg, 2.5); assert.equal(kept.cycles[0].plannedCost, 5000); assert.equal(kept.cycles[0].stage, 'Encerrada');
 });
+
+test('limpar dados da fazenda: só o CEO, com senha e nome; apaga o conteúdo e mantém a fazenda e os usuários', async t => {
+  const s = await startServer(); t.after(() => s.stop()); const { api, put } = client(s);
+  const ceo = (await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password })).json.token;
+  let st = (await api('/api/state', ceo)).json.state;
+  assert.equal(st.farms.length, 1); assert.equal(st.farms[0].name, 'Minha Fazenda'); // sistema novo sem fazendas de exemplo
+  const farmId = st.farms[0].id;
+  assert.equal((await put(ceo, x => { const f = x.farms[0]; f.talhoes = [{ id: 't1', name: 'Talhão 1' }]; f.tractors = [{ id: 'tr', name: 'Trator' }]; f.stock = [{ id: 's', activity: 'coffee', item: 'Adubo', unit: 'saco', quantity: 3, min: 1 }]; })).status, 200);
+  assert.equal((await api('/api/users', ceo, { username: 'admx', name: 'ADM', email: 'admx@example.invalid', password: s.password, role: 'adm' })).status, 200);
+  assert.equal((await api(`/api/farms/${farmId}/reset`, ceo, { confirmName: 'Minha Fazenda', password: 'errada' })).status, 403);
+  assert.equal((await api(`/api/farms/${farmId}/reset`, ceo, { confirmName: 'Outra', password: s.password })).status, 400);
+  const adm0 = (await api('/api/auth/login', '', { groupCode: '1001', username: 'admx', password: s.password })).json.token;
+  await api('/api/auth/change-password', adm0, { currentPassword: s.password, newPassword: s.password + 'x1' });
+  const adm1 = (await api('/api/auth/login', '', { groupCode: '1001', username: 'admx', password: s.password + 'x1' })).json.token;
+  assert.equal((await api(`/api/farms/${farmId}/reset`, adm1, { confirmName: 'Minha Fazenda', password: s.password + 'x1' })).status, 403);
+  const r = await api(`/api/farms/${farmId}/reset`, ceo, { confirmName: '  minha fazenda ', password: s.password });
+  assert.equal(r.status, 200);
+  const f = r.json.state.farms[0];
+  assert.equal(f.id, farmId); assert.equal(f.name, 'Minha Fazenda');
+  assert.deepEqual([f.talhoes.length, f.tractors.length, f.stock.length], [0, 0, 0]);
+  assert.ok(r.json.state.users.some(u => u.username === 'admx'));
+  assert.ok(r.json.state.audit.some(a => a.action === 'limpou'));
+});
+
+test('app de campo: o servidor gera o service worker com as telas atuais, sem guardar respostas da API', async t => {
+  const s = await startServer(); t.after(() => s.stop());
+  const r = await fetch(s.url + '/campo-sw.js');
+  assert.equal(r.status, 200); assert.match(r.headers.get('content-type'), /javascript/); assert.equal(r.headers.get('cache-control'), 'no-cache');
+  const sw = await r.text();
+  assert.match(sw, /rural-campo-[0-9a-f]{16}/);
+  for (const f of ['/maodeobra.js', '/campo-offline.js', '/menu.js', '/manifest.webmanifest', '/assets/app-icone-192.png']) assert.ok(sw.includes(f), f);
+  assert.match(sw, /startsWith\('\/api\/'\)\)return/);
+});
