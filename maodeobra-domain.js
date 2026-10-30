@@ -62,6 +62,33 @@
   function entryInWeek(e, start) { return e.late ? e.late.settleWeek === start && e.lateStatus !== 'rejected' : e.date >= start && e.date <= weekEnd(start); }
   function entryCounts(e, start) { return !e.voided && entryInWeek(e, start) && (!e.late || e.lateStatus === 'approved'); }
   function lateOpen(labor, start) { return (labor.entries || []).filter(e => !e.voided && e.late && e.lateStatus === 'pending' && (!start || e.late.settleWeek === start)); }
+  // Possível duplicidade (celulares sem internet lançando a mesma pessoa no mesmo dia): duas diárias no mesmo dia, ou
+  // lançamentos da mesma pessoa no mesmo dia feitos por pessoas diferentes. Só some quando o escritório confirma que são
+  // lançamentos diferentes (dupOk) ou estorna o repetido. Trava o fechamento da semana onde estão.
+  function duplicateGroups(labor, start) {
+    const groups = new Map();
+    for (const e of labor.entries || []) {
+      if (e.voided || (e.late && e.lateStatus === 'rejected') || (start && !entryInWeek(e, start))) continue;
+      const k = e.workerId + '|' + e.date; (groups.get(k) || groups.set(k, []).get(k)).push(e);
+    }
+    return [...groups.values()].filter(es => es.length > 1 && es.some(e => !e.dupOk) && (es.filter(e => e.kind === 'diaria').length > 1 || new Set(es.map(e => e.recordedBy || '')).size > 1))
+      .map(es => ({ workerId: es[0].workerId, date: es[0].date, entries: es }));
+  }
+  // Lista de pagamento de um fechamento: quem tem valor a receber, com a chave Pix cadastrada.
+  function paymentList(labor, closing) {
+    return (closing?.lines || []).filter(l => l.total > 0).map(l => { const w = (labor.workers || []).find(x => x.id === l.workerId) || {}; return { workerId: l.workerId, name: l.name, cpf: w.cpf || '', pix: w.pix || '', amount: l.total }; });
+  }
+  // Dados para o contador (safristas, diaristas e panhadores) num período: o que foi fechado e pago, por pessoa.
+  // O contador decide contrato e eSocial; aqui só saem os números do sistema.
+  function accountantRows(labor, from, to) {
+    const out = new Map();
+    for (const c of (labor.closings || []).filter(c => c.weekStart >= from && c.weekStart <= to)) for (const l of c.lines || []) {
+      const w = (labor.workers || []).find(x => x.id === l.workerId) || {}, r = out.get(l.workerId) || out.set(l.workerId, { name: w.name || l.name, cpf: w.cpf || '', role: ROLES[w.role] || '', pix: w.pix || '', firstDay: '', lastDay: '', days: new Set(), weeks: 0, bags: 0, dailies: 0, bagsValue: 0, dailiesValue: 0, advances: 0, discounts: 0, net: 0 }).get(l.workerId);
+      r.weeks++; r.bags += l.bags; r.dailies += l.days; r.bagsValue += cents(l.bagsValue); r.dailiesValue += cents(l.daysValue); r.advances += cents(l.advances); r.discounts += cents(l.discounts); r.net += cents(l.total);
+      for (const e of (labor.entries || []).filter(e => e.workerId === l.workerId && entryCounts(e, c.weekStart))) { r.days.add(e.date); if (!r.firstDay || e.date < r.firstDay) r.firstDay = e.date; if (e.date > r.lastDay) r.lastDay = e.date; }
+    }
+    return [...out.values()].map(r => ({ ...r, days: r.days.size, bags: Math.round(r.bags * 100) / 100, bagsValue: reais(r.bagsValue), dailiesValue: reais(r.dailiesValue), advances: reais(r.advances), discounts: reais(r.discounts), net: reais(r.net) })).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  }
   function pendingSummary(labor) {
     const open = (labor.entries || []).filter(e => !e.voided && e.rate == null && !entryLocked(labor, e));
     const plots = {}, workers = {};
@@ -178,6 +205,8 @@
           Object.assign(keep, { lateStatus: e.lateStatus, lateReviewedBy: who, lateReviewedAt: now });
           if (e.lateStatus === 'rejected') { keep.voided = true; keep.voidReason = filled(e.voidReason, 300) ? e.voidReason : 'Apontamento atrasado recusado na revisão.'; }
         }
+        // Possível duplicidade: só o escritório confirma que são lançamentos diferentes.
+        if (e.dupOk === true && !prev.dupOk) { check(user.labor === 'manager', 'Só o escritório resolve lançamento repetido.', 403); Object.assign(keep, { dupOk: true, dupOkBy: who, dupOkAt: now }); }
         if (keep.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; }
         if (!keep.voided) { delete keep.voided; delete keep.voidReason; delete keep.voidedBy; delete keep.voidedAt; }
         Object.keys(e).forEach(k => delete e[k]); Object.assign(e, keep);
@@ -199,6 +228,7 @@
         check(!old.closings.some(o => o.weekStart === c.weekStart), 'Esta semana já foi fechada.');
         const calc = computeClosing({ ...L, closings: old.closings }, c.weekStart);
         check(!lateOpen(L, c.weekStart).length, 'Há apontamentos atrasados (de semana já paga) aguardando revisão. Aprove ou recuse antes de fechar.');
+        check(!duplicateGroups(L, c.weekStart).length, 'Há lançamentos que parecem repetidos (mesma pessoa no mesmo dia). Confirme ou estorne antes de fechar.');
         check(calc.lines.length > 0, 'Nada para fechar nesta semana.');
         const missing = [...new Set(pendingRates({ ...L, closings: old.closings }, c.weekStart).map(e => (L.workers.find(w => w.id === e.workerId) || {}).name || '—'))];
         check(!missing.length, 'Há apontamentos sem valor nesta semana (' + missing.join(', ') + '). Defina a diária da pessoa ou o valor do saco do talhão antes de fechar.');
@@ -233,5 +263,5 @@
     };
   }
 
-  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, duplicateGroups, paymentList, accountantRows, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

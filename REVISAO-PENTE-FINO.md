@@ -112,6 +112,32 @@ Pacote revisado: `gestao-rural-etapas-3-a-8-local.zip`. O pacote não foi altera
   - **Efeito:** depois de cada fechamento, o envio do fiscal falhava enquanto a semana fechada estivesse nos últimos 35 dias.
   - **Correção:** o valor volta do servidor antes da comparação (`maodeobra-domain.js`).
 
+## Colheita: pagamento, contador e duplicidade (30/10)
+1. **Pagamento em lote por Pix:** na tela de Recibos do fechamento, cada pessoa tem o botão **Copiar Pix**.
+   - **O que ele copia:** o "Pix copia e cola" padrão do Banco Central, com chave, nome, cidade da fazenda e valor da semana (`pix-brcode.js`). O escritório cola no app do banco e confere antes de pagar.
+   - **Lista de pagamento (planilha):** pessoa, CPF, tipo e chave Pix, valor e o copia e cola de cada um.
+   - **Quem fica de fora:** a tela mostra quem está sem chave válida.
+   - **O que não foi feito:** arquivo de remessa do banco (CNAB/Pix em lote), porque o formato é de cada banco e precisa do layout do banco da fazenda.
+2. **Safrista para o contador:** em Fechamentos, **Dados para o contador** gera uma planilha do período, uma linha por pessoa, com:
+   - nome, CPF, função, primeiro e último dia, dias trabalhados e semanas pagas;
+   - sacos e diárias;
+   - valores, vales, descontos e líquido.
+
+   Também avisa quem está sem CPF. **O sistema não define contrato nem envia nada ao eSocial: isso é do contador.**
+3. **Duplicidade offline:** conta como "possível repetido" quando acontece uma destas:
+   - a mesma pessoa no mesmo dia lançada por celulares de fiscais diferentes;
+   - duas diárias no mesmo dia.
+
+   O aviso aparece em Mão de obra com **Estornar este** e **São diferentes** (só o escritório confirma), e a semana só fecha depois. Sacos do mesmo fiscal em talhões diferentes no mesmo dia não contam.
+
+**Testes:** `tests/colheita-pagamento.test.cjs`, com 9 casos:
+- Pix contra o valor de referência e o exemplo oficial do BC;
+- campos do copia e cola e tipos de chave;
+- lista de pagamento e dados para o contador;
+- duplicidade (dois fiscais, diárias, confirmação pelo escritório e trava do fechamento), inclusive pelo servidor com dois celulares.
+
+**`npm test`: 153 de 153.**
+
 ## O que falta, por etapa (a maior parte depende de algo externo)
 - **Etapa 3, nota fiscal:**
   - emissão de NF-e e busca de notas na SEFAZ não funcionam de verdade, só existem os rascunhos;
