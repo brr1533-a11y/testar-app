@@ -53,8 +53,17 @@
     return !!(w && (w.bagRate > 0 || w.hasBagRate)) || (labor.plotRates || []).some(r => r.plotId === entry.plotId && r.validFrom <= entry.date);
   }
   // Pendências de valor em semanas abertas, agrupadas pelo que falta definir: valor do saco do talhão ou diária da pessoa.
+  // Apontamento que chegou atrasado (o fiscal ficou sem internet e a semana já foi fechada e paga): não reabre a semana.
+  // Fica em e.late { closedWeek, settleWeek } com lateStatus 'pending' até o escritório aprovar (entra no pagamento da
+  // semana de acerto, como ajuste) ou recusar (vira estorno). O valor continua o do dia em que a colheita aconteceu.
+  function addWeek(start, n = 1) { const d = new Date(start + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * n); return d.toISOString().slice(0, 10); }
+  function firstOpenWeek(labor, from) { let w = weekStart(from); while ((labor.closings || []).some(c => c.weekStart === w)) w = addWeek(w); return w; }
+  function entryLocked(labor, e) { return closingFor(labor, e.late ? e.late.settleWeek : e.date); }
+  function entryInWeek(e, start) { return e.late ? e.late.settleWeek === start && e.lateStatus !== 'rejected' : e.date >= start && e.date <= weekEnd(start); }
+  function entryCounts(e, start) { return !e.voided && entryInWeek(e, start) && (!e.late || e.lateStatus === 'approved'); }
+  function lateOpen(labor, start) { return (labor.entries || []).filter(e => !e.voided && e.late && e.lateStatus === 'pending' && (!start || e.late.settleWeek === start)); }
   function pendingSummary(labor) {
-    const open = (labor.entries || []).filter(e => !e.voided && e.rate == null && !closingFor(labor, e.date));
+    const open = (labor.entries || []).filter(e => !e.voided && e.rate == null && !entryLocked(labor, e));
     const plots = {}, workers = {};
     for (const e of open) {
       if (e.kind === 'diaria') { const g = workers[e.workerId] ||= { workerId: e.workerId, count: 0 }; g.count++; }
@@ -64,28 +73,29 @@
   }
   function entryAmount(e) { if (e.rate == null) return 0; return e.kind === 'diaria' ? reais(cents(e.rate)) : reais(Math.round(cents(e.rate) * e.bags)); }
   // Apontamentos ainda sem valor numa semana (o fechamento fica bloqueado até o escritório definir).
-  function pendingRates(labor, start) { const end = weekEnd(start); return (labor.entries || []).filter(e => !e.voided && e.date >= start && e.date <= end && e.rate == null); }
+  function pendingRates(labor, start) { return (labor.entries || []).filter(e => !e.voided && entryInWeek(e, start) && e.rate == null); }
   // Apontamentos dentro da carência de defensivo ainda sem decisão do CEO/ADM (também travam o fechamento).
-  function graceOpen(labor, start) { const end = weekEnd(start); return (labor.entries || []).filter(e => !e.voided && e.date >= start && e.date <= end && e.graceAlert && !e.graceDecision); }
+  function graceOpen(labor, start) { return (labor.entries || []).filter(e => !e.voided && entryInWeek(e, start) && e.graceAlert && !e.graceDecision); }
 
   // Fechamento de uma semana, por pessoa: sacos × valor + diárias − adiantamentos − descontos − saldo devedor anterior.
   // Total negativo vira R$ 0 e a diferença passa como saldo devedor para a próxima semana.
+  // Apontamentos atrasados aprovados entram na semana de acerto (lateBags/lateDays mostram quanto veio de semanas já pagas).
   function computeClosing(labor, start) {
-    const end = weekEnd(start), inWeek = r => !r.voided && r.date >= start && r.date <= end;
+    const end = weekEnd(start), inWeek = r => !r.voided && r.date >= start && r.date <= end, entryIn = e => entryCounts(e, start);
     const prior = (labor.closings || []).filter(c => c.weekStart < start).sort((a, b) => b.weekStart.localeCompare(a.weekStart));
     const lastDebt = wid => { for (const c of prior) { const l = c.lines.find(x => x.workerId === wid); if (l) return l.newDebt || 0; } return 0; };
-    const ids = new Set([...(labor.entries || []).filter(inWeek).map(e => e.workerId), ...(labor.adjustments || []).filter(inWeek).map(a => a.workerId)]);
-    for (const w of labor.workers || []) if (lastDebt(w.id) > 0 && (labor.entries || []).some(e => e.workerId === w.id && inWeek(e))) ids.add(w.id);
+    const ids = new Set([...(labor.entries || []).filter(entryIn).map(e => e.workerId), ...(labor.adjustments || []).filter(inWeek).map(a => a.workerId)]);
+    for (const w of labor.workers || []) if (lastDebt(w.id) > 0 && (labor.entries || []).some(e => e.workerId === w.id && entryIn(e))) ids.add(w.id);
     const lines = [...ids].map(wid => {
       const w = (labor.workers || []).find(x => x.id === wid) || {};
-      const es = (labor.entries || []).filter(e => e.workerId === wid && inWeek(e)), as = (labor.adjustments || []).filter(a => a.workerId === wid && inWeek(a));
+      const es = (labor.entries || []).filter(e => e.workerId === wid && entryIn(e)), as = (labor.adjustments || []).filter(a => a.workerId === wid && inWeek(a));
       const bags = Math.round(es.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0) * 100) / 100;
       const bagsC = es.filter(e => e.kind === 'saco').reduce((n, e) => n + cents(entryAmount(e)), 0);
       const days = es.filter(e => e.kind === 'diaria').length, daysC = es.filter(e => e.kind === 'diaria').reduce((n, e) => n + cents(entryAmount(e)), 0);
       const advC = as.filter(a => a.kind === 'adiantamento').reduce((n, a) => n + cents(a.amount), 0), discC = as.filter(a => a.kind === 'desconto').reduce((n, a) => n + cents(a.amount), 0);
       const debtC = cents(lastDebt(wid)), grossC = bagsC + daysC, netC = grossC - advC - discC - debtC;
-      const pending = es.filter(e => e.rate == null).length;
-      return { workerId: wid, name: w.name || '—', pending, bags, bagsValue: reais(bagsC), days, daysValue: reais(daysC), advances: reais(advC), discounts: reais(discC), previousDebt: reais(debtC), gross: reais(grossC), total: reais(Math.max(0, netC)), newDebt: reais(Math.max(0, -netC)) };
+      const pending = es.filter(e => e.rate == null).length, late = es.filter(e => e.late);
+      return { workerId: wid, name: w.name || '—', pending, ...(late.length ? { lateBags: Math.round(late.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0) * 100) / 100, lateDays: late.filter(e => e.kind === 'diaria').length } : {}), bags, bagsValue: reais(bagsC), days, daysValue: reais(daysC), advances: reais(advC), discounts: reais(discC), previousDebt: reais(debtC), gross: reais(grossC), total: reais(Math.max(0, netC)), newDebt: reais(Math.max(0, -netC)) };
     }).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
     return { weekStart: start, weekEnd: end, lines, total: reais(lines.reduce((n, l) => n + cents(l.total), 0)) };
   }
@@ -107,6 +117,7 @@
       check(e.kind === 'diaria' ? e.bags == null || e.bags === 0 : num(e.bags, 0.5, 200) && Number.isInteger(e.bags * 2), 'Sacos: de meio em meio, até 200 por apontamento.');
       check(e.rate == null || num(e.rate, 0.01, 100000), 'Valor do apontamento inválido.');
       check(!e.voided || filled(e.voidReason, 300), 'Informe o motivo do estorno.');
+      check(!e.late || D.validDate(e.late.closedWeek) && D.validDate(e.late.settleWeek) && e.late.settleWeek > e.late.closedWeek && ['pending', 'approved', 'rejected'].includes(e.lateStatus), 'Apontamento atrasado inválido.');
     }
     for (const a of L.adjustments) check(D.validDate(a.date) && workers.has(a.workerId) && ['adiantamento', 'desconto'].includes(a.kind) && num(a.amount, 0.01, 1000000) && filled(a.reason, 300) && (!a.voided || filled(a.voidReason, 300)), 'Confira pessoa, data, valor e motivo do adiantamento ou desconto.');
     const weeks = new Set();
@@ -145,22 +156,31 @@
       for (const e of L.entries) {
         const prev = old.entries.find(x => x.id === e.id);
         if (!prev) {
-          check(!locked(e.date), 'A semana deste apontamento já foi fechada.', 403);
           check(e.date <= today(), 'Apontamento não pode ser em data futura.');
+          // Semana já fechada e paga: o apontamento entra para revisão do escritório e, se aprovado, no próximo pagamento.
+          const closed = locked(e.date);
+          delete e.late; delete e.lateStatus;
+          if (closed) { e.late = { closedWeek: closed.weekStart, settleWeek: firstOpenWeek(old, today() > closed.weekEnd ? today() : addWeek(closed.weekStart)) }; e.lateStatus = 'pending'; }
           if (e.kind === 'diaria') delete e.bags;
           e.rate = rateFor(L, e); e.recordedBy = who; e.createdAt = now; delete e.voided; delete e.voidReason;
           continue;
         }
         if (same(prev, e)) continue;
-        check(!locked(prev.date), 'A semana deste apontamento já foi fechada.', 403);
+        check(!entryLocked(old, prev), 'A semana deste apontamento já foi fechada.', 403);
         if (user.labor === 'fiscal') check(prev.recordedBy === who, 'O fiscal só corrige os próprios apontamentos.', 403);
         // A decisão sobre colheita na carência segue adiante; quem confere e carimba é o Carencia.stamp no servidor.
         const keep = { ...prev, bags: e.bags, voided: e.voided, voidReason: e.voidReason, ...(e.graceDecision && !prev.graceDecision ? { graceDecision: e.graceDecision } : {}) };
-        if (e.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; }
-        if (!e.voided) { delete keep.voided; delete keep.voidReason; delete keep.voidedBy; delete keep.voidedAt; }
+        // Revisão do apontamento atrasado: só o escritório (CEO/ADM com a página) aprova ou recusa, uma vez.
+        if (prev.late && prev.lateStatus === 'pending' && ['approved', 'rejected'].includes(e.lateStatus)) {
+          check(user.labor === 'manager', 'Só o escritório revisa apontamento atrasado.', 403);
+          Object.assign(keep, { lateStatus: e.lateStatus, lateReviewedBy: who, lateReviewedAt: now });
+          if (e.lateStatus === 'rejected') { keep.voided = true; keep.voidReason = filled(e.voidReason, 300) ? e.voidReason : 'Apontamento atrasado recusado na revisão.'; }
+        }
+        if (keep.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; }
+        if (!keep.voided) { delete keep.voided; delete keep.voidReason; delete keep.voidedBy; delete keep.voidedAt; }
         Object.keys(e).forEach(k => delete e[k]); Object.assign(e, keep);
       }
-      for (const e of L.entries) if (e.rate == null && !e.voided && !locked(e.date)) { const r = rateFor(L, e); if (r) e.rate = r; }
+      for (const e of L.entries) if (e.rate == null && !e.voided && !entryLocked(old, e)) { const r = rateFor(L, e); if (r) e.rate = r; }
       if (user.labor !== 'manager') { validateFarm(f); continue; }
       for (const a of L.adjustments) {
         const prev = old.adjustments.find(x => x.id === a.id);
@@ -176,6 +196,7 @@
         check(D.validDate(c.weekStart) && weekStart(c.weekStart) === c.weekStart && c.weekStart <= today(), 'Escolha uma semana que já começou.');
         check(!old.closings.some(o => o.weekStart === c.weekStart), 'Esta semana já foi fechada.');
         const calc = computeClosing({ ...L, closings: old.closings }, c.weekStart);
+        check(!lateOpen(L, c.weekStart).length, 'Há apontamentos atrasados (de semana já paga) aguardando revisão. Aprove ou recuse antes de fechar.');
         check(calc.lines.length > 0, 'Nada para fechar nesta semana.');
         const missing = [...new Set(pendingRates({ ...L, closings: old.closings }, c.weekStart).map(e => (L.workers.find(w => w.id === e.workerId) || {}).name || '—'))];
         check(!missing.length, 'Há apontamentos sem valor nesta semana (' + missing.join(', ') + '). Defina a diária da pessoa ou o valor do saco do talhão antes de fechar.');
@@ -210,5 +231,5 @@
     };
   }
 
-  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

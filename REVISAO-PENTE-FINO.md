@@ -62,6 +62,38 @@ Pacote revisado: `gestao-rural-etapas-3-a-8-local.zip`. O pacote não foi altera
 
 **Arquivos:** `app.js`, `server.js`, `temas-atividades.css`, `app.html`, `index.html`, `cafe.html`, `gado.html`, `graos.html`, `platform.html`, `sales.js`. Os testes `tests/support/server.cjs`, `tests/seguranca.test.cjs` e `tests/expansao-api.test.cjs` passaram a usar senhas dentro da regra, e há um teste novo da troca obrigatória. **`npm test`: 129 de 129.**
 
+## Pontos de atenção corrigidos (30/10, terceira rodada)
+1. **Cofre do celular perdido:**
+   - **Limite de PIN:**
+     - depois de **5 PINs errados seguidos**, o cofre trava por 5 min;
+     - cada novo erro dobra a espera, até 24 h;
+     - com **10 erros**, o cofre só abre depois de entrar com usuário e senha, com internet.
+   - **Aparelhos registrados:** cada cofre ganha uma identificação, registrada no servidor ao habilitar. Cofres antigos ganham a identificação quando forem abertos com internet.
+   - **Usuários › Aparelhos com modo de campo:** o CEO ou ADM desconecta o aparelho. Isso faz três coisas:
+     - encerra as sessões da pessoa na hora;
+     - registra a ação no Histórico;
+     - faz o app apagar o cofre na primeira vez que esse aparelho tiver internet. Sem internet, o que protege é o PIN com o limite acima.
+   - **Limite que continua:** o contador de tentativas fica no próprio aparelho. Quem souber mexer no navegador pode tentar zerá-lo; a proteção de verdade continua sendo um PIN difícil, de 6 ou mais caracteres.
+2. **Apontamento atrasado em semana paga:**
+   - **Não reabre a semana nem dá erro:** o apontamento fica "atrasado, aguardando revisão", com o valor do dia em que a colheita aconteceu.
+   - **Revisão no escritório:** aparece em Mão de obra para o escritório aprovar ou recusar.
+     - **Aprovado:** entra no pagamento da semana de acerto (a primeira semana aberta), e o recibo mostra quanto veio de atraso.
+     - **Recusado:** vira estorno com motivo.
+     - **Fechamento:** a semana de acerto só fecha depois da revisão.
+   - **Na tela do fiscal:** ele pode lançar em semana fechada, com o aviso de que vai para revisão.
+3. **Senhas comuns:** além da regra (maiúscula, minúscula, número e símbolo), são recusadas as combinações de palavra conhecida com números simples, como sequência, número repetido ou ano. Exemplos: "Fazenda@123", "Senha@2026", "Café#1234". A tela e o servidor usam a mesma lista.
+4. **Super Admin com senha fora da regra:**
+   - **Primeiro acesso:** só entra para trocar a senha. Todas as outras telas respondem "troque a senha".
+   - **Senha nova:** fica guardada no banco, só como hash, e a do Render deixa de valer.
+   - **Senha nova perdida:** `PLATFORM_ADMIN_PASSWORD_RESET=1` no ambiente volta a aceitar a senha do Render.
+5. **Custo do banho pela quantidade real:**
+   - **Ao concluir:** o tratorista pode informar quanto usou de cada produto em cada talhão. É opcional; em branco, vale o planejado.
+   - **Com a quantidade informada:** o estoque baixa o que foi usado de verdade e cada talhão (e a safra dele) leva o próprio custo.
+   - **Produtos sem quantidade informada:** continuam divididos pela área.
+6. **Teste com dados reais:** continua pendente. Precisa de uma fazenda de verdade para conferir custo, comercialização e orçamento antes de vender.
+
+**Testes novos:** `tests/pontos-atencao.test.cjs` (7 casos) e mais um caso em `tests/revisao-custos.test.cjs`. **`npm test`: 137 de 137.**
+
 ## O que falta, por etapa (a maior parte depende de algo externo)
 - **Etapa 3, nota fiscal:**
   - emissão de NF-e e busca de notas na SEFAZ não funcionam de verdade, só existem os rascunhos;

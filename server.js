@@ -626,12 +626,22 @@ const DUMMY_PASSWORD_HASH = bcrypt.hashSync("senha-que-nunca-confere", 11);
 const WEAK_PASSWORDS_LOWER = new Set([...WEAK_PASSWORDS].map(p => p.toLowerCase()));
 // Regra única de senha (a tela usa a mesma): 8 a 128 caracteres, com letra maiúscula, minúscula, número e símbolo.
 // Senha antiga fora da regra continua entrando, mas a pessoa precisa trocar logo depois do login.
+// Senhas comuns: palavra óbvia + números simples (ex.: Fazenda@123, Senha@2026) passam na regra, mas são as primeiras
+// que alguém tenta. A tela usa a mesma lista (app.js).
+const COMMON_PASSWORD_WORDS = new Set(["senha", "password", "admin", "administrador", "fazenda", "fazendas", "sitio", "cafe", "cafes", "gado", "boi", "leite", "graos", "soja", "milho", "rural", "agro", "gestao", "brasil", "minas", "teste", "mudar", "trocar", "acesso", "usuario", "qwerty", "asdf", "abc", "abcd", "ceo", "adm", "fiscal", "trator", "tratorista", "colheita", "safra", "deus", "amor", "familia", "flamengo", "corinthians", "palmeiras", "cruzeiro", "atletico", "gremio", "santos", "vasco"]);
+function commonPassword(p) {
+  const letters = p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z]/g, ""), digits = p.replace(/[^0-9]/g, "");
+  const simple = "1234567890".startsWith(digits) || "0123456789".startsWith(digits) || "9876543210".startsWith(digits) || /^(\d)\1*$/.test(digits) || /^(19|20)\d\d$/.test(digits);
+  return WEAK_PASSWORDS_LOWER.has(p.toLowerCase()) || COMMON_PASSWORD_WORDS.has(letters) && simple;
+}
 function passwordProblem(password) {
   const p = String(password || "");
   if (p.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
   if (p.length > 128) return "A senha pode ter no máximo 128 caracteres.";
   const missing = [!/[A-Z]/.test(p) && "letra maiúscula", !/[a-z]/.test(p) && "letra minúscula", !/[0-9]/.test(p) && "número", !/[^A-Za-z0-9]/.test(p) && "símbolo (ex.: @)"].filter(Boolean);
-  return missing.length ? "Falta na senha: " + missing.join(", ") + "." : "";
+  if (missing.length) return "Falta na senha: " + missing.join(", ") + ".";
+  if (commonPassword(p)) return "Essa senha é muito comum (palavra conhecida com números simples). Misture palavras ou use números que não sejam sequência nem ano.";
+  return "";
 }
 function assertPassword(password) { const problem = passwordProblem(password); if (problem) throw Object.assign(new Error(problem), { statusCode: 400 }); }
 function maskEmail(email) { return normalizeEmail(email).replace(/(^.).*(@.*$)/, "$1***$2"); }
@@ -930,6 +940,56 @@ app.post("/api/auth/logout-others", auth, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ---------- Aparelhos com modo de campo (cofre offline) ----------
+// Cada cofre tem um identificador aleatório registrado ao habilitar. O CEO/ADM pode desconectar um aparelho (perdido,
+// trocado): as sessões da pessoa são encerradas e, quando o aparelho pegar internet, o próprio app apaga o cofre.
+const FIELD_DEVICE_ID = /^[a-f0-9]{32}$/;
+const fieldDevicesKey = groupId => `fieldDevices:${groupId}`;
+async function fieldDevices(groupId) { return (await store.getConfig(fieldDevicesKey(groupId))) || []; }
+app.post("/api/field-devices", auth, async (req, res, next) => {
+  try {
+    const id = String(req.body.id || ""), label = String(req.body.label || "").slice(0, 120);
+    if (!FIELD_DEVICE_ID.test(id)) return res.status(400).json({ error: "Identificação do aparelho inválida." });
+    const list = await fieldDevices(req.auth.group.id), found = list.find(d => d.id === id);
+    if (found && String(found.userId) !== String(req.auth.user.id)) return res.status(409).json({ error: "Este cofre pertence a outro usuário." });
+    if (found?.revokedAt) return res.status(403).json({ error: "Este aparelho foi desconectado pelo responsável.", revoked: true });
+    if (found) Object.assign(found, { label: label || found.label, lastSeenAt: nowIso() });
+    else {
+      const mine = list.filter(d => String(d.userId) === String(req.auth.user.id) && !d.revokedAt);
+      if (mine.length >= 10) return res.status(400).json({ error: "Limite de 10 aparelhos com modo de campo por pessoa. Peça ao responsável para desconectar um antigo." });
+      list.push({ id, userId: req.auth.user.id, userName: req.auth.user.name || req.auth.user.username, label, createdAt: nowIso(), lastSeenAt: nowIso() });
+    }
+    await store.setConfig(fieldDevicesKey(req.auth.group.id), list.slice(-500));
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+// Consulta do próprio aparelho (sem login, porque a sessão pode já ter sido encerrada): responde só se foi desconectado.
+app.post("/api/field-devices/status", limitRequests("field-device-status", 60, 15 * 60_000), async (req, res, next) => {
+  try {
+    const id = String(req.body.id || ""), groupId = String(req.body.groupId || "");
+    if (!FIELD_DEVICE_ID.test(id) || !/^[A-Za-z0-9_-]{1,80}$/.test(groupId)) return res.json({ revoked: false });
+    const d = (await fieldDevices(groupId)).find(x => x.id === id);
+    res.json({ revoked: Boolean(d?.revokedAt) });
+  } catch (e) { next(e); }
+});
+app.get("/api/field-devices", auth, requireRole("ceo", "adm"), async (req, res, next) => {
+  try { res.json({ devices: (await fieldDevices(req.auth.group.id)).slice().reverse() }); } catch (e) { next(e); }
+});
+app.post("/api/field-devices/:id/revoke", auth, requireRole("ceo", "adm"), async (req, res, next) => {
+  try {
+    const list = await fieldDevices(req.auth.group.id), d = list.find(x => x.id === String(req.params.id));
+    if (!d) return res.status(404).json({ error: "Aparelho não encontrado." });
+    if (!d.revokedAt) {
+      Object.assign(d, { revokedAt: nowIso(), revokedBy: req.auth.user.name || req.auth.user.username });
+      await store.setConfig(fieldDevicesKey(req.auth.group.id), list);
+      // Sessões da pessoa encerradas: a sessão lembrada no aparelho perdido para de valer na hora.
+      await store.deleteSessionsForUser(req.auth.group.id, d.userId);
+      await mutateGroup(req.auth.group.id, g => { g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "desconectou", area: "Aparelho do modo de campo", label: `${d.userName} · ${d.label || "aparelho"}`.slice(0, 200), farm: "" }].slice(-1500); });
+    }
+    res.json({ ok: true, devices: list.slice().reverse() });
+  } catch (e) { next(e); }
+});
+
 app.post("/api/auth/register-request", limitRequests("register", 10, 3600_000, "Muitas solicitações deste aparelho. Tente mais tarde."), async (req, res, next) => {
   try {
     const groupInput = String(req.body.groupCode || req.body.groupSlug || req.body.group || "").trim();
@@ -1195,7 +1255,9 @@ function applyBathStockDeduction(before, after, who) {
       for (const p of order.products || []) {
         const item = (farm.stock || []).find(s => (s.activity || "coffee") === "coffee" && normName(s.item) === normName(p.name) && unitFamily(s.unit) === unitFamily(p.unit));
         if (!item) continue;
-        const qty = Number(p.quantity || 0);
+        // Com a quantidade real por talhão informada, baixa o que foi usado; sem ela, a quantidade planejada da ordem.
+        const real = Array.isArray(order.usage) ? order.usage.filter(u => String(u.productId) === String(p.productId)) : [];
+        const qty = real.length ? Math.round(real.reduce((n, u) => n + Number(u.quantity || 0), 0) * 1000) / 1000 : Number(p.quantity || 0);
         if (!(qty > 0)) continue;
         item.quantity = Math.round((Number(item.quantity || 0) - qty) * 1000) / 1000;
         item.moves ||= [];
@@ -1436,10 +1498,19 @@ function mergeStateByRole(existing, incoming, user) {
       completedAt: nowIso(),
       reportedAt: validIsoOrNull(proposed.completedAt),
       completedBy: user.username,
-      completedByName: user.name
+      completedByName: user.name,
+      ...(bathUsage(order, proposed.usage) ? { usage: bathUsage(order, proposed.usage) } : {})
     };
   });
   return result;
+}
+// Quantidade real usada por talhão, informada ao concluir o banho (opcional). Só talhões e produtos da própria ordem.
+function bathUsage(order, usage) {
+  if (!Array.isArray(usage) || !usage.length) return null;
+  const plots = new Set((order.talhaoIds || []).map(String)), products = new Set((order.products || []).map(p => String(p.productId)));
+  const out = usage.filter(u => u && plots.has(String(u.plotId)) && products.has(String(u.productId)) && Number.isFinite(Number(u.quantity)) && Number(u.quantity) >= 0 && Number(u.quantity) <= 1e6)
+    .map(u => ({ plotId: String(u.plotId), productId: String(u.productId), quantity: Math.round(Number(u.quantity) * 1000) / 1000 }));
+  return out.length ? out.slice(0, 2000) : null;
 }
 
 // Data "AAAA-MM-DD" a no máximo um dia e meio de agora (cobre fuso horário e um registro feito sem sinal ontem).
@@ -1706,17 +1777,24 @@ app.post("/api/registrations/:id/reject", auth, requireRole("ceo"), async (req, 
   } catch (e) { next(e); }
 });
 
+// Senha do Super Admin: a do ambiente (Render) vale até ser trocada pelo próprio painel; a nova fica guardada só como
+// hash. PLATFORM_ADMIN_PASSWORD_RESET=1 volta a usar a do ambiente (para quem perdeu a senha nova).
+const PLATFORM_PASSWORD_RESET = process.env.PLATFORM_ADMIN_PASSWORD_RESET === "1";
+async function platformStoredPassword() { return PLATFORM_PASSWORD_RESET ? null : await store.getConfig("platformAdminPassword"); }
 async function platformPasswordOk(password) {
+  const stored = await platformStoredPassword();
+  if (stored?.hash) return bcrypt.compare(String(password || ""), stored.hash);
   if (!PLATFORM_ADMIN_PASSWORD) return false;
   if (PLATFORM_ADMIN_PASSWORD.startsWith("$2")) return bcrypt.compare(String(password || ""), PLATFORM_ADMIN_PASSWORD);
   return safeEqual(password, PLATFORM_ADMIN_PASSWORD);
 }
 async function getPlatformSessions() { return (await store.getConfig("platformAdminSessions")) || []; }
 async function savePlatformSessions(list) { await store.setConfig("platformAdminSessions", list.slice(-30)); }
-async function createPlatformSession(req) {
+// mustChangePassword: a senha usada no login está fora da regra; a sessão só serve para trocar a senha (ou sair).
+async function createPlatformSession(req, mustChangePassword = false) {
   const token = crypto.randomBytes(36).toString("hex");
   const sessions = (await getPlatformSessions()).filter(x => new Date(x.expiresAt).getTime() > Date.now());
-  sessions.push({ tokenHash: tokenHash(token), email: PLATFORM_ADMIN_EMAIL, createdAt: nowIso(), expiresAt: new Date(Date.now() + PLATFORM_SESSION_HOURS * 3600_000).toISOString(), ip: String(req.ip || ""), userAgent: String(req.headers["user-agent"] || "").slice(0,180) });
+  sessions.push({ tokenHash: tokenHash(token), email: PLATFORM_ADMIN_EMAIL, createdAt: nowIso(), expiresAt: new Date(Date.now() + PLATFORM_SESSION_HOURS * 3600_000).toISOString(), ip: String(req.ip || ""), userAgent: String(req.headers["user-agent"] || "").slice(0,180), ...(mustChangePassword ? { mustChangePassword: true } : {}) });
   await savePlatformSessions(sessions);
   return token;
 }
@@ -1727,7 +1805,11 @@ async function platformAuth(req, res, next) {
       const sessions = await getPlatformSessions();
       const hash = tokenHash(bearer);
       const session = sessions.find(x => x.tokenHash === hash && new Date(x.expiresAt).getTime() > Date.now());
-      if (session) { req.platformAdmin = { email: session.email, session, token: bearer }; return next(); }
+      if (session) {
+        req.platformAdmin = { email: session.email, session, token: bearer };
+        if (session.mustChangePassword && !/^\/api\/platform\/auth\/(change-password|logout)/.test(req.originalUrl)) return res.status(428).json({ error: "Troque a senha do Super Admin para continuar.", mustChangePassword: true });
+        return next();
+      }
     }
     // Migração/local: a chave antiga só é aceita fora de produção, ou com liberação explícita,
     // e com limite de tentativas erradas (antes dava para testar chaves sem parar).
@@ -1765,19 +1847,21 @@ app.post("/api/platform/auth/login", limitRequests("platform-login", 10, 15 * 60
     if (rateBlocked(accountKey, 20)) return res.status(429).json({ error: `Login do Super Admin bloqueado por excesso de tentativas. Tente de novo em ${rateRetryMinutes(accountKey)} min.` });
     if (email !== PLATFORM_ADMIN_EMAIL || !(await platformPasswordOk(password))) { rateHit(accountKey, 20, 15 * 60_000); return res.status(401).json({ error: "E-mail ou senha incorretos" }); }
     rateClear(accountKey);
+    // A conta mais sensível: senha fora da regra só entra para trocar.
+    const mustChangePassword = Boolean(passwordProblem(password));
     if (PLATFORM_REQUIRE_2FA) {
       if (!RESEND_API_KEY) return res.status(503).json({ error: "2FA do Super Admin está ativo, mas o envio de e-mail não está configurado" });
       const code = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0");
       const challengeId = uid();
       const challenges = (await store.getConfig("platformChallenges")) || [];
-      challenges.push({ id: challengeId, email, codeHash: await bcrypt.hash(code, 10), expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), attempts: 0 });
+      challenges.push({ id: challengeId, email, codeHash: await bcrypt.hash(code, 10), expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), attempts: 0, ...(mustChangePassword ? { mustChangePassword: true } : {}) });
       await store.setConfig("platformChallenges", challenges.filter(x => new Date(x.expiresAt).getTime() > Date.now()).slice(-20));
       await sendPlatformCodeEmail(code);
       return res.json({ ok: true, needsCode: true, challengeId, email: maskEmail(email) });
     }
-    const token = await createPlatformSession(req);
+    const token = await createPlatformSession(req, mustChangePassword);
     await recordPlatformAudit({ platformAdmin: { email }, ip: req.ip }, "login-super-admin", null, "Login administrativo");
-    res.json({ ok: true, token, expiresInHours: PLATFORM_SESSION_HOURS });
+    res.json({ ok: true, token, expiresInHours: PLATFORM_SESSION_HOURS, mustChangePassword });
   } catch (e) { next(e); }
 });
 app.post("/api/platform/auth/verify", limitRequests("platform-2fa", 15, 15 * 60_000), async (req, res, next) => {
@@ -1790,9 +1874,26 @@ app.post("/api/platform/auth/verify", limitRequests("platform-2fa", 15, 15 * 60_
     const ok = await bcrypt.compare(code, ch.codeHash);
     if (!ok) { ch.attempts = Number(ch.attempts || 0) + 1; await store.setConfig("platformChallenges", challenges); return res.status(400).json({ error: "Código inválido ou expirado" }); }
     await store.setConfig("platformChallenges", challenges.filter(x => x.id !== id));
-    const token = await createPlatformSession(req);
+    const token = await createPlatformSession(req, Boolean(ch.mustChangePassword));
     await recordPlatformAudit({ platformAdmin: { email: PLATFORM_ADMIN_EMAIL }, ip: req.ip }, "login-super-admin", null, "Login com verificação em duas etapas");
-    res.json({ ok: true, token, expiresInHours: PLATFORM_SESSION_HOURS });
+    res.json({ ok: true, token, expiresInHours: PLATFORM_SESSION_HOURS, mustChangePassword: Boolean(ch.mustChangePassword) });
+  } catch (e) { next(e); }
+});
+// Troca da senha do Super Admin pelo painel: guarda só o hash, encerra as outras sessões e libera esta.
+app.post("/api/platform/auth/change-password", platformAuth, async (req, res, next) => {
+  try {
+    if (!req.platformAdmin.session) return res.status(403).json({ error: "Entre com e-mail e senha para trocar a senha." });
+    const key = "platform-chpass";
+    if (rateBlocked(key, 6)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+    const current = String(req.body.currentPassword || ""), next_ = String(req.body.newPassword || "");
+    if (!(await platformPasswordOk(current))) { rateHit(key, 6, 15 * 60_000); return res.status(400).json({ error: "A senha atual não confere" }); }
+    const issue = passwordProblem(next_); if (issue) return res.status(400).json({ error: issue });
+    if (current === next_) return res.status(400).json({ error: "A nova senha precisa ser diferente da atual" });
+    await store.setConfig("platformAdminPassword", { hash: await bcrypt.hash(next_, 12), changedAt: nowIso() });
+    const hash = tokenHash(req.platformAdmin.token);
+    await savePlatformSessions((await getPlatformSessions()).filter(x => x.tokenHash === hash).map(x => { const { mustChangePassword, ...rest } = x; return rest; }));
+    await recordPlatformAudit(req, "senha-super-admin", null, "Senha do Super Admin trocada pelo painel");
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 app.post("/api/platform/auth/logout", platformAuth, async (req, res, next) => {

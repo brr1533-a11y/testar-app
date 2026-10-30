@@ -28,7 +28,7 @@ async function load(){
     if(Array.isArray(c.plans)){planPrices=Object.fromEntries(c.plans.map(p=>[p.id,p.monthlyPrice==null?null:Number(p.monthlyPrice)]));planNames=Object.fromEntries(c.plans.map(p=>[p.id,p.name||p.id]));}
     if(Array.isArray(c.billingCycles)){cycleMonths=Object.fromEntries(c.billingCycles.map(x=>[x.id,x.months]));cycleLabels=Object.fromEntries(c.billingCycles.map(x=>[x.id,x.label]));}
     allGroups=g.groups||[]; render(); renderAudit(a.audit||[]); showPanel();
-  }catch(e){toast(e.message);if(e.status===401||e.status===403){token="";sessionStorage.removeItem("platformToken");showLogin();}}
+  }catch(e){toast(e.message);if(e.status===401||e.status===403||e.status===428){token="";sessionStorage.removeItem("platformToken");showLogin();}}
 }
 const monthlyRevenue=g=>g.commercial?.type==="paid"&&g.amount!=null&&g.billingCycle?Number(g.amount)/(cycleMonths[g.billingCycle]||1):0;
 function usageCell(g){const u=g.usage||{},l=g.limits||{};const farmsTxt=l.maxFarms?`${u.farms??0}/${l.maxFarms}`:`${u.farms??0}`;const full=l.maxFarms&&u.farms>=l.maxFarms;const maxPerFarm=Math.max(0,...(u.perFarm||[]).map(f=>f.contributors));return `<div class="usage-cell"><span class="${full?"warn":""}">${farmsTxt} fazenda${(u.farms||0)===1?"":"s"}</span><span>${u.contributors??0} de campo • máx. ${maxPerFarm}/${l.usersPerFarm||10}</span></div>`;}
@@ -56,8 +56,20 @@ function bindRows(){
 }
 
 $("#groupSearch").oninput=e=>{filters.q=e.target.value;render()};$("#groupStatus").onchange=e=>{filters.status=e.target.value;render()};$("#groupPlan").onchange=e=>{filters.plan=e.target.value;render()};$("#refreshBtn").onclick=load;
-$("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{const r=await rawApi("/api/platform/auth/login",{method:"POST",body:JSON.stringify({email:$("#adminEmail").value.trim(),password:$("#adminPassword").value})});if(r.needsCode){challengeId=r.challengeId;$("#codeHelp").textContent=`Enviamos um código para ${r.email}.`;$("#adminLoginForm").classList.add("hidden");$("#adminCodeForm").classList.remove("hidden");$("#adminCode").focus()}else{token=r.token;sessionStorage.setItem("platformToken",token);load()}}catch(err){toast(err.message)}finally{btn.disabled=false}};
-$("#adminCodeForm").onsubmit=async e=>{e.preventDefault();try{const r=await rawApi("/api/platform/auth/verify",{method:"POST",body:JSON.stringify({challengeId,code:$("#adminCode").value})});token=r.token;sessionStorage.setItem("platformToken",token);challengeId="";load()}catch(err){toast(err.message)}};
+// Senha do Super Admin fora da regra: o servidor só libera o painel depois da troca.
+let typedAdminPassword="";
+async function forceAdminPasswordChange(){
+  for(let i=0;i<3;i++){
+    const v=await openDialog(`<form class="dlg"><h3>Troque a senha do Super Admin</h3><p>A senha atual não segue a regra: mínimo de 8 caracteres, com letra maiúscula, minúscula, número e símbolo (ex.: @), e sem ser uma senha comum. O painel abre depois da troca.</p><label class="field">Nova senha<input name="newPassword" type="password" minlength="8" autocomplete="new-password" required autofocus></label><label class="field">Repita a nova senha<input name="confirm" type="password" minlength="8" autocomplete="new-password" required></label><div class="dlg-actions"><button type="button" class="btn-plain" data-dlg-cancel>Sair</button><button type="submit" class="btn-main">Salvar nova senha</button></div></form>`);
+    if(!v)break;
+    if(v.newPassword!==v.confirm){toast("As duas senhas não são iguais.");continue;}
+    try{await api("/api/platform/auth/change-password",{method:"POST",body:JSON.stringify({currentPassword:typedAdminPassword,newPassword:v.newPassword})});typedAdminPassword="";toast("Senha do Super Admin alterada. Guarde a nova: a do ambiente deixa de valer.");return load();}catch(err){toast(err.message);}
+  }
+  typedAdminPassword="";token="";sessionStorage.removeItem("platformToken");showLogin();
+}
+function afterAdminLogin(r){token=r.token;sessionStorage.setItem("platformToken",token);if(r.mustChangePassword)return forceAdminPasswordChange();typedAdminPassword="";load();}
+$("#adminLoginForm").onsubmit=async e=>{e.preventDefault();const btn=e.submitter;btn.disabled=true;try{typedAdminPassword=$("#adminPassword").value;const r=await rawApi("/api/platform/auth/login",{method:"POST",body:JSON.stringify({email:$("#adminEmail").value.trim(),password:typedAdminPassword})});if(r.needsCode){challengeId=r.challengeId;$("#codeHelp").textContent=`Enviamos um código para ${r.email}.`;$("#adminLoginForm").classList.add("hidden");$("#adminCodeForm").classList.remove("hidden");$("#adminCode").focus()}else afterAdminLogin(r)}catch(err){typedAdminPassword="";toast(err.message)}finally{btn.disabled=false}};
+$("#adminCodeForm").onsubmit=async e=>{e.preventDefault();try{const r=await rawApi("/api/platform/auth/verify",{method:"POST",body:JSON.stringify({challengeId,code:$("#adminCode").value})});challengeId="";afterAdminLogin(r)}catch(err){toast(err.message)}};
 $("#backLogin").onclick=e=>{e.preventDefault();challengeId="";$("#adminCodeForm").classList.add("hidden");$("#adminLoginForm").classList.remove("hidden")};
 $("#leaveBtn").onclick=async()=>{try{await api("/api/platform/auth/logout",{method:"POST"})}catch(_){}token="";sessionStorage.removeItem("platformToken");location.reload()};
 if(token)load();else showLogin();

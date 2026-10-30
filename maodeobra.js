@@ -63,16 +63,16 @@ function renderHarvestField() {
       <label>Talhão<select id="hfPlot">${plots.map(p => `<option value="${lbEsc(p.id)}" ${p.id === hfPlot ? 'selected' : ''}>${lbEsc(p.name)}</option>`).join('') || '<option value="">Nenhum talhão cadastrado</option>'}</select></label>
       <label>Data<input type="date" id="hfDate" value="${hfDate}" max="${todayISO()}"></label>
     </div>
-    ${closed ? '<div class="card hf-closed">Esta semana já foi fechada. Escolha outra data.</div>' : ''}
+    ${closed ? '<div class="card hf-closed">Esta semana já foi fechada e paga. Pode lançar: o que salvar agora vai para revisão do escritório e entra no próximo pagamento.</div>' : ''}
     ${hfPlot && typeof Carencia !== 'undefined' ? hfGraceNotice(farm) : ''}
     ${!closed && hfPlot && !plotRated ? `<div class="card hf-norate" role="status"><b>Este talhão ainda não tem valor do saco.</b> Pode apontar normalmente: os sacos ficam pendentes e o escritório define o valor antes de fechar a semana.</div>` : ''}
     ${!L.workers.length ? `<div class="card empty">Nenhuma pessoa cadastrada ainda. Toque em <b>+ Nova pessoa</b> para incluir quem está colhendo.</div>` : ''}
     <div class="hf-tools">${L.workers.length > 12 ? `<input class="hf-search" id="hfSearch" type="search" placeholder="Procurar pessoa" value="${lbEsc(hfSearch)}">` : ''}<button type="button" class="btn hf-new" id="hfNewWorker">+ Nova pessoa</button></div>
     <div class="hf-list">${workers.map(w => { const c = hfCounts[w.id] || { bags: 0, diaria: false }, prev = doneBy(w.id), prevBags = prev.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0), prevDay = prev.some(e => e.kind === 'diaria');
       return `<div class="hf-row ${c.bags || c.diaria ? 'on' : ''}"><div class="hf-name"><b>${lbEsc(w.name)}</b><small>${lbEsc(HarvestLabor.ROLES[w.role] || '')}${w.pendingData ? ' · cadastro novo' : ''}${prevBags ? ` · já lançado: ${lbNum(prevBags, 1)} sc` : ''}${prevDay ? ' · diária lançada' : ''}${c.diaria && noDaily(w) ? ' · <span class="hf-warn">diária sem valor: fica pendente</span>' : ''}</small></div>
-        <div class="hf-ctrl">${w.role === 'diarista' ? '' : `<button type="button" class="hf-btn" data-w="${lbEsc(w.id)}" data-d="-1" aria-label="Menos um saco" ${closed ? 'disabled' : ''}>−</button><span class="hf-count" aria-live="polite">${lbNum(c.bags, 1)}</span><button type="button" class="hf-btn plus" data-w="${lbEsc(w.id)}" data-d="1" aria-label="Mais um saco" ${closed ? 'disabled' : ''}>+</button>`}
-        <button type="button" class="hf-day ${c.diaria ? 'on' : ''}" data-w="${lbEsc(w.id)}" ${closed || prevDay ? 'disabled' : ''}>Diária</button></div></div>`; }).join('')}</div>
-    <div class="hf-save"><button class="btn primary hf-save-btn" id="hfSave" ${pending.length && !closed ? '' : 'disabled'}>Salvar ${pending.length ? pending.length + (pending.length > 1 ? ' pessoas' : ' pessoa') : ''}</button><span class="muted">${navigator.onLine ? 'Conectado' : 'Sem internet: fica guardado no aparelho (Modo de campo) e envia quando pegar sinal.'}</span></div>
+        <div class="hf-ctrl">${w.role === 'diarista' ? '' : `<button type="button" class="hf-btn" data-w="${lbEsc(w.id)}" data-d="-1" aria-label="Menos um saco">−</button><span class="hf-count" aria-live="polite">${lbNum(c.bags, 1)}</span><button type="button" class="hf-btn plus" data-w="${lbEsc(w.id)}" data-d="1" aria-label="Mais um saco">+</button>`}
+        <button type="button" class="hf-day ${c.diaria ? 'on' : ''}" data-w="${lbEsc(w.id)}" ${prevDay ? 'disabled' : ''}>Diária</button></div></div>`; }).join('')}</div>
+    <div class="hf-save"><button class="btn primary hf-save-btn" id="hfSave" ${pending.length ? '' : 'disabled'}>Salvar ${pending.length ? pending.length + (pending.length > 1 ? ' pessoas' : ' pessoa') : ''}</button><span class="muted">${navigator.onLine ? 'Conectado' : 'Sem internet: fica guardado no aparelho (Modo de campo) e envia quando pegar sinal.'}</span></div>
     ${done.length ? `<div class="card"><h3>Já lançado · ${lbEsc(plots.find(p => p.id === hfPlot)?.name)} · ${dateBR(hfDate)}</h3><p class="muted">${lbNum(done.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0), 1)} sacos · ${done.filter(e => e.kind === 'diaria').length} diária(s)</p>
       <ul class="hf-done">${done.map(e => `<li><span>${lbEsc(L.workers.find(w => w.id === e.workerId)?.name || '—')} · ${e.kind === 'diaria' ? 'Diária' : lbNum(e.bags, 1) + ' sc'}</span>${!closed && (isLaborManager() || e.recordedBy === me) ? `<button class="btn small hf-fix" data-id="${lbEsc(e.id)}">Corrigir</button>` : ''}</li>`).join('')}</ul></div>` : ''}
   </div>`;
@@ -89,7 +89,8 @@ function renderHarvestField() {
     if (grace && !await ask(`Este talhão está em carência até ${dateBR(grace.harvestFrom)} (${grace.order}). Os apontamentos ficam marcados para o CEO ou ADM decidir. Salvar mesmo assim?`, { title: 'Talhão em carência', okText: 'Salvar marcado' })) return;
     const noRate = rows.filter(r => !HarvestLabor.hasRate(farm.labor, r)).length;
     const warn = !noRate ? '' : isFiscal() ? ` ${noRate} sem valor definido: ficam pendentes para o escritório completar.` : ` ${noRate} sem valor: defina a diária ou o valor do saco antes de fechar a semana.`;
-    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) salvo(s).` + warn); renderHarvestField(); }
+    const lateNote = closed ? ' A semana já foi paga: vão para revisão do escritório e entram no próximo pagamento.' : '';
+    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) salvo(s).` + warn + lateNote); renderHarvestField(); }
   };
   $('#hfNewWorker').onclick = async () => {
     const v = await askForm({ title: 'Nova pessoa', text: isFiscal() ? 'Só o nome e a função. O escritório completa CPF, Pix e valores depois.' : 'Cadastro rápido. Complete CPF, Pix e diária em Mão de obra › Pessoas.', fields: [{ name: 'name', label: 'Nome', required: true, autofocus: true }, { name: 'role', label: 'Função', type: 'select', value: 'panhador', options: Object.entries(HarvestLabor.ROLES) }] });
@@ -124,7 +125,10 @@ function renderHarvestLabor() {
   const pend = HarvestLabor.pendingSummary(L), plotName = id => (farm.talhoes || []).find(t => t.id === id)?.name || '—';
   const graceN = (L.entries || []).filter(e => e.graceAlert && !e.graceDecision && !e.voided).length;
   const graceBox = graceN ? `<div class="card lb-pending" role="status"><div class="section-head"><div><h3>${graceN} apontamento${graceN > 1 ? 's' : ''} dentro da carência de defensivo</h3><p class="muted">Permita ou estorne em Banho. A semana só fecha depois da decisão.</p></div><button class="btn small" id="lbGoGrace">Decidir</button></div></div>` : '';
-  const pendBox = graceBox + (!pend.total ? '' : `<div class="card lb-pending" role="status"><h3>${pend.total} apontamento${pend.total > 1 ? 's' : ''} sem valor</h3><p class="muted">A semana só fecha depois que todos tiverem valor. Ao definir, os apontamentos pendentes recebem o valor sozinhos.</p><ul>
+  // Apontamentos que chegaram depois de a semana ser paga: o escritório aprova (entram no próximo pagamento) ou recusa.
+  const lateList = HarvestLabor.lateOpen(L), name0 = id => L.workers.find(w => w.id === id)?.name || '—';
+  const lateBox = lateList.length ? `<div class="card lb-pending" role="status"><h3>${lateList.length} apontamento${lateList.length > 1 ? 's' : ''} atrasado${lateList.length > 1 ? 's' : ''} (semana já paga)</h3><p class="muted">Chegaram depois do fechamento, por exemplo do celular que ficou sem internet. A semana paga não muda: se aprovar, entram no pagamento da semana indicada, como acerto. A semana de acerto só fecha depois da revisão.</p><ul>${lateList.map(e => `<li><span><b>${lbEsc(name0(e.workerId))}</b> · ${dateBR(e.date)} · ${lbEsc(plotName(e.plotId))} · ${e.kind === 'diaria' ? 'diária' : lbNum(e.bags, 1) + ' sc'}${e.rate != null ? ' · ' + money(HarvestLabor.entryAmount(e)) : ''}<br><span class="muted">Semana de ${dateBR(e.late.closedWeek)} já paga · entra na semana de ${dateBR(e.late.settleWeek)} · lançado por ${lbEsc(e.recordedBy || '—')}</span></span><span class="inline"><button class="btn small primary lb-late" data-id="${lbEsc(e.id)}" data-s="approved">Aprovar</button><button class="btn small danger lb-late" data-id="${lbEsc(e.id)}" data-s="rejected">Recusar</button></span></li>`).join('')}</ul></div>` : '';
+  const pendBox = lateBox + graceBox + (!pend.total ? '' : `<div class="card lb-pending" role="status"><h3>${pend.total} apontamento${pend.total > 1 ? 's' : ''} sem valor</h3><p class="muted">A semana só fecha depois que todos tiverem valor. Ao definir, os apontamentos pendentes recebem o valor sozinhos.</p><ul>
     ${pend.plots.map(p => `<li><span><b>${lbEsc(plotName(p.plotId))}</b>: ${p.count} apontamento${p.count > 1 ? 's' : ''} de sacos desde ${dateBR(p.from)}</span><button class="btn small lb-fix-plot" data-plot="${lbEsc(p.plotId)}" data-from="${p.from}">Definir valor do saco</button></li>`).join('')}
     ${pend.workers.map(p => `<li><span><b>${lbEsc(L.workers.find(w => w.id === p.workerId)?.name || '—')}</b>: ${p.count} diária${p.count > 1 ? 's' : ''} sem valor</span><button class="btn small lb-fix-day" data-id="${lbEsc(p.workerId)}">Definir diária</button></li>`).join('')}</ul></div>`);
   let body = '';
@@ -161,6 +165,12 @@ function renderHarvestLabor() {
   if ($('#lbNewRate')) $('#lbNewRate').onclick = () => rateDialog();
   $$('.lb-fix-plot').forEach(b => b.onclick = () => rateDialog(b.dataset.plot, b.dataset.from));
   if ($('#lbGoGrace')) $('#lbGoGrace').onclick = () => goToPage('banho');
+  $$('.lb-late').forEach(b => b.onclick = async () => {
+    const approve = b.dataset.s === 'approved';
+    const v = await askForm({ title: approve ? 'Aprovar apontamento atrasado' : 'Recusar apontamento atrasado', text: approve ? 'Ele entra no pagamento da semana de acerto. A semana já paga não muda.' : 'O apontamento fica no histórico como estornado e não entra em pagamento.', fields: approve ? [] : [{ name: 'reason', label: 'Motivo', required: true, value: 'Apontamento atrasado recusado na revisão.' }] });
+    if (!v) return;
+    if (laborChange(farm, Lb => { const e = Lb.entries.find(x => x.id === b.dataset.id); e.lateStatus = b.dataset.s; if (!approve) e.voidReason = v.reason.trim(); })) { toast(approve ? 'Aprovado: entra no próximo pagamento.' : 'Recusado e estornado.'); renderHarvestLabor(); }
+  });
   $$('.lb-fix-day').forEach(b => b.onclick = () => laborWorkerDialog(farm, L.workers.find(w => w.id === b.dataset.id)));
   if ($('#lbDefaultDaily')) $('#lbDefaultDaily').onclick = async () => {
     const v = await askForm({ title: 'Diária padrão', text: 'Vale para quem não tem diária combinada no cadastro. Diárias pendentes recebem este valor ao salvar.', fields: [{ name: 'rate', label: 'Diária padrão (R$)', type: 'number', min: '0', step: '0.01', value: L.settings.defaultDailyRate ?? '', hint: 'Deixe vazio para não usar.' }] });
@@ -206,6 +216,7 @@ async function laborCloseDialog(farm) {
   const calc = HarvestLabor.computeClosing(L, v.week);
   if (!calc.lines.length) return toast('Nada para fechar nesta semana.');
   const missing = [...new Set(HarvestLabor.pendingRates(L, v.week).map(e => L.workers.find(w => w.id === e.workerId)?.name || '—'))];
+  if (HarvestLabor.lateOpen(L, v.week).length) { toast('Há apontamentos atrasados (de semana já paga) para revisar. Aprove ou recuse no aviso do topo antes de fechar.'); return; }
   if (HarvestLabor.graceOpen(L, v.week).length) { toast('Há colheita dentro da carência de defensivo nesta semana sem decisão. Decida em Banho antes de fechar.'); return; }
   if (missing.length) { toast('Há apontamentos sem valor (' + missing.join(', ') + '). Use o aviso no topo da página para completar.'); lbWeek = v.week; lbTab = 'lancamentos'; renderHarvestLabor(); return; }
   const ok = await ask(`${calc.lines.length} pessoa(s), total ${money(calc.total)}. A semana fica travada e cada pessoa com valor a receber ganha uma conta em Contas a pagar. Confirmar?`, { title: 'Fechar semana ' + dateBR(v.week), okText: 'Fechar semana' });

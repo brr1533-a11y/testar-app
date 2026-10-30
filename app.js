@@ -408,8 +408,14 @@ function passwordIssue(p) {
   if (p.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
   if (p.length > 128) return "A senha pode ter no máximo 128 caracteres.";
   const missing = [!/[A-Z]/.test(p) && "letra maiúscula", !/[a-z]/.test(p) && "letra minúscula", !/[0-9]/.test(p) && "número", !/[^A-Za-z0-9]/.test(p) && "símbolo (ex.: @)"].filter(Boolean);
-  return missing.length ? "Falta na senha: " + missing.join(", ") + "." : "";
+  if (missing.length) return "Falta na senha: " + missing.join(", ") + ".";
+  // Palavra óbvia + números simples (ex.: Fazenda@123): mesma lista do servidor.
+  const letters = p.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z]/g, ""), digits = p.replace(/[^0-9]/g, "");
+  const simple = "1234567890".startsWith(digits) || "0123456789".startsWith(digits) || "9876543210".startsWith(digits) || /^(\d)\1*$/.test(digits) || /^(19|20)\d\d$/.test(digits);
+  if (COMMON_PASSWORD_WORDS.has(letters) && simple) return "Essa senha é muito comum (palavra conhecida com números simples). Misture palavras ou use números que não sejam sequência nem ano.";
+  return "";
 }
+const COMMON_PASSWORD_WORDS = new Set(["senha", "password", "admin", "administrador", "fazenda", "fazendas", "sitio", "cafe", "cafes", "gado", "boi", "leite", "graos", "soja", "milho", "rural", "agro", "gestao", "brasil", "minas", "teste", "mudar", "trocar", "acesso", "usuario", "qwerty", "asdf", "abc", "abcd", "ceo", "adm", "fiscal", "trator", "tratorista", "colheita", "safra", "deus", "amor", "familia", "flamengo", "corinthians", "palmeiras", "cruzeiro", "atletico", "gremio", "santos", "vasco"]);
 
 // ---------- Anexos: enviados à parte e abertos sob demanda ----------
 async function uploadFile(file) {
@@ -1790,11 +1796,19 @@ function renderBanho() {
     $$(".bath-complete").forEach(btn => btn.onclick = async () => {
       const order = farm.banho.orders.find(o => o.id === btn.dataset.id);
       if (!order || order.status !== "released") return;
-      if (!await ask(`Confirma que "${order.title || "Banho"}" foi aplicado? Os produtos usados saem do estoque.`, { title: "Concluir banho", okText: "Concluir" })) return;
+      // Quantidade real por talhão (opcional): é ela que sai do estoque e entra no custo de cada talhão. Em branco, vale o planejado.
+      const plots = (order.talhaoIds || []).map((id, i) => [id, order.talhaoNames?.[i] || farm.talhoes.find(t => t.id === id)?.name || "Talhão"]);
+      const fields = plots.flatMap(([pid, pname]) => (order.products || []).map(p => ({ name: `u|${pid}|${p.productId}`, label: `${pname} · ${p.name} (${p.unit})`, type: "number", min: "0", step: "0.01", placeholder: "Em branco: planejado" })));
+      const v = await askForm({ title: "Concluir banho", text: `Confirma que "${order.title || "Banho"}" foi aplicado? Os produtos saem do estoque. Se souber quanto usou em cada talhão, informe abaixo (opcional): assim o estoque e o custo de cada talhão ficam com o valor real.`, okText: "Concluir", fields });
+      if (!v) return;
+      const usage = Object.entries(v).filter(([k, q]) => k.startsWith("u|") && q !== "" && q != null).map(([k, q]) => { const [, plotId, productId] = k.split("|"); return { plotId, productId, quantity: Number(q) }; });
+      // Produto com algum talhão informado: os talhões em branco desse produto contam como zero (usou só onde informou).
+      for (const p of order.products || []) if (usage.some(u => u.productId === p.productId)) for (const [pid] of plots) if (!usage.some(u => u.productId === p.productId && u.plotId === pid)) usage.push({ plotId: pid, productId: p.productId, quantity: 0 });
       order.status = "completed";
       order.completedAt = new Date().toISOString();
       order.completedBy = currentUser.username;
       order.completedByName = currentUser.name;
+      if (usage.length) order.usage = usage;
       saveData();
       renderBanho();
       toast("Banho concluído.");
