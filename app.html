@@ -24,11 +24,12 @@
   <link rel="stylesheet" href="gestao.css" />
   <link rel="stylesheet" href="evolucao.css" />
   <link rel="stylesheet" href="maodeobra.css" />
+<link rel="stylesheet" href="expansao.css">
 </head>
 <body>
   <div id="toast" class="toast"></div>
 
-  <div id="sessionRestore" class="session-restore hidden" role="status" aria-live="polite"><p>Entrando no seu painel…</p></div>
+  <div id="sessionRestore" class="session-restore hidden" role="status" aria-live="polite"><p>Entrando no seu painel…</p><button type="button" class="btn" id="cancelSessionRestore">Voltar à entrada</button></div>
   <section id="loginView" class="login-shell">
     <div class="login-art">
       <div class="login-copy">
@@ -75,7 +76,7 @@
           <h2>Trocar senha</h2>
           <p class="muted" id="resetEmailNote">Digite o código recebido por e-mail e escolha uma nova senha.</p>
           <label>Código de 6 dígitos<input id="resetCode" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" placeholder="000000" required /></label>
-          <label>Nova senha<input id="resetPassword" type="password" minlength="8" autocomplete="new-password" required /></label>
+          <label>Nova senha<input id="resetPassword" type="password" minlength="8" autocomplete="new-password" required placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)" /></label>
           <label>Confirmar nova senha<input id="resetPasswordConfirm" type="password" minlength="8" autocomplete="new-password" required /></label>
           <button class="btn primary full" type="submit">Alterar senha</button>
           <button class="auth-link back-login" type="button">Cancelar e voltar</button>
@@ -89,11 +90,11 @@
           <div class="form-grid compact-grid">
             <label>Nome<input name="name" required></label>
             <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
-            <label id="registerFunctionWrap">Função<select name="function" id="registerFunction" required><option value="">Selecione</option><option value="Tratorista">Tratorista</option><option value="Campo">Campo</option></select></label>
+            <label id="registerFunctionWrap">Função<select name="function" id="registerFunction" required><option value="">Selecione</option><option value="Tratorista">Tratorista</option><option value="Campo">Campo</option><option value="Fiscal de colheita">Fiscal de colheita</option></select></label>
             <label>Chave PIX (opcional)<input name="pixKey"></label>
             <label>Perfil<input value="Contribuinte" disabled><input type="hidden" name="role" value="contribuinte"></label>
             <label>Usuário<input name="username" required></label>
-            <label>Senha<input name="password" type="password" minlength="8" required></label>
+            <label>Senha<input name="password" type="password" minlength="8" required placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)"></label>
           </div>
           <button class="btn primary full" type="submit">Enviar solicitação</button>
           <p class="security-note">Após o envio, o cadastro ficará pendente até o CEO aceitar.</p>
@@ -127,6 +128,7 @@
           <div id="quoteMini" class="quote-mini hidden"><span><i class="live-dot"></i>Café C • saca 60 kg</span><strong id="quoteMiniValue">—</strong></div>
         </div>
       </header>
+      <section id="syncIssue" class="sync-issue hidden" role="alert"></section>
       <div id="pageContent" class="page-content"></div>
     </main>
   </section>
@@ -151,19 +153,25 @@
 <script src="gestao-domain.js"></script>
 <script src="gestao.js"></script>
 <script src="campo-domain.js"></script>
+<script src="medicamentos-domain.js"></script>
 <script src="campo.js"></script>
 <script src="evolucao-domain.js"></script>
 <script src="evolucao.js"></script>
+<script src="carencia-domain.js"></script>
 <script src="maodeobra-domain.js"></script>
 
 <script src="campo-offline.js"></script>
 <script src="lcdpr.js"></script>
 <script src="adm-access.js"></script>
 <script src="plan-features.js"></script>
+<script src="expansao-domain.js"></script>
+<script src="implantacao-domain.js"></script>
 <script src="app.js"></script>
 <script src="maodeobra.js"></script>
+<script src="carencia.js"></script>
 <script src="adm-acesso.js"></script>
 <script src="menu.js"></script>
+<script src="expansao.js"></script>
 <script src="fx.js"></script>
 </body>
 </html>

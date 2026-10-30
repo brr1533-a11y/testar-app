@@ -77,7 +77,7 @@ A central "Gestão" saiu do menu. Código: `menu.js`.
   - O servidor gera esse arquivo ao iniciar (`gerar-worker.cjs`), com a versão calculada pelos próprios arquivos.
   - Código novo gera cache novo e os celulares atualizam sozinhos, sem passo manual.
 - **Cofre do aparelho:** os dados ficam num cofre cifrado com PIN (AES-GCM, `campo-offline.js`).
-  - Sem sinal, o app abre com o PIN por até 72 horas.
+  - Sem sinal, o app abre com o PIN sem prazo de expiração offline.
   - O PIN não tem recuperação.
 - **Ao voltar a internet:** se o cofre tem lançamentos guardados, o app pede o PIN ao abrir (até 3 tentativas), junta os lançamentos e envia.
 - **Manter conectado neste aparelho:** caixa no login que só reage ao toque na própria caixa (`LOGIN-PERSISTENTE.md`).

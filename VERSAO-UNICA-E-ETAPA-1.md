@@ -76,7 +76,7 @@ Se houver dados de teste do V1 nessas áreas, eles continuam guardados, mas não
   - instalar;
   - sem sinal, abrir com o PIN.
 - **Tratorista:** usa sem internet o Meu trabalho hoje, os Equipamentos e os Banhos liberados, e tudo sincroniza ao pegar sinal.
-- **Conexão:** é preciso conectar pelo menos a cada 72 horas. O PIN não tem recuperação.
+- **Conexão:** o cofre offline não expira por tempo; a sessão do servidor continua sujeita à validação quando houver conexão. O PIN não tem recuperação.
 - **Atualização do app:** o servidor gera o service worker (`/campo-sw.js`) ao iniciar, com a versão calculada pelos arquivos. Não há passo manual.
 
 ## 4. Testes

@@ -12,6 +12,9 @@ const PlanFeatures = require("./plan-features.js");
 const FieldOps = require("./campo-domain.js");
 const RuralManagement = require("./evolucao-domain.js");
 const HarvestLabor = require("./maodeobra-domain.js");
+const Carencia = require("./carencia-domain.js");
+const Medicamentos = require("./medicamentos-domain.js");
+const Expansion = require("./expansao-domain.js");
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -619,17 +622,16 @@ function normalizeEmail(email) { return String(email || "").trim().toLowerCase()
 function validateEmail(email) { const e = normalizeEmail(email); return e.length <= 254 && /^\S+@\S+\.\S+$/.test(e); }
 const MAX_NAME_LENGTH = 120, MAX_PIX_LENGTH = 140, MAX_PENDING_REGISTRATIONS = 50;
 const DUMMY_PASSWORD_HASH = bcrypt.hashSync("senha-que-nunca-confere", 11);
-// Sequências que já circularam publicamente (README antigo): senha que só acrescenta algo a elas é fácil de adivinhar.
-const LEAKED_FRAGMENTS = ["05091722"];
+// Senhas padrão antigas que ficaram públicas: no login continuam bloqueadas (só o "Esqueci minha senha" libera).
 const WEAK_PASSWORDS_LOWER = new Set([...WEAK_PASSWORDS].map(p => p.toLowerCase()));
-function usesLeakedFragment(password) { const p = String(password || "").toLowerCase(); return LEAKED_FRAGMENTS.some(f => p.includes(f)); }
+// Regra única de senha (a tela usa a mesma): 8 a 128 caracteres, com letra maiúscula, minúscula, número e símbolo.
+// Senha antiga fora da regra continua entrando, mas a pessoa precisa trocar logo depois do login.
 function passwordProblem(password) {
   const p = String(password || "");
-  if (p.length < 8) return "A senha precisa ter pelo menos 8 caracteres";
-  if (p.length > 128) return "A senha pode ter no máximo 128 caracteres";
-  if (WEAK_PASSWORDS_LOWER.has(p.toLowerCase()) || /^(.)\1{7,}$/.test(p) || /^(12345678|87654321|abcdefgh|qwertyui)$/i.test(p)) return "Essa senha é fácil de adivinhar. Escolha outra.";
-  if (usesLeakedFragment(p)) return "Essa senha usa uma sequência que já foi divulgada. Escolha outra, sem ela.";
-  return "";
+  if (p.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+  if (p.length > 128) return "A senha pode ter no máximo 128 caracteres.";
+  const missing = [!/[A-Z]/.test(p) && "letra maiúscula", !/[a-z]/.test(p) && "letra minúscula", !/[0-9]/.test(p) && "número", !/[^A-Za-z0-9]/.test(p) && "símbolo (ex.: @)"].filter(Boolean);
+  return missing.length ? "Falta na senha: " + missing.join(", ") + "." : "";
 }
 function assertPassword(password) { const problem = passwordProblem(password); if (problem) throw Object.assign(new Error(problem), { statusCode: 400 }); }
 function maskEmail(email) { return normalizeEmail(email).replace(/(^.).*(@.*$)/, "$1***$2"); }
@@ -707,8 +709,8 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (WEAK_PASSWORDS_LOWER.has(password.toLowerCase())) {
       return res.status(403).json({ error: "Por segurança, esta senha foi bloqueada. Use \"Esqueci minha senha\" para receber um código no e-mail cadastrado.", resetRequired: true });
     }
-    // Senha derivada de uma sequência divulgada (ex.: a antiga + um sufixo): entra, mas precisa trocar na hora.
-    const mustChangePassword = Boolean(user.mustChangePassword) || password.length < 8 || usesLeakedFragment(password);
+    // Senha fora da regra atual (maiúscula, minúscula, número e símbolo): entra, mas precisa trocar na hora.
+    const mustChangePassword = Boolean(user.mustChangePassword) || Boolean(passwordProblem(password));
     const legacyHash = user.passwordHash ? null : await bcrypt.hash(password, 11);
     if (legacyHash || (mustChangePassword && !user.mustChangePassword)) {
       await mutateGroup(group.id, g => {
@@ -858,7 +860,9 @@ app.get("/api/files/:id", auth, async (req, res, next) => {
     let allowed = user.role === "ceo";
     if (!allowed && receipt) allowed = String(receipt.userId || "") === String(user.id);
     if (!allowed && note) allowed = user.role === "adm";
-    if (!allowed && !receipt && !note) allowed = String(file.createdBy) === String(user.id);
+    const extensionRef=(group.state.farms||[]).flatMap(f=>['documents','certifications'].flatMap(k=>(f.expansion?.[k]||[]).filter(r=>r.fileId===id).map(r=>({f,k,r}))));
+    if(!allowed&&extensionRef.length) allowed=extensionRef.some(({f,k,r})=>Expansion.can(user,k==='documents'?'documentos':'certificacoes',AdmAccess.pagesFor(group.state))&&(user.role!=='contribuinte'||String(f.id)===String(user.allowedFarmId)));
+    if (!allowed && !receipt && !note && !extensionRef.length) allowed = String(file.createdBy) === String(user.id);
     if (!allowed) return res.status(403).json({ error: "Sem permissão para este arquivo" });
     // Só foto e PDF abrem na tela. Qualquer outro tipo (anexos antigos) vira download, para nunca rodar como página do site.
     const safeMime = ALLOWED_FILE_MIMES.has(String(file.mime).toLowerCase()) ? file.mime : "application/octet-stream";
@@ -973,7 +977,8 @@ app.post("/api/auth/register-request", limitRequests("register", 10, 3600_000, "
 function publicUser(u) {
   return { id: u.id, name: u.name, username: u.username, role: u.role, function: u.function, active: u.active !== false, allowedFarmId: u.allowedFarmId || "", allowedActivity: u.allowedActivity || "both" };
 }
-function stateForUser(state, user, plan) {
+function stateForUser(state,user,plan) { return Expansion.project(stateForUserBase(state,user,plan),state,user,AdmAccess.pagesFor(state)); }
+function stateForUserBase(state, user, plan) {
   const full = GroupAccess.project(sanitizeState(state));
   full.coffeeQualities ||= RuralOps.defaultQualities();
   full.cattleStages ||= RuralOps.defaultStages();
@@ -996,7 +1001,9 @@ function stateForUser(state, user, plan) {
     if (AdmAccess.can(state, "historico") && PlanFeatures.has(plan, "audit")) full.audit = (fullAudit || []).slice(-400);
     const mgmtKeys = AdmAccess.mgmtKeys(state);
     if (AdmAccess.financeVisible(state)) {
-      for (const farm of full.farms || []) FarmManagement.forRole(farm, "adm", mgmtKeys);
+      const readKeys = [...mgmtKeys];
+      if (["custos-unidade","comercializacao","orcamento-safra","qualidade-leite","rotacao-piquetes"].some(p=>AdmAccess.can(state,p))) readKeys.push("payables");
+      for (const farm of full.farms || []) FarmManagement.forRole(farm, "adm", readKeys);
       return full;
     }
     // Sem página de dinheiro liberada, o ADM lança entradas e saídas, mas não vê o balanço nem o histórico financeiro.
@@ -1041,7 +1048,9 @@ function stateForUser(state, user, plan) {
   }));
   if (user.function === HarvestLabor.FISCAL) {
     const source = (state.farms || []).find(f => String(f.id) === farmId);
-    full.farms = full.farms.map(f => ({ ...f, tractors: [], implements: [], assignments: [], equipmentLogs: [], occupancy: [], banho: { products: [], orders: [] }, cattle: { paddocks: [], lots: [], weighings: [] }, agriculture: { cycles: [], harvests: [], sales: [] }, operations: {}, talhoes: (f.talhoes || []).map(t => ({ id: t.id, name: t.name })), labor: HarvestLabor.forFiscal(source?.labor) }));
+    // Carência dos banhos vai pronta por talhão (o fiscal não recebe as ordens), para avisar também sem internet.
+    const grace = source ? Carencia.forFiscalPlots(source) : {};
+    full.farms = full.farms.map(f => ({ ...f, tractors: [], implements: [], assignments: [], equipmentLogs: [], occupancy: [], banho: { products: [], orders: [] }, cattle: { paddocks: [], lots: [], weighings: [] }, agriculture: { cycles: [], harvests: [], sales: [] }, operations: {}, talhoes: (f.talhoes || []).map(t => ({ id: t.id, name: t.name, ...(grace[t.id] ? { carencia: grace[t.id] } : {}) })), labor: HarvestLabor.forFiscal(source?.labor) }));
   }
   return full;
 }
@@ -1104,6 +1113,7 @@ function referencedFileIds(state) {
   const ids = new Set();
   for (const r of state.receipts || []) if (r.fileId) ids.add(String(r.fileId));
   for (const f of state.farms || []) for (const n of f.notes || []) if (n.fileId) ids.add(String(n.fileId));
+  for(const f of state.farms||[]) for(const k of ["documents","certifications"]) for(const r of f.expansion?.[k]||[]) if(r.fileId) ids.add(String(r.fileId));
   return ids;
 }
 async function cleanupOrphanFiles(group) {
@@ -1123,6 +1133,7 @@ const AUDIT_AREAS = [
   ["operations.tasks", "Tarefa"], ["operations.expenses", "Custo operacional"], ["operations.stockUses", "Consumo de estoque"], ["operations.payments", "Recebimento"], ["operations.cattleMoves", "Movimentação do gado"], ["operations.deliveries", "Conferência de entrega"], ["agriculture.cycles", "Safra"], ["agriculture.harvests", "Colheita"], ["agriculture.sales", "Venda de produção"], ["management.payables", "Conta a pagar"], ["management.purchaseOrders", "Pedido de compra"], ["management.quotes", "Cotação de insumo"], ["management.salesContracts", "Contrato de venda"], ["management.bankEntries", "Extrato bancário"], ["management.fiscalDocs", "Documento fiscal"], ["management.maintenance", "Manutenção"], ["management.fuel", "Abastecimento"], ["management.traceLots", "Lote rastreado"], ["management.mapAreas", "Área do mapa"], ["labor.workers", "Pessoa da colheita"], ["labor.plotRates", "Valor do saco no talhão"], ["labor.adjustments", "Adiantamento ou desconto"], ["labor.closings", "Fechamento da colheita"],
   ["assignments", "Trabalho do dia"], ["equipmentLogs", "Log de equipamento"]
 ];
+for(const key of Expansion.KEYS) AUDIT_AREAS.push(['expansion.'+key,Expansion.META[key].name]);
 const pick = (obj, path) => path.split(".").reduce((o, k) => (o ? o[k] : undefined), obj);
 function auditLabel(item) {
   const base = item.name || item.item || item.title || item.description || (item.number ? `Nº ${item.number}` : "") || item.category || "";
@@ -1370,7 +1381,7 @@ function mergeStateByRole(existing, incoming, user) {
   const permitted = RuralDomain.activitiesFor(user.allowedActivity).filter(a => SubscriptionDomain.licensed(existing).includes(a));
   const moduleOf = x => x.activityModule || "coffee";
 
-  // Trabalho do dia: o trabalhador só cria atribuições novas e só desfaz as de hoje (ou de ontem, por causa do fuso),
+  // O trabalhador pode enviar trabalhos antigos guardados offline; só desfaz os de hoje/ontem.
   // e só das atividades liberadas para ele. Tudo o que vem dele é refeito a partir do cadastro da fazenda;
   // máquina ocupada por outra pessoa ou fora de "Disponível" é recusada.
   const oldAssignmentIds = new Set((oldFarm.assignments || []).map(a => String(a.id)));
@@ -1383,7 +1394,7 @@ function mergeStateByRole(existing, incoming, user) {
     const date = String(a.date || "");
     const activityModule = moduleOf(a);
     if (!permitted.includes(activityModule)) throw httpError(422, "Essa atividade não está liberada para você.");
-    if (!isRecentDay(date)) throw httpError(422, "A data do trabalho do dia não confere. Atualize a tela e tente de novo.");
+    if (!RuralDomain.validDate(date) || date > nowIso().slice(0,10)) throw httpError(422, "A data do trabalho não confere. Informe uma data válida, sem ser futura.");
     if ([...keptMine, ...added].some(x => x.date === date && moduleOf(x) === activityModule)) throw httpError(422, "Você já confirmou o trabalho desse dia.");
     const tractor = a.tractorId ? (oldFarm.tractors || []).find(t => String(t.id) === String(a.tractorId)) : null;
     const implemento = a.implementId ? (oldFarm.implements || []).find(i => String(i.id) === String(a.implementId)) : null;
@@ -1466,6 +1477,7 @@ app.put("/api/state", auth, async (req, res, next) => {
     PlanFeatures.restoreLocked(before, allowedState, group.plan);
     // Prazo do teste grátis é do servidor.
     if (before.trial) allowedState.trial = clone(before.trial); else delete allowedState.trial;
+    Expansion.prepare(before, allowedState, incoming, user, AdmAccess.pagesFor(before));
     SoilAnalysis.prepare(before, allowedState, user);
     PlotHistory.sealAndValidate(before, allowedState, user);
     // ADM com páginas de dinheiro liberadas pelo CEO grava nelas também (recebimentos, contas a pagar, extrato, contratos).
@@ -1482,6 +1494,13 @@ app.put("/api/state", auth, async (req, res, next) => {
     // Mão de obra da colheita: valor congelado nos apontamentos, semana fechada travada e contas a pagar geradas no fechamento.
     const laborRole = user.role === "ceo" || (user.role === "adm" && AdmAccess.can(before, "mao-de-obra")) ? "manager" : user.role === "contribuinte" && user.function === HarvestLabor.FISCAL ? "fiscal" : null;
     HarvestLabor.prepare(before, allowedState, { ...user, labor: laborRole });
+    // Carência de defensivo: alerta nas colheitas novas e decisão do CEO/ADM (vai para o histórico).
+    Expansion.applyAnnualWork(before,allowedState);
+    Expansion.applyFieldLogs(before,allowedState,user);
+    for(const f of allowedState.farms||[]) FieldOps.validateFarm(f);
+    const graceAudit = Carencia.stamp(before, allowedState, user);
+    // Carência de medicamento: ordenha na carência vira descarte; venda ou GTA para abate de lote em carência ganha alerta.
+    Medicamentos.stamp(before, allowedState);
     for (const f of allowedState.farms || []) FarmManagement.validateFarm(f);
     SeasonHistory.recordChanges(before, allowedState, user);
     validateSubscriptionWrites(before, allowedState);
@@ -1489,7 +1508,7 @@ app.put("/api/state", auth, async (req, res, next) => {
     await extractInlineFiles(group, allowedState, user.username);
     applyBathStockDeduction(before, allowedState, user);
     validateStatePlanLimits(group, allowedState);
-    const changes = auditChanges(before, allowedState, user);
+    const changes = [...auditChanges(before, allowedState, user), ...graceAudit.map(e => ({ id: uid(), at: nowIso(), user: user.name || user.username, username: user.username, ...e }))];
     allowedState.audit = [...(before.audit || []), ...changes].slice(-1500);
     // Senha de outra pessoa definida pelo CEO por aqui vale como temporária, igual à rota /api/users/:id/password.
     const existingIds = new Set((before.users || []).map(u => String(u.id)));
@@ -1523,6 +1542,7 @@ app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, n
     RuralOps.prepare(group.state, incoming, currentCeo);
     FarmManagement.prepare(group.state, incoming, currentCeo);
     FieldOps.prepare(group.state, incoming, currentCeo);
+    Expansion.prepare(group.state,incoming,incoming,currentCeo,AdmAccess.pagesFor(group.state));
     RuralManagement.prepare(group.state, incoming, currentCeo);
     HarvestLabor.prepare(group.state, incoming, { ...currentCeo, labor: "manager" });
     PlanFeatures.restoreLocked(group.state, incoming, group.plan);
@@ -2273,6 +2293,22 @@ let cache = { at: 0, data: null };
 let marketCache = { at: 0, data: null };
 let cattleLocalCache = { at: 0, data: null };
 const CACHE_MS = 60_000, MARKET_CACHE_MS = 30_000, CATTLE_LOCAL_CACHE_MS = 30 * 60_000;
+// Última leitura boa de cada fonte, com data e hora, guardada no banco: se a fonte falhar (ou o servidor reiniciar),
+// o Mercado mostra o último valor com o aviso "atualizado em …" em vez de ficar vazio.
+let marketLast = null, marketLastDirty = false, marketLastSavedAt = 0;
+async function marketLastLoad() { if (!marketLast) { try { marketLast = (await store.getConfig("market_last")) || {}; } catch { marketLast = {}; } } return marketLast; }
+function marketLastKeep(key, data) { marketLast[key] = { data, at: nowIso() }; marketLastDirty = true; }
+function marketLastGet(key) { const x = marketLast?.[key]; return x ? { ...x.data, stale: true, fetchedAt: x.at } : null; }
+async function marketLastSave() {
+  if (!marketLastDirty || Date.now() - marketLastSavedAt < 5 * 60_000) return;
+  marketLastDirty = false; marketLastSavedAt = Date.now();
+  try { await store.setConfig("market_last", marketLast); } catch (e) { console.error("[mercado] guardar última leitura:", e.message); }
+}
+// Cotação da bolsa com reserva: a leitura nova vira a última boa; se falhar, devolve a última boa marcada como antiga.
+async function marketSnap(symbol) {
+  try { const snap = await yahooSnapshot(symbol); marketLastKeep(symbol, snap); return { ...snap, fetchedAt: nowIso() }; }
+  catch { return marketLastGet(symbol); }
+}
 
 async function yahooChart(symbol) {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=5d`;
@@ -2313,11 +2349,12 @@ async function latestAgroBR() {
     if (!out.boiUF && n(j.valor)) out.boiUF = { uf: j.uf || MARKET_UF, value: n(j.valor), praca: j.uf || MARKET_UF };
     if (!out.boiCepeaSP && !out.boiUF && !out.soja && !out.milho) throw new Error("resposta sem preços");
     out.fetchedAt = nowIso();
+    if (marketLast) marketLastKeep("agro", out);
     cattleLocalCache = { at: Date.now(), data: out }; return out;
   } catch (e) {
     console.error("[mercado] preços físicos:", e.message);
     if (cattleLocalCache.data) { cattleLocalCache.at = Date.now() - CATTLE_LOCAL_CACHE_MS + 5 * 60_000; return { ...cattleLocalCache.data, stale: true }; }
-    return null;
+    return marketLastGet("agro");
   }
 }
 const COFFEE_CONTRACTS=[{symbol:"KCZ26.NYB",label:"Dez/26",ice:"Dec26"},{symbol:"KCH27.NYB",label:"Mar/27",ice:"Mar27"},{symbol:"KCK27.NYB",label:"Mai/27",ice:"May27"},{symbol:"KCN27.NYB",label:"Jul/27",ice:"Jul27"},{symbol:"KCU27.NYB",label:"Set/27",ice:"Sep27"},{symbol:"KCZ27.NYB",label:"Dez/27",ice:"Dec27"},{symbol:"KCH28.NYB",label:"Mar/28",ice:"Mar28"}];
@@ -2325,29 +2362,29 @@ const COFFEE_CONTRACTS=[{symbol:"KCZ26.NYB",label:"Dez/26",ice:"Dec26"},{symbol:
 const GRAIN_FUTURES=[{key:"soja",symbol:"ZS=F",label:"Soja",kgPerBushel:27.2155},{key:"milho",symbol:"ZC=F",label:"Milho",kgPerBushel:25.4012},{key:"trigo",symbol:"ZW=F",label:"Trigo",kgPerBushel:27.2155}];
 let marketPending = null;
 async function buildMarket() {
+  await marketLastLoad();
   const [usd,coffee,live,feeder,br,grains,contracts]=await Promise.all([
-    yahooSnapshot("BRL=X").catch(()=>null),yahooSnapshot("KC=F").catch(()=>null),yahooSnapshot("LE=F").catch(()=>null),yahooSnapshot("GF=F").catch(()=>null),latestAgroBR(),
-    Promise.all(GRAIN_FUTURES.map(g=>yahooSnapshot(g.symbol).catch(()=>null))),Promise.all(COFFEE_CONTRACTS.map(c=>yahooSnapshot(c.symbol).catch(()=>null)))
+    marketSnap("BRL=X"),marketSnap("KC=F"),marketSnap("LE=F"),marketSnap("GF=F"),latestAgroBR(),
+    Promise.all(GRAIN_FUTURES.map(g=>marketSnap(g.symbol))),Promise.all(COFFEE_CONTRACTS.map(c=>marketSnap(c.symbol)))
   ]);
+  marketLastSave();
   const usdBrl=usd?.price||null,poundsPer60kg=132.277357,poundsPerArroba=15*2.20462262185;
   const enrichCoffee=(snap,c={})=>!snap?{...c,available:false}:{...c,...snap,available:true,brlPerSaca:usdBrl?(snap.price/100)*poundsPer60kg*usdBrl:null};
   const convertCattle=snap=>!snap?null:{...snap,brlPerArroba:usdBrl?(snap.price/100)*poundsPerArroba*usdBrl:null};
   const grainRow=(g,snap)=>!snap?{...g,available:false}:{...g,...snap,available:true,brlPerSaca:usdBrl?(snap.price/100)/g.kgPerBushel*60*usdBrl:null};
   return {updatedAt:nowIso(),autoRefreshSeconds:30,usdBrl:usd,
     coffee:{front:enrichCoffee(coffee,{label:"Coffee C contínuo"}),contracts:COFFEE_CONTRACTS.map((c,i)=>enrichCoffee(contracts[i],c)),exchange:"ICE Futures U.S.",unit:"centavos de US$/lb",note:"Bolsa de Nova York (ICE), com até 10 minutos de atraso. R$/saca é conversão indicativa pelo dólar do momento; o café físico tem ágio ou deságio conforme tipo e região."},
-    cattle:{local:br&&{boiCepeaSP:br.boiCepeaSP,boiCepeaLabel:br.boiCepeaLabel,boiUF:br.boiUF,vacaGorda:br.vacaGorda,bezerroMS:br.bezerroMS,date:br.date,source:br.source,stale:!!br.stale},localMG:br?.boiUF?{value:br.boiUF.value,date:br.date,source:br.source,unit:"@",uf:br.boiUF.uf}:null,liveCattle:convertCattle(live),feederCattle:convertCattle(feeder),note:"Preço físico do boi: CEPEA/Esalq (SP) e praça regional, em R$ por arroba (15 kg), atualizados durante o dia pela fonte. Live Cattle e Feeder Cattle são referências da bolsa dos EUA."},
-    grains:{physical:br&&{soja:br.soja,milho:br.milho,date:br.date,source:br.source,stale:!!br.stale},futures:GRAIN_FUTURES.map((g,i)=>grainRow(g,grains[i])),exchange:"CBOT (Chicago)",note:"Bolsa de Chicago, com até 10 minutos de atraso. R$/saca de 60 kg é conversão indicativa pelo dólar do momento; o preço físico no Brasil tem a base (prêmio e frete) de cada praça."},
+    cattle:{local:br&&{boiCepeaSP:br.boiCepeaSP,boiCepeaLabel:br.boiCepeaLabel,boiUF:br.boiUF,vacaGorda:br.vacaGorda,bezerroMS:br.bezerroMS,date:br.date,source:br.source,stale:!!br.stale,fetchedAt:br.fetchedAt},localMG:br?.boiUF?{value:br.boiUF.value,date:br.date,source:br.source,unit:"@",uf:br.boiUF.uf}:null,liveCattle:convertCattle(live),feederCattle:convertCattle(feeder),note:"Preço físico do boi: CEPEA/Esalq (SP) e praça regional, em R$ por arroba (15 kg), atualizados durante o dia pela fonte. Live Cattle e Feeder Cattle são referências da bolsa dos EUA."},
+    grains:{physical:br&&{soja:br.soja,milho:br.milho,date:br.date,source:br.source,stale:!!br.stale,fetchedAt:br.fetchedAt},futures:GRAIN_FUTURES.map((g,i)=>grainRow(g,grains[i])),exchange:"CBOT (Chicago)",note:"Bolsa de Chicago, com até 10 minutos de atraso. R$/saca de 60 kg é conversão indicativa pelo dólar do momento; o preço físico no Brasil tem a base (prêmio e frete) de cada praça."},
     disclaimer:"Painel informativo. Não é recomendação de investimento."};
 }
-app.get("/api/mercado", async (req,res)=>{
-  try{
-    if(marketCache.data&&Date.now()-marketCache.at<MARKET_CACHE_MS)return res.json(marketCache.data);
-    // Vários usuários abrindo o Mercado ao mesmo tempo dividem a mesma consulta às fontes.
-    marketPending ||= buildMarket().finally(()=>{marketPending=null;});
-    const payload=await marketPending;marketCache={at:Date.now(),data:payload};res.json(payload);
-  }catch(error){console.error(error);res.status(503).json({error:"Mercado temporariamente indisponível",detail:IS_PRODUCTION?undefined:error.message});}
-});
-app.get("/api/cotacao-cafe", async (req,res)=>{try{if(cache.data&&Date.now()-cache.at<CACHE_MS)return res.json(cache.data);const [coffeeCentsLb,usdBrl]=await Promise.all([yahooChart("KC=F"),yahooChart("BRL=X")]);const poundsPer60kg=132.277357,usdPerSaca=(coffeeCentsLb/100)*poundsPer60kg,brlPerSaca=usdPerSaca*usdBrl;const payload={symbol:"KC=F",coffeeCentsLb,usdBrl,usdPerSaca,brlPerSaca,timestamp:nowIso(),methodology:"Coffee C × 132,277357 lb por 60 kg × USD/BRL",warning:"Estimativa de referência; não é preço físico local."};cache={at:Date.now(),data:payload};res.json(payload);}catch(error){res.status(503).json({error:"Cotação temporariamente indisponível",detail:error.message});}});
+async function refreshMarketSnapshot(){
+ if(marketCache.data&&Date.now()-marketCache.at<MARKET_CACHE_MS)return marketCache.data;
+ marketPending ||= buildMarket().finally(()=>{marketPending=null;});
+ const payload=await marketPending;marketCache={at:Date.now(),data:payload};return payload;
+}
+app.get("/api/mercado", async(req,res)=>{try{res.json(await refreshMarketSnapshot());}catch(error){console.error(error);if(marketCache.data)return res.json({...marketCache.data,stale:true});res.status(503).json({error:"Mercado temporariamente indisponível",detail:IS_PRODUCTION?undefined:error.message});}});
+app.get("/api/cotacao-cafe", async (req,res)=>{try{if(cache.data&&Date.now()-cache.at<CACHE_MS)return res.json(cache.data);const [coffeeCentsLb,usdBrl]=await Promise.all([yahooChart("KC=F"),yahooChart("BRL=X")]);const poundsPer60kg=132.277357,usdPerSaca=(coffeeCentsLb/100)*poundsPer60kg,brlPerSaca=usdPerSaca*usdBrl;const payload={symbol:"KC=F",coffeeCentsLb,usdBrl,usdPerSaca,brlPerSaca,timestamp:nowIso(),methodology:"Coffee C × 132,277357 lb por 60 kg × USD/BRL",warning:"Estimativa de referência; não é preço físico local."};cache={at:Date.now(),data:payload};res.json(payload);}catch(error){if(cache.data)return res.json({...cache.data,stale:true});res.status(503).json({error:"Cotação temporariamente indisponível",detail:error.message});}});
 
 // ---------- Limpar os dados de uma fazenda (CEO) ----------
 // Apaga talhões, máquinas, estoque, produção, gado, financeiro, gestão, campo e mão de obra; mantém a fazenda, o nome e
@@ -2440,7 +2477,9 @@ function startPriceWatch() {
 }
 
 // Só os arquivos do site são públicos. server.js, README, package.json, .env e o banco local nunca são servidos.
-const PUBLIC_FILES = new Set(["/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/maodeobra-domain.js", "/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+require("./expansao-server")({app,auth,requireRole,store,mutateGroup,statePayload,AdmAccess,PlanFeatures,normalizeEmail,passwordProblem,bcrypt,rateHit,market:()=>marketCache.data,refreshMarket:refreshMarketSnapshot,FieldOps,RuralDomain,FarmManagement,trialExpired});
+
+const PUBLIC_FILES = new Set(["/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
 // Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
 // Sem cache no navegador, para o celular sempre conferir se há versão nova.
 let SERVICE_WORKER = "";
@@ -2458,6 +2497,7 @@ app.use((req, res, next) => {
   next();
 });
 app.use("/api", (req, res) => res.status(404).json({ error: "Rota não encontrada" }));
+app.get("/contador", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"contador.html")));
 app.get("/demo", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"demo.html")));
 app.get("/app", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"app.html")));
 app.get("/app.html", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"app.html")));
@@ -2468,7 +2508,7 @@ app.get("/visao-geral", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"index.html
 app.get("/gado", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"gado.html")));
 app.get("/graos", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"graos.html")));
 app.get("/", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"index.html")));
-app.get("*", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"index.html")));
+app.get("*", (req,res)=>res.status(404).type("html").send('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Página não encontrada · Gestão Rural</title><body><main><h1>Página não encontrada</h1><p>Confira o endereço ou volte ao sistema.</p><a href="/">Página inicial</a> · <a href="/app">Entrar no painel</a></main></body></html>'));
 
 app.use((err, req, res, next) => {
   const requestId = crypto.randomBytes(5).toString("hex");
@@ -2495,10 +2535,12 @@ function validateProductionConfiguration() {
   if (!(SESSION_DAYS >= 1 && SESSION_DAYS <= 365)) missing.push("SESSION_DAYS válida (entre 1 e 365)");
   if (missing.length) throw new Error(`Variáveis obrigatórias de produção ausentes: ${missing.join(", ")}`);
   if (!validateEmail(PLATFORM_ADMIN_EMAIL)) throw new Error("PLATFORM_ADMIN_EMAIL inválido");
-  const seedIssue = passwordProblem(SEED_CEO_PASSWORD);
-  if (seedIssue) throw new Error(`SEED_CEO_PASSWORD inválida: ${seedIssue}`);
-  const adminIssue = passwordProblem(PLATFORM_ADMIN_PASSWORD);
-  if (adminIssue) throw new Error(`PLATFORM_ADMIN_PASSWORD inválida: ${adminIssue}`);
+  // Senha curta impede a subida; fora da regra nova (maiúscula, símbolo...) só avisa, para um deploy não derrubar o site.
+  for (const [name, value] of [["SEED_CEO_PASSWORD", SEED_CEO_PASSWORD], ["PLATFORM_ADMIN_PASSWORD", PLATFORM_ADMIN_PASSWORD]]) {
+    if (String(value || "").length < 8) throw new Error(`${name} inválida: a senha precisa ter pelo menos 8 caracteres.`);
+    const issue = passwordProblem(value);
+    if (issue) console.warn(`[senha] ${name} fora da regra atual (${issue}) Troque no ambiente quando puder.`);
+  }
 }
 
 (async()=>{

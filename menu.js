@@ -14,7 +14,7 @@ const MENU_LAYOUT = {
   'financeiro-gestao': ['Financeiro e fiscal', 2, 'Contas a pagar e receber'], resultados: ['Financeiro e fiscal', 3, 'Resultados e custos'],
   fiscal: ['Financeiro e fiscal', 4, 'Notas fiscais'], conciliacao: ['Financeiro e fiscal', 5, 'Conciliação bancária'], contratos: ['Financeiro e fiscal', 6, 'Contratos de venda'],
   'pedidos-compra': ['Financeiro e fiscal', 7, 'Pedidos de compra'], lcdpr: ['Financeiro e fiscal', 8, 'Livro Caixa (LCDPR)'],
-  fazendas: ['Configurações', 1], usuarios: ['Configurações', 2], pagamentos: ['Configurações', 3, 'Assinatura'], historico: ['Configurações', 4], perfil: ['Configurações', 5]
+  fazendas: ['Configurações', 1], usuarios: ['Configurações', 2], pagamentos: ['Financeiro e fiscal', 9, 'Comprovantes de pagamento'], assinatura: ['Configurações', 3, 'Assinatura'], historico: ['Configurações', 4], perfil: ['Configurações', 5]
 };
 const MENU_ICONS = { 'financeiro-gestao': 'wallet', fiscal: 'receipt', conciliacao: 'swap', contratos: 'receipt', 'pedidos-compra': 'box', lcdpr: 'receipt' };
 // Abas: a página do menu (primeira) e as que viraram aba dentro dela.

@@ -11,5 +11,7 @@ function build(dir = __dirname) {
   const version = hash.digest('hex').slice(0, 16);
   return `const CACHE='rural-campo-${version}',SHELL=${JSON.stringify([...urls, ...assets])};self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())));self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('rural-campo-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));self.addEventListener('fetch',e=>{const u=new URL(e.request.url);if(e.request.method!=='GET'||u.origin!==self.location.origin||u.pathname.startsWith('/api/'))return;if(u.pathname==='/app'||u.pathname==='/app.html'){e.respondWith(fetch(e.request).catch(()=>caches.match('/app')));return;}if(SHELL.includes(u.pathname))e.respondWith(caches.match(u.pathname).then(r=>r||fetch(e.request)));});`;
 }
-module.exports = { build };
-if (require.main === module) fs.writeFileSync(path.join(__dirname, 'campo-sw.js'), build());
+const baseBuild=build;
+function buildWithPush(dir){return baseBuild(dir)+String.raw`self.addEventListener('push',e=>{let p={};try{p=e.data.json();}catch{}e.waitUntil(self.registration.showNotification('Gestão Rural',{body:String(p.body||'Há uma atualização no painel.').slice(0,200),tag:String(p.tag||'rural').slice(0,100),icon:'/assets/app-icone-192.png',data:{url:'/app'}}));});self.addEventListener('notificationclick',e=>{e.notification.close();e.waitUntil(self.clients.matchAll({type:'window',includeUncontrolled:true}).then(list=>{const w=list.find(c=>new URL(c.url).origin===self.location.origin&&new URL(c.url).pathname==='/app');return w?w.focus():self.clients.openWindow('/app');}));});`;}
+module.exports = { build:buildWithPush };
+if (require.main === module) fs.writeFileSync(path.join(__dirname, 'campo-sw.js'), buildWithPush());

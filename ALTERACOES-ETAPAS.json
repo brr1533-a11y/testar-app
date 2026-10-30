@@ -1,0 +1,139 @@
+{
+  "release": "Etapas 3–8 — local",
+  "base": "gestao-rural-etapa2.zip",
+  "githubPublished": false,
+  "externalIntegrations": {
+    "fiscal": false,
+    "weather": false,
+    "whatsapp": false,
+    "push": false
+  },
+  "selfExcluded": true,
+  "files": [
+    {
+      "path": ".env.example",
+      "status": "alterado",
+      "sha256": "d20c364cbf74c1c5e4428b61d91ec5024d6ef345cfb87a4d28d31f6db5257cac"
+    },
+    {
+      "path": "adm-access.js",
+      "status": "alterado",
+      "sha256": "45e7f45a2781d66b49a805df1dae4d5c935c606739fc67358dad044bbb0068c1"
+    },
+    {
+      "path": "app.html",
+      "status": "alterado",
+      "sha256": "2cd1f4348e5ea4cadd7b9f74e1adcc5d2004c2098826829691f218a79cb0cd00"
+    },
+    {
+      "path": "app.js",
+      "status": "alterado",
+      "sha256": "d46959f81a30ecac03369671db77eaa16119b634bf57efca6a8ced1c1e4543c4"
+    },
+    {
+      "path": "campo-sw.js",
+      "status": "alterado",
+      "sha256": "bafe7a6cdf767a38298b00badc692ad24aaa3d3320c87cf011380361706bb2be"
+    },
+    {
+      "path": "contador.html",
+      "status": "novo",
+      "sha256": "7bcaa7126e86801b435ee1cfb1850bfe2ee9593b62d37b636da337098a51b4a9"
+    },
+    {
+      "path": "contador.js",
+      "status": "novo",
+      "sha256": "e8471713e755faa0e2c1f82ab3e37499308beb784cb931b298aa41b5b95edd64"
+    },
+    {
+      "path": "ETAPAS-3-A-8.md",
+      "status": "novo",
+      "sha256": "89aaac332f808933c0c9a411987f1c259c3d3a9ba99a4832fc517073b343c8e6"
+    },
+    {
+      "path": "expansao-domain.js",
+      "status": "novo",
+      "sha256": "5fc1c30f3335a4d40190aff356f7b513ac6e4d05f0c45ba959266fb3fde292ec"
+    },
+    {
+      "path": "expansao-server.js",
+      "status": "novo",
+      "sha256": "6f6e6266c74260ff5190cc616fcf7b9b129ee3eda6a89908510375ce3e05bf1b"
+    },
+    {
+      "path": "expansao.css",
+      "status": "novo",
+      "sha256": "f9bd3ea8b02dd7f17020d4a0b9923f23e2d068c9b71fe3c8ef7f5915315c36c3"
+    },
+    {
+      "path": "expansao.js",
+      "status": "novo",
+      "sha256": "ff89e07ecfbfb1deb00ace8c442c90a9711524d2914ee28f0c5d6adecb8e30ea"
+    },
+    {
+      "path": "gerar-worker.cjs",
+      "status": "alterado",
+      "sha256": "13060fe2c5571ec8ef0bf934026ceea712eed1daded3a32d30ebd6545ec24d85"
+    },
+    {
+      "path": "gestao-domain.js",
+      "status": "alterado",
+      "sha256": "79f7796d315b28f708aae7c921d45418882b5c38e135987d2ac6788ee6459bbb"
+    },
+    {
+      "path": "gestao.js",
+      "status": "alterado",
+      "sha256": "746aae19a1f56f69084b1b259af97cec1240d48cb65324c19601aa8b423d55ab"
+    },
+    {
+      "path": "implantacao-domain.js",
+      "status": "novo",
+      "sha256": "823a51671c9841e957952326444d67bedac505235de4c20f1f96e75adbbfb0b0"
+    },
+    {
+      "path": "integracoes-etapas.js",
+      "status": "novo",
+      "sha256": "53c1ac9dc0fb5fc5c583f8ea74a8d13c2cd236fdf52caf158e5d1d6431d1fe91"
+    },
+    {
+      "path": "INTEGRACOES-ETAPAS.md",
+      "status": "novo",
+      "sha256": "a6672663ccbe6ad40d112f2229da2cd3f1da832775cf5aebd6efd5c7e3a36dff"
+    },
+    {
+      "path": "package-lock.json",
+      "status": "alterado",
+      "sha256": "822e0509f84b888906224d57616d96399e6790536f4bc41362d73ed60cda27d5"
+    },
+    {
+      "path": "package.json",
+      "status": "alterado",
+      "sha256": "35a1ecbe8becf9725166a8cdb2489d2733fd966eefa4e4c6580fc183c041da92"
+    },
+    {
+      "path": "server.js",
+      "status": "alterado",
+      "sha256": "2e68246d89ee0a5f22d9a9cfe47f8d377d95b1f94c44475db59f120d861c73b3"
+    },
+    {
+      "path": "tests/expansao-api.test.cjs",
+      "status": "novo",
+      "sha256": "4079a22a6746723936963b69e63ff074427f6a9884c833358c88cb88ad9d01f6"
+    },
+    {
+      "path": "tests/expansao-browser.cjs",
+      "status": "novo",
+      "sha256": "d6c262ea0d35e32193b88576216f766493a3b9dba6751256f2c6ecf5a6234c4f"
+    },
+    {
+      "path": "tests/expansao.test.cjs",
+      "status": "novo",
+      "sha256": "f7b497d4bcafb1647c78b444043d0642997c50aef2932c303c01328c92bcca6b"
+    },
+    {
+      "path": "VALIDACAO-ETAPAS.md",
+      "status": "novo",
+      "sha256": "f2f689c5a61f3f7cde71dbe7da2d0b589b2c121578506750629834170e4e8596"
+    }
+  ]
+}

@@ -281,14 +281,16 @@ function renderFinanceHub() {
       { name: 'category', label: 'Categoria', placeholder: 'Ex.: Insumos, Combustível, Mão de obra' },
       { name: 'amount', label: 'Valor (R$)', type: 'number', min: '0.01', step: '0.01', required: true },
       { name: 'dueDate', label: 'Vencimento', type: 'date', value: todayISO(), required: true },
-      { name: 'target', label: 'Rateio (safra ou lote)', type: 'select', options: opsTargetOptions(farm, activity) },
+      { name: 'toStock', label: 'É compra de insumo para o estoque?', type: 'select', options: [['no', 'Não: custo direto (serviço, frete, aluguel...)'], ['yes', 'Sim: vai para o estoque (o custo entra quando for usado)']], hint: 'Compra para o estoque não entra no custo da safra agora, para não contar duas vezes com o consumo.' },
+      { name: 'target', label: 'Rateio (safra ou lote), só para custo direto', type: 'select', options: opsTargetOptions(farm, activity) },
       { name: 'document', label: 'Nº do documento / boleto (opcional)' },
       { name: 'notes', label: 'Observações', type: 'textarea', wide: true }
     ] });
     if (!v) return;
     const p = { id: uid(), activity, date: todayISO(), supplier: String(v.supplier).trim(), description: String(v.description).trim(), category: String(v.category || '').trim(), amount: Math.round(Number(v.amount) * 100) / 100, dueDate: v.dueDate, status: 'open', document: String(v.document || '').trim(), notes: String(v.notes || '').trim() };
-    if (v.target) p[activity === 'cattle' ? 'lotId' : 'cycleId'] = v.target;
-    if (gestaoChange(farm, f => f.management.payables.push(p))) { toast('Conta a pagar registrada.'); renderFinanceHub(); }
+    if (v.toStock === 'yes') p.toStock = true;
+    else if (v.target) p[activity === 'cattle' ? 'lotId' : 'cycleId'] = v.target;
+    if (gestaoChange(farm, f => f.management.payables.push(p))) { toast(p.toStock ? 'Conta registrada. O custo entra na safra quando o insumo for consumido.' : 'Conta a pagar registrada.'); renderFinanceHub(); }
   };
   $$('.g-pay').forEach(b => b.onclick = async () => {
     const p = farm.management.payables.find(x => x.id === b.dataset.id);
@@ -323,7 +325,7 @@ function renderFiscal() {
     const v = await askForm({ title: 'Importar esta NF-e?', text: `Nº ${n.number} de ${n.date ? dateBR(n.date) : '—'} · emitente ${n.emitName || '—'} · destinatário ${n.destName || '—'} · ${money(n.total)} · ${n.items.length} item(ns).`, okText: 'Importar', fields: [{ name: 'kind', label: 'Esta nota é', type: 'select', options: [['nfe-entrada', 'Recebida pela fazenda (compra)'], ['nfe-saida', 'Emitida pela fazenda (venda)']] }] });
     if (!v) return;
     const kind = v.kind === 'nfe-saida' ? 'nfe-saida' : 'nfe-entrada';
-    save({ id: uid(), activity: selectedType(), kind, number: n.number || '—', series: n.series, key: /^\d{44}$/.test(n.key) ? n.key : '', date: RuralDomain.validDate(n.date) ? n.date : todayISO(), party: (kind === 'nfe-entrada' ? n.emitName : n.destName) || 'Não informado', partyDoc: kind === 'nfe-entrada' ? n.emitDoc : n.destDoc, total: n.total, items: n.items, source: 'xml', fileName: file.name.slice(0, 120) }, 'NF-e importada.');
+    save({ id: uid(), activity: selectedType(), kind, number: n.number || '—', series: n.series, key: /^\d{44}$/.test(n.key) ? n.key : '', date: RuralDomain.validDate(n.date) ? n.date : todayISO(), party: (kind === 'nfe-entrada' ? n.emitName : n.destName) || 'Não informado', partyDoc: kind === 'nfe-entrada' ? n.emitDoc : n.destDoc, total: n.total, items: n.items, city:n.city,uf:n.uf,municipalityCode:n.municipalityCode, source: 'xml', fileName: file.name.slice(0, 120) }, 'NF-e importada.');
   };
   const manual = async kind => {
     const v = await askForm({ title: kind === 'mdfe' ? 'Registrar MDF-e' : 'Registrar NF-e', wide: true, fields: [

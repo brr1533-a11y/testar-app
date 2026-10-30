@@ -47,7 +47,8 @@
   function vaccineStatus(v, on = today()) { return v.doneDate ? 'feita' : v.dueDate < on ? 'atrasada' : (Date.parse(v.dueDate) - Date.parse(on)) / 86400000 <= 15 ? 'proxima' : 'agendada'; }
   // ---- Leite ----
   function milkSummary(field, on = today()) {
-    const recs = field.milk || [], day = d => recs.filter(r => r.date === d).reduce((n, r) => n + r.liters, 0);
+    // Leite de vaca em carência de medicamento (marcado pelo servidor como descarte) não entra na produção entregue.
+    const recs = (field.milk || []).filter(r => !r.discard), day = d => recs.filter(r => r.date === d).reduce((n, r) => n + r.liters, 0);
     const back = n => new Date(Date.parse(on) - n * 86400000).toISOString().slice(0, 10);
     const last7 = Array.from({ length: 7 }, (_, i) => day(back(i)));
     const lactating = (field.dairyCows || []).filter(c => c.status === 'lactacao').length;

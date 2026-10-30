@@ -118,7 +118,7 @@ qs("#startTrial")?.addEventListener("click",()=>{
     <label>Nome do Grupo ou da fazenda<input name="groupName" required placeholder="Ex.: Fazenda Boa Vista"></label>
     <label>Seu nome<input name="ceoName" required autocomplete="name"></label>
     <label>Usuário para entrar<input name="ceoUser" required pattern="[a-zA-Z0-9._-]{3,30}" placeholder="Ex.: joaosilva"></label>
-    <label>Senha<input name="ceoPassword" type="password" minlength="8" required autocomplete="new-password" placeholder="Mínimo 8 caracteres"></label>
+    <label>Senha<input name="ceoPassword" type="password" minlength="8" required autocomplete="new-password" placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)"></label>
     <div class="mail-actions"><button type="button" class="btn" data-x>Cancelar</button><button class="btn btn-cafe" type="submit">Começar teste</button></div><p class="trial-result" role="status"></p></form>`;
   document.body.appendChild(back);
   const f=back.querySelector("form"), close=()=>back.remove();

@@ -99,8 +99,19 @@ function renderAgriculture() {
       { name: 'moisture', label: 'Umidade medida (%) — opcional', type: 'number', min: 0, step: '0.01', hint: 'Apenas registro. O sistema não aplica desconto de umidade.' },
       { name: 'storage', label: 'Armazém / terreiro / lote de armazenamento' }, { name: 'notes', label: 'Observações', type: 'textarea' }
     ] });
-    if (v && ruralChange(farm, f => {
-      f.agriculture.harvests.push({ ...v, finishesPlot:v.finishesPlot==='yes', qualityName:(data.coffeeQualities||[]).find(q=>q.id===v.qualityId)?.name||'', id: uid(), cycleId: c.id, netKg: RuralInputs.toKg(v.netKg,v.netKgUnit,c.bagKg), moisture: v.moisture === '' ? null : Number(v.moisture), recordedBy: currentUser.username, recordedByName: currentUser.name, createdAt: new Date().toISOString() });
+    if (!v) return;
+    // Carência de defensivo no talhão: CEO/ADM decide na hora (vai para o histórico); os demais lançam e fica para decidir.
+    const grace = typeof Carencia !== 'undefined' && Carencia.harvestBlock(farm, v.plotId, v.date);
+    let graceDecision = null;
+    if (grace) {
+      if (['ceo', 'adm'].includes(currentUser.role)) {
+        const d = await askForm({ title: 'Talhão em carência', text: `O banho "${grace.order}" só libera a colheita em ${dateBR(grace.harvestFrom)}. Para registrar mesmo assim, informe o motivo: a decisão fica no histórico com o seu nome.`, fields: [{ name: 'note', label: 'Motivo', type: 'textarea', required: true }] });
+        if (!d) return;
+        graceDecision = { status: 'allowed', note: d.note.trim() };
+      } else if (!await ask(`O talhão está em carência até ${dateBR(grace.harvestFrom)} (${grace.order}). A colheita fica marcada para o CEO ou ADM decidir. Registrar mesmo assim?`, { title: 'Talhão em carência', okText: 'Registrar marcado' })) return;
+    }
+    if (ruralChange(farm, f => {
+      f.agriculture.harvests.push({ ...v, ...(graceDecision ? { graceDecision } : {}), finishesPlot:v.finishesPlot==='yes', qualityName:(data.coffeeQualities||[]).find(q=>q.id===v.qualityId)?.name||'', id: uid(), cycleId: c.id, netKg: RuralInputs.toKg(v.netKg,v.netKgUnit,c.bagKg), moisture: v.moisture === '' ? null : Number(v.moisture), recordedBy: currentUser.username, recordedByName: currentUser.name, createdAt: new Date().toISOString() });
       const cycle = f.agriculture.cycles.find(x => x.id === c.id);
       if (['Planejada', 'Em desenvolvimento'].includes(cycle.stage)) cycle.stage = 'Em colheita';
     })) { renderAgriculture(); toast('Colheita registrada.'); }

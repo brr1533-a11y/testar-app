@@ -17,7 +17,9 @@
     "test:polish": "node tests/polish-browser.cjs",
     "test:themes": "node tests/themes-inputs-browser.cjs",
     "test:video": "node tests/video-browser.cjs",
-    "test:soil": "node tests/soil-browser.cjs"
+    "test:soil": "node tests/soil-browser.cjs",
+    "test:expansion": "node --test tests/expansao*.test.cjs",
+    "test:expansion:browser": "node tests/expansao-browser.cjs"
   },
   "engines": {
     "node": ">=18"
@@ -25,7 +27,8 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "express": "^4.21.2",
-    "pg": "^8.13.1"
+    "pg": "^8.13.1",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "playwright": "1.62.1"

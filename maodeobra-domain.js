@@ -22,7 +22,7 @@
   const clone = x => JSON.parse(JSON.stringify(x));
   const id = v => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v);
   const today = () => new Date().toISOString().slice(0, 10);
-  function init(farm) { farm.labor ||= {}; for (const k of KEYS) farm.labor[k] ||= []; return farm.labor; }
+  function init(farm) { farm.labor ||= {}; for (const k of KEYS) farm.labor[k] ||= []; if (!farm.labor.settings || typeof farm.labor.settings !== 'object' || Array.isArray(farm.labor.settings)) farm.labor.settings = {}; return farm.labor; }
 
   // Semana de segunda a domingo.
   function weekStart(date) { const d = new Date(date + 'T12:00:00Z'), dow = (d.getUTCDay() + 6) % 7; d.setUTCDate(d.getUTCDate() - dow); return d.toISOString().slice(0, 10); }
@@ -38,16 +38,35 @@
     const r = (labor.plotRates || []).filter(x => x.plotId === plotId && x.validFrom <= date).sort((a, b) => b.validFrom.localeCompare(a.validFrom) || String(b.id).localeCompare(String(a.id)))[0];
     return r ? r.ratePerBag : null;
   }
-  // Valor que vale para o apontamento: saco = valor combinado da pessoa (se houver) ou do talhão; diária = diária da pessoa.
+  // Valor que vale para o apontamento: saco = valor combinado da pessoa (se houver) ou do talhão; diária = diária da pessoa
+  // ou, sem ela, a diária padrão da fazenda.
   function rateFor(labor, entry) {
     const w = (labor.workers || []).find(x => x.id === entry.workerId);
     if (!w) return null;
-    if (entry.kind === 'diaria') return w.dailyRate > 0 ? w.dailyRate : null;
+    if (entry.kind === 'diaria') return w.dailyRate > 0 ? w.dailyRate : labor.settings?.defaultDailyRate > 0 ? labor.settings.defaultDailyRate : null;
     return w.bagRate > 0 ? w.bagRate : plotRate(labor, entry.plotId, entry.date);
+  }
+  // O apontamento vai ganhar valor sozinho? Funciona também na visão do fiscal, que recebe só marcas (sem os valores).
+  function hasRate(labor, entry) {
+    const w = (labor.workers || []).find(x => x.id === entry.workerId), s = labor.settings || {};
+    if (entry.kind === 'diaria') return !!(w && (w.dailyRate > 0 || w.hasDaily)) || s.defaultDailyRate > 0 || !!s.hasDefaultDaily;
+    return !!(w && (w.bagRate > 0 || w.hasBagRate)) || (labor.plotRates || []).some(r => r.plotId === entry.plotId && r.validFrom <= entry.date);
+  }
+  // Pendências de valor em semanas abertas, agrupadas pelo que falta definir: valor do saco do talhão ou diária da pessoa.
+  function pendingSummary(labor) {
+    const open = (labor.entries || []).filter(e => !e.voided && e.rate == null && !closingFor(labor, e.date));
+    const plots = {}, workers = {};
+    for (const e of open) {
+      if (e.kind === 'diaria') { const g = workers[e.workerId] ||= { workerId: e.workerId, count: 0 }; g.count++; }
+      else { const g = plots[e.plotId] ||= { plotId: e.plotId, count: 0, from: e.date }; g.count++; if (e.date < g.from) g.from = e.date; }
+    }
+    return { total: open.length, plots: Object.values(plots), workers: Object.values(workers) };
   }
   function entryAmount(e) { if (e.rate == null) return 0; return e.kind === 'diaria' ? reais(cents(e.rate)) : reais(Math.round(cents(e.rate) * e.bags)); }
   // Apontamentos ainda sem valor numa semana (o fechamento fica bloqueado até o escritório definir).
   function pendingRates(labor, start) { const end = weekEnd(start); return (labor.entries || []).filter(e => !e.voided && e.date >= start && e.date <= end && e.rate == null); }
+  // Apontamentos dentro da carência de defensivo ainda sem decisão do CEO/ADM (também travam o fechamento).
+  function graceOpen(labor, start) { const end = weekEnd(start); return (labor.entries || []).filter(e => !e.voided && e.date >= start && e.date <= end && e.graceAlert && !e.graceDecision); }
 
   // Fechamento de uma semana, por pessoa: sacos × valor + diárias − adiantamentos − descontos − saldo devedor anterior.
   // Total negativo vira R$ 0 e a diferença passa como saldo devedor para a próxima semana.
@@ -79,6 +98,7 @@
   function validateFarm(farm) {
     const L = init(farm), plots = new Set((farm.talhoes || []).map(t => t.id));
     for (const k of KEYS) { check(Array.isArray(L[k]) && L[k].length <= 100000, 'Lista de mão de obra grande demais.'); const ids = new Set(); for (const r of L[k]) { check(r && id(r.id) && !ids.has(r.id), 'Identificação de registro de mão de obra inválida ou repetida.'); ids.add(r.id); } }
+    check(L.settings.defaultDailyRate == null || num(L.settings.defaultDailyRate, 0, 100000), 'Diária padrão inválida.');
     const workers = new Set(L.workers.map(w => w.id));
     for (const w of L.workers) check(filled(w.name, 120) && ROLES[w.role] && (!w.cpf || validCPF(w.cpf)) && text(w.pix, 140) && (!w.phone || /^\d{10,13}$/.test(w.phone)) && (w.dailyRate == null || num(w.dailyRate, 0, 100000)) && (w.bagRate == null || num(w.bagRate, 0, 10000)) && typeof (w.active ?? true) === 'boolean', 'Confira nome, CPF (se informado), Pix, telefone e valores da pessoa.');
     for (const r of L.plotRates) check(plots.has(r.plotId) && num(r.ratePerBag, 0.01, 10000) && D.validDate(r.validFrom), 'Confira o talhão, o valor do saco e a data de início.');
@@ -104,11 +124,11 @@
         const n = (f.management?.payables || []).find(x => x.id === p.id);
         check(n && ['amount', 'supplier', 'description', 'laborClosingId', 'workerId'].every(k => same(p[k], n[k])), 'Conta gerada pelo fechamento da colheita não pode ter valor ou pessoa alterados.', 403);
       }
-      if (!user.labor) { f.labor = clone(oldFarm.labor || { workers: [], plotRates: [], entries: [], adjustments: [], closings: [] }); continue; }
+      if (!user.labor) { f.labor = clone(oldFarm.labor || { workers: [], plotRates: [], entries: [], adjustments: [], closings: [], settings: {} }); continue; }
       if (user.labor === 'fiscal') {
         // O fiscal não vê nem altera pessoas, valores, adiantamentos e fechamentos: ficam como estão.
         const sentWorkers = Array.isArray(L.workers) ? L.workers : [];
-        for (const k of ['workers', 'plotRates', 'adjustments', 'closings']) L[k] = clone(old[k]);
+        for (const k of ['workers', 'plotRates', 'adjustments', 'closings', 'settings']) L[k] = clone(old[k]);
         for (const w of sentWorkers.filter(w => w && !old.workers.some(o => o.id === w.id))) {
           check(id(w.id) && filled(w.name, 120) && ROLES[w.role], 'Informe o nome e a função da pessoa.');
           L.workers.push({ id: w.id, name: w.name.trim(), role: w.role, active: true, pendingData: true, addedBy: who, createdAt: now });
@@ -134,7 +154,8 @@
         if (same(prev, e)) continue;
         check(!locked(prev.date), 'A semana deste apontamento já foi fechada.', 403);
         if (user.labor === 'fiscal') check(prev.recordedBy === who, 'O fiscal só corrige os próprios apontamentos.', 403);
-        const keep = { ...prev, bags: e.bags, voided: e.voided, voidReason: e.voidReason };
+        // A decisão sobre colheita na carência segue adiante; quem confere e carimba é o Carencia.stamp no servidor.
+        const keep = { ...prev, bags: e.bags, voided: e.voided, voidReason: e.voidReason, ...(e.graceDecision && !prev.graceDecision ? { graceDecision: e.graceDecision } : {}) };
         if (e.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; }
         if (!e.voided) { delete keep.voided; delete keep.voidReason; delete keep.voidedBy; delete keep.voidedAt; }
         Object.keys(e).forEach(k => delete e[k]); Object.assign(e, keep);
@@ -158,6 +179,7 @@
         check(calc.lines.length > 0, 'Nada para fechar nesta semana.');
         const missing = [...new Set(pendingRates({ ...L, closings: old.closings }, c.weekStart).map(e => (L.workers.find(w => w.id === e.workerId) || {}).name || '—'))];
         check(!missing.length, 'Há apontamentos sem valor nesta semana (' + missing.join(', ') + '). Defina a diária da pessoa ou o valor do saco do talhão antes de fechar.');
+        check(!graceOpen({ ...L, closings: old.closings }, c.weekStart).length, 'Há colheita dentro da carência de defensivo nesta semana sem decisão. Permita ou estorne antes de fechar.');
         Object.keys(c).forEach(k => { if (k !== 'id') delete c[k]; });
         Object.assign(c, calc, { closedBy: who, closedAt: now, payableIds: [] });
         const m = f.management ||= {}; m.payables ||= [];
@@ -174,16 +196,19 @@
     return after;
   }
 
-  // O que o fiscal recebe: nomes e funções das pessoas ativas, talhões e as semanas fechadas. Sem CPF, Pix, telefone ou valores.
+  // O que o fiscal recebe: nomes e funções das pessoas ativas, talhões e as semanas fechadas. Sem CPF, Pix, telefone ou valores:
+  // só marcas de "tem valor" (talhão com valor desde tal data, pessoa com diária), para o app avisar na hora o que fica pendente.
   function forFiscal(labor) {
     const L = init({ labor: clone(labor || {}) });
+    const flag = (k, ok) => ok ? { [k]: true } : {};
     return {
-      workers: L.workers.filter(w => w.active !== false).map(w => ({ id: w.id, name: w.name, role: w.role, active: true, ...(w.pendingData ? { pendingData: true } : {}) })),
-      plotRates: [], adjustments: [],
+      workers: L.workers.filter(w => w.active !== false).map(w => ({ id: w.id, name: w.name, role: w.role, active: true, ...flag('pendingData', w.pendingData), ...flag('hasDaily', w.dailyRate > 0), ...flag('hasBagRate', w.bagRate > 0) })),
+      plotRates: L.plotRates.map(r => ({ id: r.id, plotId: r.plotId, validFrom: r.validFrom })), adjustments: [],
+      settings: flag('hasDefaultDaily', L.settings.defaultDailyRate > 0),
       entries: L.entries.filter(e => e.date >= new Date(Date.now() - 35 * 86400000).toISOString().slice(0, 10)).map(({ rate, ...e }) => e),
       closings: L.closings.map(c => ({ id: c.id, weekStart: c.weekStart, weekEnd: c.weekEnd, lines: [] }))
     };
   }
 
-  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, entryAmount, pendingRates, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

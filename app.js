@@ -42,10 +42,19 @@ function openDialog(build) {
     document.body.appendChild(back);
     const form = back.querySelector("form");
     const previous = document.activeElement;
-    const close = value => { back.classList.add("closing"); setTimeout(() => back.remove(), 160); if (previous && previous.focus) previous.focus(); resolve(value); };
+    let closed = false;
+    const close = value => { if (closed) return; closed = true; back.classList.add("closing"); setTimeout(() => back.remove(), 160); if (previous && previous.isConnected && previous.focus) previous.focus(); resolve(value); };
     back.addEventListener("mousedown", e => { if (e.target === back) close(null); });
     back.querySelectorAll("[data-dlg-cancel]").forEach(b => b.onclick = () => close(null));
-    back.addEventListener("keydown", e => { if (e.key === "Escape") { e.preventDefault(); close(null); } });
+    back.addEventListener("keydown", e => {
+      if ([...document.querySelectorAll('.dlg-back:not(.closing)')].at(-1) !== back) return;
+      if (e.key === "Escape") { e.preventDefault(); close(null); return; }
+      if (e.key !== "Tab") return;
+      const items = [...back.querySelectorAll('button:not([disabled]),a[href],input:not([disabled]):not([type=hidden]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]')].filter(el => el.getClientRects().length);
+      const first=items[0], last=items.at(-1);
+      if (!first) { e.preventDefault(); return; }
+      if (!back.contains(document.activeElement) || e.shiftKey && document.activeElement===first || !e.shiftKey && document.activeElement===last) { e.preventDefault(); (e.shiftKey?last:first).focus(); }
+    });
     form.onsubmit = e => {
       e.preventDefault();
       if (!form.reportValidity()) return;
@@ -197,7 +206,7 @@ function migrateData(raw) {
     r.id = r.id || uid();
     r.role = ["adm", "contribuinte"].includes(r.role) ? r.role : "contribuinte";
     if (r.role === "contribuinte") {
-      r.function = ["Tratorista", "Campo"].includes(r.function) ? r.function : "Campo";
+      r.function = ["Tratorista", "Campo", "Fiscal de colheita"].includes(r.function) ? r.function : "Campo";
       r.allowedActivity = RuralDomain.PERMISSIONS.includes(r.allowedActivity) ? r.allowedActivity : "both";
     } else {
       r.function = "Administração";
@@ -354,6 +363,7 @@ let serverBase = null;      // última versão do servidor conhecida por esta te
 let serverRev = 0;
 let syncRetryTimer = null;
 let pendingRerender = false;
+let syncRejected = null;
 let lastRenderedPageState = "";
 let lastEntryPageKey = "";
 let formDirty = false;
@@ -372,9 +382,13 @@ function safeLocalState(state = data) {
   return copy;
 }
 
+// Durante a troca de senha o servidor encerra as sessões antigas. Uma sincronização que saiu antes com o token antigo
+// volta 401 sem que a pessoa tenha sido desconectada: esse erro é marcado (staleToken) e não derruba o acesso.
+let passwordChanging = false;
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
-  if (cloudToken) headers.Authorization = `Bearer ${cloudToken}`;
+  const usedToken = cloudToken;
+  if (usedToken) headers.Authorization = `Bearer ${usedToken}`;
   const response = await fetch(path, { ...options, headers });
   let payload = null;
   try { payload = await response.json(); } catch (_) {}
@@ -382,9 +396,19 @@ async function api(path, options = {}) {
     const error = new Error(payload?.error || `Erro ${response.status}`);
     error.status = response.status;
     error.payload = payload;
+    error.staleToken = response.status === 401 && (passwordChanging || usedToken !== cloudToken);
     throw error;
   }
   return payload;
+}
+// Regra de senha (a mesma do servidor): 8 a 128 caracteres, com letra maiúscula, minúscula, número e símbolo (ex.: @).
+const PASSWORD_RULE = "Mínimo de 8 caracteres, com letra maiúscula, letra minúscula, número e símbolo (ex.: @ # ! $).";
+function passwordIssue(p) {
+  p = String(p || "");
+  if (p.length < 8) return "A senha precisa ter pelo menos 8 caracteres.";
+  if (p.length > 128) return "A senha pode ter no máximo 128 caracteres.";
+  const missing = [!/[A-Z]/.test(p) && "letra maiúscula", !/[a-z]/.test(p) && "letra minúscula", !/[0-9]/.test(p) && "número", !/[^A-Za-z0-9]/.test(p) && "símbolo (ex.: @)"].filter(Boolean);
+  return missing.length ? "Falta na senha: " + missing.join(", ") + "." : "";
 }
 
 // ---------- Anexos: enviados à parte e abertos sob demanda ----------
@@ -539,9 +563,46 @@ function showSyncFailure(error) {
     setSyncStatus("error", "Não foi possível alcançar o servidor · tentando novamente");
   }
 }
+
+// Pendências recusadas continuam na tela e no cofre; só o usuário decide retirá-las.
+function downloadPendingCopy() {
+  const content={version:1,createdAt:new Date().toISOString(),group:currentGroup,userId:currentUser?.id,reason:syncRejected?.message||"Cópia de segurança",state:safeLocalState(data),serverBase:safeLocalState(serverBase||data)};
+  const url=URL.createObjectURL(new Blob([JSON.stringify(content,null,2)],{type:"application/json"}));
+  const a=document.createElement("a"); a.href=url; a.download="lancamentos-pendentes-"+Date.now()+".json"; a.click(); setTimeout(()=>URL.revokeObjectURL(url),10000);
+}
+function newPendingRows() {
+  const out=[],groups={stock:"Estoque",finances:"Financeiro",notes:"Nota",assignments:"Trabalho do dia",plotProcedures:"Procedimento",soilAnalyses:"Análise", "operations.expenses":"Despesa", "operations.stockUses":"Consumo", "operations.tasks":"Tarefa", "operations.payments":"Recebimento", "operations.deliveries":"Entrega", "operations.cattleMoves":"Movimentação", "agriculture.cycles":"Safra", "agriculture.harvests":"Colheita", "agriculture.sales":"Venda", "labor.workers":"Pessoa", "labor.entries":"Apontamento", "labor.adjustments":"Ajuste"};
+  for(const farm of data.farms||[]){const base=(serverBase?.farms||[]).find(f=>f.id===farm.id)||{};
+    for(const [path,title] of Object.entries(groups)){const at=(o)=>path.split('.').reduce((v,k)=>v?.[k],o)||[], old=new Set(at(base).map(r=>String(r.id)));
+      for(const r of at(farm))if(r.id&&!old.has(String(r.id)))out.push({farmId:farm.id,path,id:r.id,label:title+" · "+(r.description||r.item||r.name||r.reason||r.title||r.date||"Novo lançamento")+" · "+farm.name});
+    }
+  }return out;
+}
+function renderSyncIssue() {
+  const box=$("#syncIssue"); if(!box)return;
+  box.classList.toggle("hidden",!syncRejected||!currentUser);
+  if(!syncRejected||!currentUser){box.innerHTML="";delete box.dataset.issueKey;return;}
+  const rows=newPendingRows(),issueKey=orderedJSON({message:syncRejected.message,rows});
+  if(box.dataset.issueKey===issueKey)return;
+  box.dataset.issueKey=issueKey;
+  box.innerHTML='<h3>Há lançamentos aguardando revisão</h3><p>'+escapeHTML(syncRejected.message)+'</p><p>Os lançamentos foram mantidos. Revise os dados ou retire somente o lançamento que precisa ser refeito.</p><div class="row-actions"><button class="btn" id="syncRetry">Tentar enviar novamente</button><button class="btn" id="syncExport">Baixar cópia das pendências</button></div><details><summary>Revisar novos lançamentos ('+rows.length+')</summary>'+rows.map((r,i)=>'<div class="sync-pending-row"><span>'+escapeHTML(r.label)+'</span><button type="button" class="btn small" data-pending-drop="'+i+'">Retirar este lançamento</button></div>').join('')+'</details>';
+  $("#syncRetry").onclick=()=>pushStateToServer(0,true);
+  $("#syncExport").onclick=downloadPendingCopy;
+  box.querySelectorAll('[data-pending-drop]').forEach(button=>button.onclick=async()=>{
+    const row=rows[Number(button.dataset.pendingDrop)];
+    if(!await ask("Retirar apenas este lançamento ainda não confirmado? Os demais serão mantidos.",{title:row.label,okText:"Retirar este lançamento"}))return;
+    const farm=data.farms.find(f=>f.id===row.farmId),base=serverBase?.farms?.find(f=>f.id===row.farmId),parts=row.path.split('.');
+    const at=o=>parts.reduce((v,k)=>v?.[k],o)||[];
+    if(at(base).some(r=>String(r.id)===String(row.id)))return toast("Este lançamento já foi confirmado no servidor.");
+    const parent=parts.slice(0,-1).reduce((v,k)=>v?.[k],farm);if(!parent)return;
+    parent[parts.at(-1)]=at(farm).filter(r=>String(r.id)!==String(row.id));saveData();renderPage();
+  });
+}
+
 function hasLocalChanges() { return Boolean(serverBase) && !sameJSON(data, serverBase); }
 function saveData() {
   formDirty = false;
+  syncRejected = null; renderSyncIssue();
   writeCache();
   try { if (currentUser) localStorage.setItem(activeFarmStorageKey(currentUser), activeFarmId); } catch (_) {}
   if (!currentUser || !cloudToken) return;
@@ -558,8 +619,10 @@ function adoptServerPayload(payload) {
   return fresh;
 }
 
-async function pushStateToServer(attempt = 0) {
+async function pushStateToServer(attempt = 0, manual = false) {
   if (!currentUser || !cloudToken) return;
+  if (manual) syncRejected = null;
+  if (syncRejected) { renderSyncIssue(); return; }
   // Sem sinal: fica no cofre do aparelho e sobe quando a conexão voltar.
   if (!navigator.onLine) { showSyncFailure(); if (typeof FieldMode !== "undefined") FieldMode.schedule(); return; }
   if (cloudSaving) { cloudSaveAgain = true; return; }
@@ -571,6 +634,7 @@ async function pushStateToServer(attempt = 0) {
   let retryAttempt = null;
   try {
     const payload = await api("/api/state", { method: "PUT", body: JSON.stringify({ state: sent, baseRev: serverRev }) });
+    syncRejected = null; renderSyncIssue();
     const fresh = adoptServerPayload(payload);
     // Se a pessoa mexeu em algo enquanto salvava, essas mudanças continuam por cima do que voltou do servidor.
     replaceData(merge3(sent, data, fresh));
@@ -588,16 +652,18 @@ async function pushStateToServer(attempt = 0) {
       retryAttempt = attempt + 1;
       return;
     }
+    if (error.status === 401 && error.staleToken) { syncRetryTimer = setTimeout(() => pushStateToServer(), 2000); return; }
     if (error.status === 401) return logout(true);
     if (error.status === 403 && error.payload?.status === "suspended") return logout(true);
     if (error.status === 402 && error.payload?.trialExpired) { logout(true); return showTrialEnded(error.message); }
     if (error.status === 428) return mustChangePasswordAgain();
     if (error.status === 400 || error.status === 403 || error.status === 422) {
-      // O servidor recusou a alteração (máquina já reservada, atividade não contratada, histórico protegido...):
-      // a tela volta ao que está gravado, em vez de manter o que não foi salvo e reenviar a cada sincronização.
-      if (serverBase) { replaceData(JSON.parse(JSON.stringify(serverBase))); afterServerUpdate(true); }
-      setSyncStatus("error", "Não salvo");
-      await ask(error.message, { title: "Não foi possível salvar", okText: "Entendi" });
+      // Recusa de validação pausa o envio, sem apagar os demais lançamentos offline.
+      syncRejected = { message: error.message, status: error.status };
+      cloudSaveAgain = false;
+      writeCache(); renderSyncIssue();
+      setSyncStatus("error", "Há lançamentos pendentes de revisão");
+      toast("Os lançamentos foram mantidos neste aparelho. Revise a pendência antes de enviar novamente.");
     }
     else {
       console.error("Falha ao sincronizar:", error);
@@ -650,12 +716,12 @@ function rerenderAfterSync() {
   window.scrollTo(0, y);
 }
 
-async function pullStateFromServer({ rerender = true } = {}) {
+async function pullStateFromServer({ rerender = true, signal } = {}) {
   if (!cloudToken) return false;
   if (cloudSaving) return true;
   try {
     const known = serverBase && rerender ? `?rev=${serverRev}` : "";
-    const payload = await api(`/api/state${known}`);
+    const payload = await api(`/api/state${known}`, signal ? { signal } : {});
     if (payload.unchanged) {
       if (typeof FieldMode !== "undefined") FieldMode.verified();
       if (hasLocalChanges() && !cloudSaving) pushStateToServer();
@@ -677,6 +743,7 @@ async function pullStateFromServer({ rerender = true } = {}) {
   } catch (error) {
     if (error.status === 428) mustChangePasswordAgain();
     else if (error.status === 402 && error.payload?.trialExpired) { logout(true); showTrialEnded(error.message); }
+    else if (error.staleToken) return false;
     else if (error.status === 401 || error.status === 403) logout(true);
     else if (rerender) showSyncFailure(error);
     return false;
@@ -876,18 +943,21 @@ async function forcePasswordChange(currentPassword) {
       text: "Sua senha atual é fácil de adivinhar ou já foi divulgada. Crie uma nova para continuar.",
       okText: "Salvar nova senha",
       fields: [
-        { name: "newPassword", label: "Nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password", autofocus: true, hint: "Mínimo de 8 caracteres." },
+        { name: "newPassword", label: "Nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password", autofocus: true, hint: PASSWORD_RULE },
         { name: "confirm", label: "Repita a nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password" }
       ]
     });
     if (!v) return false;
     if (v.newPassword !== v.confirm) { toast("As duas senhas não são iguais."); continue; }
+    const issue = passwordIssue(v.newPassword); if (issue) { toast(issue); continue; }
+    passwordChanging = true;
     try {
       const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword, newPassword: v.newPassword }) });
       storeSessionToken(r.token, r.expiresAt);
       toast("Senha alterada.");
       return true;
     } catch (e) { toast(e.message); }
+    finally { passwordChanging = false; }
   }
   return false;
 }
@@ -898,18 +968,23 @@ async function changeOwnPassword() {
     okText: "Trocar senha",
     fields: [
       { name: "currentPassword", label: "Senha atual", type: "password", required: true, autocomplete: "current-password", autofocus: true },
-      { name: "newPassword", label: "Nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password", hint: "Mínimo de 8 caracteres." },
+      { name: "newPassword", label: "Nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password", hint: PASSWORD_RULE },
       { name: "confirm", label: "Repita a nova senha", type: "password", required: true, minlength: 8, autocomplete: "new-password" }
     ]
   });
   if (!v) return;
   if (v.newPassword !== v.confirm) return toast("As duas senhas não são iguais.");
+  const issue = passwordIssue(v.newPassword); if (issue) return toast(issue);
+  passwordChanging = true;
   try {
     const r = await api("/api/auth/change-password", { method: "POST", body: JSON.stringify({ currentPassword: v.currentPassword, newPassword: v.newPassword }) });
     storeSessionToken(r.token, r.expiresAt);
     absorbServerPayload(r);
+    // O cofre do modo de campo e a sessão lembrada passam a usar o token novo.
+    if (typeof FieldMode !== "undefined" && FieldMode.enabled()) { try { await FieldMode.flush(); } catch (_) {} }
     toast("Senha alterada. Os outros aparelhos foram desconectados.");
   } catch (e) { toast(e.message); }
+  finally { passwordChanging = false; }
 }
 
 async function restoreSession() {
@@ -922,17 +997,23 @@ async function restoreSession() {
   if (!cloudToken || !navigator.onLine) return;
   $("#loginView").classList.add("hidden");
   $("#sessionRestore").classList.remove("hidden");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  let opened = false;
+  $("#cancelSessionRestore").onclick = () => controller.abort();
   try {
-    const payload = await pullStateFromServer({ rerender: false });
-    if (payload && currentUser) {
+    const payload = await pullStateFromServer({ rerender: false, signal: controller.signal });
+    if (payload && currentUser && !controller.signal.aborted) {
+      opened = true;
       activeFarmId = preferredFarmForUser(currentUser);
       openApp();
       startCloudSync();
       if (typeof FieldMode !== "undefined") FieldMode.afterLogin();
     }
   } finally {
+    clearTimeout(timer);
     $("#sessionRestore").classList.add("hidden");
-    if (!currentUser) $("#loginView").classList.remove("hidden");
+    if (!opened) { currentUser = null; $("#loginView").classList.remove("hidden"); if (controller.signal.aborted) toast("A conexão está demorando. Entre novamente ou abra o modo de campo com seu PIN."); }
   }
 }
 
@@ -945,7 +1026,11 @@ async function mustChangePasswordAgain() {
 
 async function logout(silent = false) {
   // Modo de campo: grava o que falta no cofre e tranca (o cofre continua no aparelho, protegido pelo PIN).
-  if (typeof FieldMode !== "undefined") { await FieldMode.flush(); FieldMode.lock(); }
+  if (typeof FieldMode !== "undefined") {
+    try { await FieldMode.flush(); }
+    catch (_) { let requested=false; if (hasLocalChanges()) { try { await FieldMode.backupMemory(); requested=true; } catch (_) {} } toast(requested ? "Não foi possível atualizar o cofre. A saída será concluída; confira a cópia das pendências solicitada para download." : "Não foi possível atualizar o cofre. A saída será concluída; a cópia anterior do cofre foi mantida."); }
+    finally { FieldMode.lock(); }
+  }
   const tokenBefore = cloudToken;
   cloudToken = "";
   clearInterval(cloudSyncTimer);
@@ -954,7 +1039,7 @@ async function logout(silent = false) {
   clearTimeout(syncRetryTimer);
   // Sessão vencida (saída automática) não apaga lançamentos feitos sem internet que ainda não foram enviados; sair pelo botão apaga.
   try { Object.keys(localStorage).filter(k => k.startsWith(STORAGE_KEY)).forEach(k => localStorage.removeItem(k)); Object.keys(sessionStorage).filter(k => k.startsWith(STORAGE_KEY)).forEach(k => sessionStorage.removeItem(k)); } catch (_) {}
-  data = defaultData(); serverBase = null; serverRev = 0; pendingRerender = false; formDirty = false;
+  data = defaultData(); serverBase = null; serverRev = 0; pendingRerender = false; formDirty = false; syncRejected = null; renderSyncIssue();
   document.querySelectorAll(".dlg-back").forEach(d => d.remove());
   currentUser = null;
   currentGroup = null;
@@ -1113,7 +1198,8 @@ function baseNavItems() {
       ["estoque", "box", isGeneralView() ? "Estoque geral" : "Estoque"],
       ["financeiro", "chart", isGeneralView() ? "Balanço geral" : "Balanço financeiro"],
       ["notas", "receipt", isGeneralView() ? "Notas gerais" : "Notas fiscais"],
-      ["pagamentos", "wallet", "Pagamentos"],
+      ["pagamentos", "receipt", "Comprovantes de pagamento"],
+      ["assinatura", "wallet", "Assinatura"],
       ["fazendas", "home", "Fazendas"],
       ["usuarios", "users", "Usuários"],
       ["log-equipamentos", "receipt", "Log equipamentos"],
@@ -1253,6 +1339,22 @@ function renderPage({ animate = true } = {}) {
   const managementPages = typeof gestaoExtraPages === "function" ? gestaoExtraPages() : [];
   if (![...allowed, ...financeDetailPages, ...managementPages].includes(currentPage)) currentPage = allowed[0];
   const pages = {
+    'custos-unidade':()=>renderExpansionPage('custos-unidade'),
+    'comercializacao':()=>renderExpansionPage('comercializacao'),
+    'orcamento-safra':()=>renderExpansionPage('orcamento-safra'),
+    'emissao-fiscal':()=>renderExpansionPage('emissao-fiscal'),
+    'estoque-cafe':()=>renderExpansionPage('estoque-cafe'),
+    'qualidade-leite':()=>renderExpansionPage('qualidade-leite'),
+    'rotacao-piquetes':()=>renderExpansionPage('rotacao-piquetes'),
+    'clima':()=>renderExpansionPage('clima'),
+    'documentos':()=>renderExpansionPage('documentos'),
+    'certificacoes':()=>renderExpansionPage('certificacoes'),
+    'equipe-anual':()=>renderExpansionPage('equipe-anual'),
+    'campo-completo':()=>renderExpansionPage('campo-completo'),
+    'comparador-coletivo':()=>renderExpansionPage('comparador-coletivo'),
+    'implantacao':()=>renderExpansionPage('implantacao'),
+    'acesso-contador':()=>renderExpansionPage('acesso-contador'),
+    'notificacoes':()=>renderExpansionPage('notificacoes'),
     resultados: renderResults,
     "analises-solo": renderSoilAnalyses,
     planejamento: renderAgenda,
@@ -1273,6 +1375,7 @@ function renderPage({ animate = true } = {}) {
     lancamentos: renderFinanceAdmin,
     notas: renderNotes,
     pagamentos: renderPayments,
+    assinatura: renderSubscriptionPage,
     fazendas: renderFarms,
     usuarios: renderUsers,
     "log-equipamentos": renderEquipmentLog,
@@ -1363,7 +1466,7 @@ function contributorQuickForm() {
     <label>Chave PIX (opcional)<input name="pixKey" placeholder="CPF, telefone, e-mail ou chave aleatória"></label>
     <label>Fazenda permitida<select name="allowedFarmId" required>${data.farms.map(f => `<option value="${f.id}">${escapeHTML(f.name)} • Café + Gado + Grãos</option>`).join("")}</select></label>
     <label>Usuário<input name="username" required placeholder="Ex.: joao.silva"></label>
-    <label>Senha inicial<input name="password" type="password" minlength="8" required placeholder="Mínimo 8 caracteres"></label>
+    <label>Senha inicial<input name="password" type="password" minlength="8" required placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)"></label>
   </div><div class="form-actions"><button class="btn primary">Cadastrar contribuinte</button></div></form>`;
 }
 
@@ -1704,12 +1807,12 @@ function renderBanho() {
   const canCreateOrder = farm.talhoes.length > 0 && activeProducts.length > 0;
   $("#pageContent").innerHTML = `
     <div class="grid two">
-      <form id="bathProductForm" class="form-card"><div class="inline"><h3>Produtos para banho</h3><span class="badge gold right">CEO / ADM</span></div><div class="form-grid" style="margin-top:18px"><label>Produto<input name="name" required placeholder="Ex.: Produto A"></label><label>Unidade<select name="unit"><option value="L">Litros (L)</option><option value="kg">Quilos (kg)</option></select></label></div><div class="form-actions"><button class="btn primary">Adicionar produto</button></div></form>
+      <form id="bathProductForm" class="form-card"><div class="inline"><h3>Produtos para banho</h3><span class="badge gold right">CEO / ADM</span></div><div class="form-grid" style="margin-top:18px"><label>Produto<input name="name" required placeholder="Ex.: Produto A"></label><label>Unidade<select name="unit"><option value="L">Litros (L)</option><option value="kg">Quilos (kg)</option></select></label><label>Carência (dias até colher)<input name="graceDays" type="number" min="0" max="365" step="1" placeholder="Ex.: 30"></label><label>Reentrada (horas até entrar no talhão)<input name="reentryHours" type="number" min="0" max="720" step="1" placeholder="Ex.: 24"></label></div><p class="subtle">Veja na bula. Ao concluir o banho, o sistema calcula quando o talhão libera para colher e para entrar.</p><div class="form-actions"><button class="btn primary">Adicionar produto</button></div></form>
       <div class="card soft"><span class="eyebrow dark">PREPARO</span><h2>${activeProducts.length} produtos ativos</h2><p class="muted">Cadastre previamente os produtos que poderão ser selecionados nas ordens de banho.</p></div>
     </div>
 
     <div class="section-head"><h2>Produtos cadastrados</h2></div>
-    ${farm.banho.products.length ? `<div class="table-wrap"><table><thead><tr><th>Produto</th><th>Unidade</th><th>Status</th><th>Ações</th></tr></thead><tbody>${farm.banho.products.map(p => `<tr><td><b>${escapeHTML(p.name)}</b></td><td>${escapeHTML(p.unit)}</td><td><span class="badge ${p.active !== false ? "green" : "red"}">${p.active !== false ? "Ativo" : "Inativo"}</span></td><td><div class="inline"><button class="btn small bath-product-toggle" data-id="${p.id}">${p.active !== false ? "Desativar" : "Ativar"}</button><button class="btn danger small bath-product-delete" data-id="${p.id}">Excluir</button></div></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum produto cadastrado.</div>`}
+    ${farm.banho.products.length ? `<div class="table-wrap"><table><thead><tr><th>Produto</th><th>Unidade</th><th>Carência</th><th>Reentrada</th><th>Status</th><th>Ações</th></tr></thead><tbody>${farm.banho.products.map(p => `<tr><td><b>${escapeHTML(p.name)}</b></td><td>${escapeHTML(p.unit)}</td><td>${p.graceDays != null ? `${p.graceDays} dia(s)` : `<span class="badge gold">Não informada</span>`}</td><td>${p.reentryHours != null ? `${p.reentryHours} h` : "—"}</td><td><span class="badge ${p.active !== false ? "green" : "red"}">${p.active !== false ? "Ativo" : "Inativo"}</span></td><td><div class="inline"><button class="btn small bath-product-grace" data-id="${p.id}">Carência</button><button class="btn small bath-product-toggle" data-id="${p.id}">${p.active !== false ? "Desativar" : "Ativar"}</button><button class="btn danger small bath-product-delete" data-id="${p.id}">Excluir</button></div></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum produto cadastrado.</div>`}
 
     <div class="section-head"><div><h2>Montar novo banho</h2><p>Selecione os talhões e informe a quantidade de cada produto antes de liberar.</p></div></div>
     ${canCreateOrder ? `<form id="bathOrderForm" class="form-card"><div class="form-grid"><label>Nome da ordem<input name="title" placeholder="Ex.: Banho Talhão 01" value="Banho ${dateBR(todayISO())}"></label><label class="wide">Observação<input name="notes" placeholder="Opcional"></label></div><div class="section-head"><h2>Talhões</h2></div><div class="grid three">${farm.talhoes.map(t => `<label class="equipment-pick"><span><strong>${escapeHTML(t.name)}</strong><span>${t.reference ? `Ref.: ${escapeHTML(t.reference)}` : "Selecionar talhão"}</span></span><input type="checkbox" name="bathTalhoes" value="${t.id}"></label>`).join("")}</div><div class="section-head"><h2>Produtos e quantidades</h2></div><div class="grid two">${activeProducts.map(p => `<div class="card soft"><label style="margin:0;display:flex;grid-template-columns:auto 1fr;align-items:center;gap:10px"><input type="checkbox" name="bathProducts" value="${p.id}" style="width:auto"><b>${escapeHTML(p.name)}</b></label><label>Quantidade (${escapeHTML(p.unit)})<input type="number" min="0" step="0.01" name="bathQty_${p.id}" placeholder="0"></label></div>`).join("")}</div><div class="form-actions"><button class="btn primary">Salvar rascunho</button></div></form>` : `<div class="card empty">Para montar um banho, cadastre pelo menos <b>1 talhão</b> e <b>1 produto ativo</b>.</div>`}
@@ -1723,9 +1826,24 @@ function renderBanho() {
     const name = String(f.get("name") || "").trim();
     if (!name) return;
     if (farm.banho.products.some(p => p.name.toLowerCase() === name.toLowerCase())) return toast("Esse produto já está cadastrado.");
-    farm.banho.products.push({ id: uid(), name, unit: f.get("unit") === "kg" ? "kg" : "L", active: true });
+    const optInt = (v, max) => v === "" || v == null ? null : Math.min(max, Math.max(0, Math.round(Number(v))));
+    farm.banho.products.push({ id: uid(), name, unit: f.get("unit") === "kg" ? "kg" : "L", active: true, graceDays: optInt(f.get("graceDays"), 365), reentryHours: optInt(f.get("reentryHours"), 720) });
     saveData(); renderBanho(); toast("Produto adicionado.");
   };
+
+  // Carência e reentrada de um produto já cadastrado. Banhos já concluídos guardam os valores do dia em que foram montados.
+  $$(".bath-product-grace").forEach(btn => btn.onclick = async () => {
+    const product = farm.banho.products.find(p => p.id === btn.dataset.id);
+    if (!product) return;
+    const v = await askForm({ title: "Carência · " + product.name, text: "Valores da bula. Valem para os próximos banhos montados com este produto.", fields: [
+      { name: "graceDays", label: "Carência (dias até colher)", type: "number", min: "0", max: "365", step: "1", value: product.graceDays ?? "" },
+      { name: "reentryHours", label: "Reentrada (horas até entrar no talhão)", type: "number", min: "0", max: "720", step: "1", value: product.reentryHours ?? "" }
+    ] });
+    if (!v) return;
+    const optInt = (x, max) => x === "" ? null : Math.min(max, Math.max(0, Math.round(Number(x))));
+    product.graceDays = optInt(v.graceDays, 365); product.reentryHours = optInt(v.reentryHours, 720);
+    saveData(); renderBanho(); toast("Carência salva.");
+  });
 
   $$(".bath-product-toggle").forEach(btn => btn.onclick = () => {
     const product = farm.banho.products.find(p => p.id === btn.dataset.id);
@@ -1755,7 +1873,7 @@ function renderBanho() {
       const product = farm.banho.products.find(p => p.id === productId);
       const quantity = Number(f.get(`bathQty_${productId}`) || 0);
       if (!product || quantity <= 0) return toast(`Informe uma quantidade maior que zero para ${product?.name || "o produto selecionado"}.`);
-      selectedProducts.push({ productId: product.id, name: product.name, unit: product.unit, quantity });
+      selectedProducts.push({ productId: product.id, name: product.name, unit: product.unit, quantity, ...(product.graceDays != null ? { graceDays: product.graceDays } : {}), ...(product.reentryHours != null ? { reentryHours: product.reentryHours } : {}) });
     }
     const talhaoNames = talhaoIds.map(id => farm.talhoes.find(t => t.id === id)?.name).filter(Boolean);
     farm.banho.orders.push({
@@ -2192,7 +2310,7 @@ function renderUsers() {
   const functionOptions = (selected = "Campo") => `<option value="Tratorista" ${selected === "Tratorista" ? "selected" : ""}>Tratorista</option><option value="Campo" ${selected === "Campo" ? "selected" : ""}>Campo</option><option value="Fiscal de colheita" ${selected === "Fiscal de colheita" ? "selected" : ""}>Fiscal de colheita</option>`;
   const activityOptions = ruralActivityOptions;
   $("#pageContent").innerHTML = `
-    <div class="grid two"><form id="userForm" class="form-card"><div class="inline"><h3>Criar login</h3><span class="badge gold right">Somente CEO</span></div><div class="form-grid" style="margin-top:18px"><label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label id="newUserFunctionWrap">Função<select name="function" id="newUserFunction" required><option value="">Selecione</option><option value="Tratorista">Tratorista</option><option value="Campo">Campo</option><option value="Fiscal de colheita">Fiscal de colheita</option></select></label><label>Chave PIX (opcional)<input name="pixKey"></label><label>Usuário<input name="username" required></label><label>Senha inicial<input name="password" type="password" minlength="8" required></label><label>Perfil<select name="role" id="newUserRole"><option value="contribuinte">Contribuinte</option><option value="adm">Administrador</option><option value="ceo">CEO</option></select></label><label id="newUserFarmWrap">Fazenda permitida<select name="allowedFarmId">${farmOptions(data.farms[0]?.id || "")}</select></label><label id="newUserActivityWrap">Atividade permitida<select name="allowedActivity" id="newUserActivity">${ruralActivityOptions("both")}</select></label></div><div class="form-actions"><button class="btn primary">Criar login</button></div></form><div class="card soft"><span class="eyebrow dark">PERFIL DE ACESSO</span><h2>${data.users.filter(u => u.active !== false).length} ativos</h2><p class="muted">Para contribuinte, a função é obrigatória: Tratorista ou Campo. Cada contribuinte fica vinculado a uma única fazenda.</p></div></div>
+    <div class="grid two"><form id="userForm" class="form-card"><div class="inline"><h3>Criar login</h3><span class="badge gold right">Somente CEO</span></div><div class="form-grid" style="margin-top:18px"><label>Nome<input name="name" required></label><label>E-mail<input name="email" type="email" required></label><label id="newUserFunctionWrap">Função<select name="function" id="newUserFunction" required><option value="">Selecione</option><option value="Tratorista">Tratorista</option><option value="Campo">Campo</option><option value="Fiscal de colheita">Fiscal de colheita</option></select></label><label>Chave PIX (opcional)<input name="pixKey"></label><label>Usuário<input name="username" required></label><label>Senha inicial<input name="password" type="password" minlength="8" required></label><label>Perfil<select name="role" id="newUserRole"><option value="contribuinte">Contribuinte</option><option value="adm">Administrador</option><option value="ceo">CEO</option></select></label><label id="newUserFarmWrap">Fazenda permitida<select name="allowedFarmId">${farmOptions(data.farms[0]?.id || "")}</select></label><label id="newUserActivityWrap">Atividade permitida<select name="allowedActivity" id="newUserActivity">${ruralActivityOptions("both")}</select></label></div><div class="form-actions"><button class="btn primary">Criar login</button></div></form><div class="card soft"><span class="eyebrow dark">PERFIL DE ACESSO</span><h2>${data.users.filter(u => u.active !== false).length} ativos</h2><p class="muted">Para contribuinte, a função é obrigatória: Tratorista, Campo ou Fiscal de colheita. Cada contribuinte fica vinculado a uma única fazenda.</p></div></div>
     <div class="section-head"><h2>Solicitações pendentes</h2></div>
     ${data.pendingRegistrations.length ? `<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Usuário</th><th>E-mail</th><th>Perfil</th><th>Função</th><th>PIX</th><th>Fazenda ao aprovar</th><th>Atividade</th><th>Ações</th></tr></thead><tbody>${data.pendingRegistrations.map(r => `<tr><td><b>${escapeHTML(r.name)}</b></td><td>${escapeHTML(r.username)}</td><td>${escapeHTML(r.email || "—")}</td><td>${ROLE_NAMES[r.role]}</td><td>${escapeHTML(r.function || "—")}</td><td>${escapeHTML(r.pixKey || "—")}</td><td>${r.role === "contribuinte" ? `<select class="reg-farm" data-id="${r.id}" style="min-width:180px">${farmOptions(data.farms[0]?.id || "")}</select>` : "Todas"}</td><td>${r.role === "contribuinte" ? `<select class="reg-activity" data-id="${r.id}" style="min-width:130px">${activityOptions(r.allowedActivity || "both")}</select>` : "Café + Gado + Grãos"}</td><td><div class="inline"><button class="btn small reg-approve" data-id="${r.id}">Aceitar</button><button class="btn danger small reg-reject" data-id="${r.id}">Recusar</button></div></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhuma solicitação pendente.</div>`}
     <div class="section-head"><div><h2>Usuários cadastrados</h2><p>Altere a função e a fazenda dos contribuidores diretamente aqui.</p></div></div>
@@ -2219,7 +2337,7 @@ function renderUsers() {
   $$(".user-function").forEach(sel => sel.onchange = () => { const user = data.users.find(x => x.id === sel.dataset.id); if (!user || user.role !== "contribuinte") return; user.function = sel.value; saveData(); toast("Função atualizada."); });
   $$(".user-activity").forEach(sel => sel.onchange = () => { const user = data.users.find(x => x.id === sel.dataset.id); if (!user || user.role !== "contribuinte") return; user.allowedActivity = sel.value; localStorage.setItem(`fazendaModo:${currentGroup?.slug || "grupo"}:${user.username}`, RuralDomain.activitiesFor(sel.value).filter(a=>SubscriptionDomain.licensed(data).includes(a))[0] || "coffee"); saveData(); toast("Atividade do perfil atualizada."); });
   $$(".user-farm").forEach(sel => sel.onchange = () => { const user = data.users.find(x => x.id === sel.dataset.id); if (!user || user.role !== "contribuinte") return; const oldFarmId = user.allowedFarmId; const limits = currentPlanLimits(); if (contributorsOnFarm(sel.value, user.id) >= limits.usersPerFarm) { sel.value = oldFarmId; return toast(`Limite de ${limits.usersPerFarm} usuários por fazenda atingido neste plano.`); } user.allowedFarmId = sel.value; saveData(); toast("Fazenda do perfil atualizada."); });
-  $$(".user-pass").forEach(btn => btn.onclick = async () => { const user = data.users.find(x => x.id === btn.dataset.id); if (!user) return; if (String(user.id) === String(currentUser.id)) return changeOwnPassword(); const v = await askForm({ title: `Senha temporária para ${user.name}`, text: `As sessões antigas serão encerradas e ${user.name} terá que trocar a senha no próximo acesso.`, okText: "Definir senha", fields: [{ name: "p", label: "Nova senha temporária", type: "password", required: true, minlength: 8, autocomplete: "new-password", autofocus: true, hint: "Mínimo de 8 caracteres." }] }); if (!v) return; try { const r = await api(`/api/users/${encodeURIComponent(user.id)}/password`, { method: "PATCH", body: JSON.stringify({ password: v.p }) }); replaceData(adoptServerPayload(r)); afterServerUpdate(true); toast(r.message || "Senha redefinida."); } catch (e) { toast(e.message); } });
+  $$(".user-pass").forEach(btn => btn.onclick = async () => { const user = data.users.find(x => x.id === btn.dataset.id); if (!user) return; if (String(user.id) === String(currentUser.id)) return changeOwnPassword(); const v = await askForm({ title: `Senha temporária para ${user.name}`, text: `As sessões antigas serão encerradas e ${user.name} terá que trocar a senha no próximo acesso.`, okText: "Definir senha", fields: [{ name: "p", label: "Nova senha temporária", type: "password", required: true, minlength: 8, autocomplete: "new-password", autofocus: true, hint: PASSWORD_RULE }] }); if (!v) return; try { const r = await api(`/api/users/${encodeURIComponent(user.id)}/password`, { method: "PATCH", body: JSON.stringify({ password: v.p }) }); replaceData(adoptServerPayload(r)); afterServerUpdate(true); toast(r.message || "Senha redefinida."); } catch (e) { toast(e.message); } });
   $$(".user-toggle").forEach(btn => btn.onclick = () => { const user = data.users.find(x => x.id === btn.dataset.id); if (user.id === currentUser.id) return toast("Você não pode desativar seu próprio acesso."); if (user.role === "ceo" && user.active !== false && data.users.filter(x => x.role === "ceo" && x.active !== false).length <= 1) return toast("Mantenha pelo menos um CEO ativo."); user.active = user.active === false; saveData(); renderUsers(); });
   $$(".user-del").forEach(btn => btn.onclick = async () => { const user = data.users.find(x => x.id === btn.dataset.id); if (user.id === currentUser.id) return toast("Você não pode excluir seu próprio acesso."); if (user.role === "ceo" && user.active !== false && data.users.filter(x => x.role === "ceo" && x.active !== false).length <= 1) return toast("Mantenha pelo menos um CEO ativo."); if (!await confirmDelete(`O acesso de ${user.name}`, "Os comprovantes dessa pessoa também serão apagados")) return; data.users = data.users.filter(x => x.id !== user.id); data.receipts = data.receipts.filter(r => r.userId !== user.id); saveData(); renderUsers(); });
 }
@@ -2236,6 +2354,12 @@ function equipmentLogsInContext() {
 function usageBar(used, max) {
   const pct = max ? Math.min(100, Math.round(used / max * 100)) : 0;
   return `<div class="usage"><div class="usage-bar ${max && used >= max ? "full" : ""}"><i style="width:${max ? pct : 6}%"></i></div><span>${used}${max ? ` de ${max}` : " (ilimitado)"}</span></div>`;
+}
+function renderSubscriptionPage() {
+  if (currentUser.role !== "ceo") return;
+  setHeader("CONFIGURAÇÕES", "Assinatura");
+  $("#pageContent").innerHTML='<div class="hero-surface"><div><h2>Assinatura do Grupo</h2><p>Consulte seu plano, os limites e os pedidos de alteração.</p></div></div><div id="accountBox" class="card"><p>Carregando assinatura…</p></div>';
+  loadAccountBox();
 }
 async function loadAccountBox() {
   const box = $("#accountBox"); if (!box) return;
