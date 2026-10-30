@@ -99,7 +99,10 @@ test('API: fiscal de colheita só recebe a tela de apontamento e o CEO fecha a s
   assert.equal((await put(ceo, st => st.farms[0].labor.closings.push({ id: 'fc1', weekStart: week, weekEnd: H.weekEnd(week), lines: [] }))).status, 200);
   full = (await api('/api/state', ceo)).json.state.farms[0];
   assert.deepEqual(full.management.payables.filter(p => p.laborClosingId).map(p => [p.supplier, p.amount]).sort(), [['Ana', 100], ['Beto', 80]]);
-  assert.equal((await put(fis, st => st.farms[0].labor.entries.push({ id: 'ap3', date: day(1), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 1 }))).status, 403);
+  // Depois do fechamento o fiscal continua salvando; o lançamento na semana paga vai para revisão do escritório.
+  assert.equal((await put(fis, st => st.farms[0].labor.entries.push({ id: 'ap3', date: day(1), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 1 }))).status, 200);
+  const ap3 = (await api('/api/state', ceo)).json.state.farms[0].labor.entries.find(e => e.id === 'ap3');
+  assert.equal(ap3.lateStatus, 'pending'); assert.equal(ap3.late.closedWeek, week);
 });
 
 test('fiscal cadastra pessoa nova só com nome e função; apontamento sem valor trava o fechamento até o escritório definir', () => {

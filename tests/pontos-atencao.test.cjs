@@ -43,6 +43,52 @@ test('apontamento atrasado recusado vira estorno com motivo e não entra em paga
   assert.equal(H.computeClosing(s.farms[0].labor, b.late.settleWeek).lines.length, 0);
 });
 
+test('API: fiscal envia depois da semana paga → fica em revisão → CEO aprova → entra no próximo pagamento; a conta paga não muda', async t => {
+  const s = await startServer(); t.after(() => s.stop());
+  const call = async (p, token, body, method) => { const r = await fetch(s.url + p, { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); return { status: r.status, json: await r.json().catch(() => null) }; };
+  const put = async (tk, mut) => { const st = await call('/api/state', tk); mut(st.json.state); return call('/api/state', tk, { state: st.json.state, baseRev: st.json.rev }, 'PUT'); };
+  const ceo = (await call('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password })).json.token;
+  const fid = (await call('/api/state', ceo)).json.state.farms[0].id, paidWeek = week, workDay = day(2);
+  // Semana trabalhada: Ana colheu 4 sacos (R$ 10). O CEO fecha e paga.
+  let r = await put(ceo, st => { const f = st.farms[0]; f.talhoes = [{ id: 't1', name: 'T1' }]; f.labor = farm().labor; f.labor.entries.push({ id: 'a', date: day(1), plotId: 't1', workerId: 'ana', kind: 'saco', bags: 4 }); });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  r = await put(ceo, st => st.farms[0].labor.closings.push({ id: 'c1', weekStart: paidWeek, weekEnd: H.weekEnd(paidWeek), lines: [] }));
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  r = await put(ceo, st => { const p = st.farms[0].management.payables.find(x => x.laborClosingId === 'c1'); p.status = 'paid'; p.paidDate = day(6) <= iso(0) ? day(6) : iso(0); });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  const paidBefore = (await call('/api/state', ceo)).json.state.farms[0].management.payables.find(x => x.laborClosingId === 'c1');
+  assert.equal(paidBefore.amount, 40); assert.equal(paidBefore.status, 'paid');
+  // O fiscal ficou sem internet: só agora o celular envia 3 sacos daquela semana.
+  await call('/api/users', ceo, { username: 'fisc', name: 'Fiscal', email: 'fisc@example.invalid', password: s.password, role: 'contribuinte', function: 'Fiscal de colheita', allowedFarmId: fid, allowedActivity: 'coffee' });
+  let fk = (await call('/api/auth/login', '', { groupCode: '1001', username: 'fisc', password: s.password })).json.token;
+  await call('/api/auth/change-password', fk, { currentPassword: s.password, newPassword: 'Apontar#Sacos47' });
+  fk = (await call('/api/auth/login', '', { groupCode: '1001', username: 'fisc', password: 'Apontar#Sacos47' })).json.token;
+  r = await put(fk, st => st.farms[0].labor.entries.push({ id: 'atrasado', date: workDay, plotId: 't1', workerId: 'ana', kind: 'saco', bags: 3 }));
+  assert.equal(r.status, 200, 'o envio do celular não pode ser recusado: ' + JSON.stringify(r.json));
+  let st = (await call('/api/state', ceo)).json.state.farms[0];
+  const late = st.labor.entries.find(e => e.id === 'atrasado');
+  assert.equal(late.lateStatus, 'pending'); assert.equal(late.late.closedWeek, paidWeek); assert.equal(late.rate, 10);
+  assert.deepEqual(st.labor.closings.find(c => c.id === 'c1'), (await call('/api/state', ceo)).json.state.farms[0].labor.closings.find(c => c.id === 'c1'));
+  assert.deepEqual(st.management.payables.find(x => x.laborClosingId === 'c1'), paidBefore); // conta paga intacta
+  // Antes da revisão, a semana de acerto não fecha.
+  const settle = late.late.settleWeek;
+  r = await put(ceo, s2 => s2.farms[0].labor.closings.push({ id: 'c2', weekStart: settle, weekEnd: H.weekEnd(settle), lines: [] }));
+  assert.equal(r.status, 422); assert.match(r.json.error, /atrasados/);
+  // O fiscal não consegue aprovar; o CEO aprova.
+  r = await put(fk, s2 => { s2.farms[0].labor.entries.find(e => e.id === 'atrasado').lateStatus = 'approved'; });
+  assert.equal(r.status, 403);
+  r = await put(ceo, s2 => { s2.farms[0].labor.entries.find(e => e.id === 'atrasado').lateStatus = 'approved'; });
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  // Fechamento da semana de acerto: R$ 30 do atrasado numa conta nova; a conta paga continua R$ 40.
+  r = await put(ceo, s2 => s2.farms[0].labor.closings.push({ id: 'c2', weekStart: settle, weekEnd: H.weekEnd(settle), lines: [] }));
+  assert.equal(r.status, 200, JSON.stringify(r.json));
+  st = (await call('/api/state', ceo)).json.state.farms[0];
+  const c2 = st.labor.closings.find(c => c.id === 'c2');
+  assert.equal(c2.lines[0].bags, 3); assert.equal(c2.lines[0].lateBags, 3); assert.equal(c2.total, 30);
+  assert.equal(st.management.payables.find(x => x.laborClosingId === 'c2').amount, 30);
+  assert.deepEqual(st.management.payables.find(x => x.laborClosingId === 'c1'), paidBefore);
+});
+
 test('o aparelho não consegue marcar sozinho um apontamento como atrasado aprovado', () => {
   const s = run({ farms: [farm()] }, f => f.labor.entries.push({ id: 'x', date: day(1), plotId: 't1', workerId: 'ana', kind: 'saco', bags: 2, late: { closedWeek: '2020-01-06', settleWeek: '2020-01-13' }, lateStatus: 'approved' }), fiscal);
   const x = s.farms[0].labor.entries[0];
