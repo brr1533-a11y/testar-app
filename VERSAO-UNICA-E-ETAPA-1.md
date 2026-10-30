@@ -5,7 +5,7 @@ Esta pasta junta as duas versões que existiam e acrescenta a Etapa 1:
 - **GitHub `main`** (versão 23), que é a base;
 - **V1**, a versão local feita por outro chat.
 
-Nada foi enviado ao GitHub.
+Está publicada no repositório `testar-app`.
 
 ## 1. O que veio de cada versão
 
@@ -77,11 +77,11 @@ Se houver dados de teste do V1 nessas áreas, eles continuam guardados, mas não
   - sem sinal, abrir com o PIN.
 - **Tratorista:** usa sem internet o Meu trabalho hoje, os Equipamentos e os Banhos liberados, e tudo sincroniza ao pegar sinal.
 - **Conexão:** é preciso conectar pelo menos a cada 72 horas. O PIN não tem recuperação.
-- **Antes de distribuir mudanças no código das telas,** rode `npm run build:offline` para atualizar o service worker (`campo-sw.js`).
+- **Atualização do app:** o servidor gera o service worker (`/campo-sw.js`) ao iniciar, com a versão calculada pelos arquivos. Não há passo manual.
 
 ## 4. Testes
 
-`npm test` roda **79 testes**, todos passando. Eles cobrem:
+`npm test` roda **82 testes**, todos passando. Eles cobrem:
 - o que já existia;
 - as partes do V1 (rastreabilidade, manutenção, mapa, parto e alçada);
 - a Etapa 1: cálculo do fechamento, saldo devedor, valor congelado, semana travada, contas a pagar sem duplicar e o fiscal sem CPF, Pix ou valores, inclusive pela API.

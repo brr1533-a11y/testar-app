@@ -1,8 +1,31 @@
-# Levantamento do site — Gestão Rural v22
+# Levantamento do site — Gestão Rural (versão única)
 
-Tudo o que existe no sistema hoje: as páginas públicas, o painel de cada perfil, o Super Admin, as rotas do servidor, as proteções e as configurações.
+Tudo o que existe no sistema hoje: as páginas públicas, o painel de cada perfil, o Super Admin, as rotas do servidor, as proteções e as configurações. A união da versão 23 com o V1 e a mão de obra da colheita estão em detalhe em `VERSAO-UNICA-E-ETAPA-1.md`.
 
-## 0. Novidades desta versão
+## 0. Novidades da versão única
+
+- **Vindas do V1:** Manutenção e combustível, Rastreabilidade dos lotes, Mapa da fazenda (croqui), Central de alertas, grupos do menu que recolhem, alçada de aprovação dos pedidos e entrada dos bezerros no lote pelo parto.
+- **Mão de obra da colheita** (`maodeobra-domain.js` + `maodeobra.js`):
+  - **Telas:** Pessoas, Valores por talhão, Lançamentos da semana e Fechamentos.
+  - **Fechamento:** semanal, cria uma conta a pagar por pessoa e gera recibos.
+  - **Apontar colheita:** tela do fiscal no celular.
+    - O fiscal cadastra uma pessoa nova só com nome e função; aparece "Completar dados" para o CEO.
+    - O fiscal pode apontar sem valor do saco; o fechamento da semana fica bloqueado até o valor ser definido.
+- **Perfil "Fiscal de colheita":**
+  - **Vê:** só Apontar colheita, Modo de campo e Perfil.
+  - **Não recebe:** CPF, Pix, telefone nem valores.
+- **Análises de solo e foliar** (`analise-solo-domain.js` + `analise-solo.js`).
+- **Função travada no perfil:** o contribuinte não troca a própria função. Veja `PERFIL-FUNCAO-BLOQUEADA.md`.
+- **Fazendas:**
+  - **Sistema novo:** começa com uma fazenda vazia ("Minha Fazenda"), sem as 4 de exemplo.
+  - **Limpar dados:** o CEO tem esse botão em Configurações › Fazendas.
+    - **Confirmação:** pede o nome da fazenda e a senha do CEO.
+    - **O que apaga:** o conteúdo da fazenda.
+    - **O que mantém:** a fazenda, o nome e os usuários.
+    - **Histórico:** fica registrado.
+    - Não tem volta.
+
+### Planos, preços e funções
 
 ### Planos, preços e funções
 - **Preços** (por mês, em `planos-atividades.json`): Essencial de R$ 149 (só gado) a R$ 397 (as três); Profissional de R$ 397 a R$ 997; Grupo de R$ 597 a R$ 1.497. Descontos: trimestral 5%, semestral 10% e anual 20%, com o valor mensal arredondado para baixo (ex.: R$ 149 → R$ 141 → R$ 134 → R$ 119). O Grupo vai até 15 fazendas.
@@ -16,11 +39,11 @@ Tudo o que existe no sistema hoje: as páginas públicas, o painel de cada perfi
 ### Menu em grupos
 | Grupo | Itens |
 |---|---|
-| Início | Visão geral · Mercado · Agenda |
-| Lavoura (café/grãos) | Talhões (com a aba Histórico dos talhões) · Safras e produção · Pós-colheita · Pragas do café · Banho · Entregas |
+| Início | Visão geral · Mercado · Agenda · Central de alertas · Mapa da fazenda · Modo de campo |
+| Lavoura (café/grãos) | Talhões (com a aba Histórico dos talhões) · Análises de solo e foliar · Safras e produção · Mão de obra da colheita · Apontar colheita · Pós-colheita · Rastreabilidade dos lotes · Pragas do café · Banho · Entregas |
 | Pecuária (gado) | Rebanho e lotes · Desempenho e manejos · Reprodução e sanidade · Gado de leite · Movimentações · Etapas |
-| Estoque e compras | Estoque · Compra de insumos · Equipamentos (com a aba Log de uso) |
-| Financeiro e fiscal | Resumo financeiro · Contas a pagar e receber (com a aba Contas a receber) · Resultados e custos · Notas fiscais (com a aba Comprovantes) · Conciliação bancária · Contratos de venda · Pedidos de compra · Livro Caixa (LCDPR) |
+| Estoque e compras | Estoque · Compra de insumos · Equipamentos (com a aba Log de uso) · Manutenção e combustível |
+| Financeiro e fiscal | Resumo financeiro · Lançar entradas e saídas · Contas a pagar e receber (com a aba Contas a receber) · Resultados e custos · Notas fiscais (com a aba Comprovantes) · Conciliação bancária · Contratos de venda · Pedidos de compra · Livro Caixa (LCDPR) |
 | Configurações | Fazendas · Usuários · Assinatura · Histórico de alterações · Perfil |
 
 A central "Gestão" saiu do menu. Código: `menu.js`.
@@ -48,10 +71,16 @@ A central "Gestão" saiu do menu. Código: `menu.js`.
 - **Transmissão:** o arquivo deve ser conferido e transmitido no programa oficial da Receita.
 - **Quem vê:** os dados do produtor (CPF e endereço) ficam com o CEO, ou com o ADM que tiver a página liberada.
 
-### Uso sem internet
-- **Telas:** o service worker (`sw.js`) guarda as telas do painel. Os dados da API nunca passam por ele.
-- **Dados:** o app guarda uma cópia sem senhas nesta aba. O que ainda não foi enviado fica no aparelho, mesmo que o navegador seja fechado, e vai para o servidor quando a conexão volta ou no próximo login.
-- **Ao sair:** sair pelo botão apaga essas cópias.
+### App no celular e uso sem internet (Modo de campo)
+- **Instalação:** o app instala na tela inicial do Android e do iPhone (`manifest.webmanifest`, ícones em `assets/`).
+- **Telas sem internet:** o service worker (`/campo-sw.js`) guarda as telas, nunca os dados da API.
+  - O servidor gera esse arquivo ao iniciar (`gerar-worker.cjs`), com a versão calculada pelos próprios arquivos.
+  - Código novo gera cache novo e os celulares atualizam sozinhos, sem passo manual.
+- **Cofre do aparelho:** os dados ficam num cofre cifrado com PIN (AES-GCM, `campo-offline.js`).
+  - Sem sinal, o app abre com o PIN por até 72 horas.
+  - O PIN não tem recuperação.
+- **Ao voltar a internet:** se o cofre tem lançamentos guardados, o app pede o PIN ao abrir (até 3 tentativas), junta os lançamentos e envia.
+- **Manter conectado neste aparelho:** caixa no login que só reage ao toque na própria caixa (`LOGIN-PERSISTENTE.md`).
 
 ## 1. Páginas públicas (sem login)
 
@@ -95,7 +124,7 @@ No topo ficam o **seletor de fazenda** e o **seletor de atividade**. O seletor d
 | Balanço financeiro | Entradas, saídas e saldo; detalhes de entradas e de gastos. |
 | Notas fiscais | Notas e comprovantes anexados. |
 | Pagamentos | Assinatura do Grupo: plano, ciclo e pedido de troca de plano. |
-| Fazendas | Criar, renomear e configurar fazendas, dentro do limite do plano. |
+| Fazendas | Criar, renomear e configurar fazendas, dentro do limite do plano; limpar os dados de uma fazenda (com senha e nome). |
 | Usuários | Criar usuários, aprovar ou recusar pedidos de cadastro, definir senha temporária e limitar cada usuário por fazenda e atividade. |
 | Log equipamentos | Registro de uso de tratores e implementos. |
 | Histórico de alterações | Auditoria: quem mudou o quê e quando (inclui as mudanças de preço feitas pelo monitor). |
@@ -110,7 +139,8 @@ O CEO escolhe as páginas do cargo ADM em **Usuários > Permissões do ADM** (no
 - **No servidor:** página tirada some do menu, e o servidor descarta o que o ADM tentar mudar nela (por exemplo, o estoque volta ao valor gravado). Sem página de valores liberada, o servidor não envia o balanço, o preço de venda nem o custo planejado ao ADM, e repõe esses valores quando ele grava. O ADM não consegue mudar as próprias permissões. Código: `adm-access.js` (regras) e `adm-acesso.js` (tela); testes em `tests/adm-permissoes.test.cjs`.
 
 ### Contribuinte (funcionário de campo)
-- **Café e grãos:** Meu trabalho hoje, Safras e colheitas, Banhos liberados (só para tratorista), Equipamentos disponíveis, Meus comprovantes e Perfil.
+- **Café e grãos:** Meu trabalho hoje, Safras e colheitas, Banhos liberados (só para tratorista), Equipamentos disponíveis, Meus comprovantes, Modo de campo e Perfil.
+- **Fiscal de colheita:** só Apontar colheita, Modo de campo e Perfil.
 - **Gado:** Gado (só leitura), Meus comprovantes e Perfil.
 - **O que ele pode gravar:** só o trabalho do dia e os logs, e só como acréscimo. Ele não apaga nem altera o que outra pessoa lançou.
 
@@ -156,6 +186,7 @@ O CEO escolhe as páginas do cargo ADM em **Usuários > Permissões do ADM** (no
   - `POST /api/public/checkout`
   - `GET /api/public/purchases/:id/status`
   - `POST /api/public/purchases/:id/onboard`
+  - `POST /api/public/trial`
   - `GET /api/mercado`
   - `GET /api/cotacao-cafe`
 - **Webhook:** `POST /api/webhooks/mercadopago`, com assinatura HMAC conferida.
@@ -184,7 +215,9 @@ O CEO escolhe as páginas do cargo ADM em **Usuários > Permissões do ADM** (no
   - `PATCH /api/account/email`
   - `POST /api/account/plan-request`
   - `DELETE /api/account/plan-request`
-- **Preços:** `POST /api/precos/conferir` (CEO/ADM) — novo.
+- **Preços:** `POST /api/precos/conferir` (CEO/ADM).
+- **Fazendas:** `POST /api/farms/:id/reset` (só CEO, com senha e nome da fazenda; 5 por hora).
+- **App de campo:** `GET /campo-sw.js` (service worker gerado pelo servidor, sem cache).
 - **Super Admin:**
   - `POST /api/platform/auth/login`
   - `POST /api/platform/auth/verify`
@@ -235,7 +268,7 @@ O CEO escolhe as páginas do cargo ADM em **Usuários > Permissões do ADM** (no
 - **Modo de teste:** `TEST_PURCHASE_MODE`, `ALLOW_TEST_MODE_IN_PRODUCTION` e `TEST_MODE_UNTIL`.
 
 ## 8. Testes automáticos
-`npm test` (ou `node --test tests/*.test.cjs`) roda **65 testes**. Eles cobrem:
+`npm test` (ou `node --test tests/*.test.cjs`) roda **82 testes**. Os testes ficam só na pasta `tests/`; os roteiros de navegador (`tests/*-browser.cjs`) precisam do Playwright. Eles cobrem:
 - domínio rural, safras e talhões;
 - gado;
 - assinatura;
@@ -243,4 +276,7 @@ O CEO escolhe as páginas do cargo ADM em **Usuários > Permissões do ADM** (no
 - segurança (senhas, gravações ao mesmo tempo, webhook e ADM);
 - o monitor de preços (leitura do preço, bloqueio de rede interna, histórico e WhatsApp);
 - as permissões do ADM (liberar e tirar páginas, valores escondidos e mudanças descartadas);
-- funções por plano, tabela de preços, teste grátis, módulos de campo e o arquivo do LCDPR.
+- funções por plano, tabela de preços, teste grátis, módulos de campo e o arquivo do LCDPR;
+- as partes vindas do V1 (rastreabilidade, manutenção, mapa, parto e alçada);
+- a mão de obra da colheita (fechamento, saldo devedor, valor congelado, semana travada, fiscal sem dados pessoais, pessoa cadastrada pelo fiscal e apontamento sem valor);
+- limpar dados da fazenda e o service worker gerado pelo servidor.
