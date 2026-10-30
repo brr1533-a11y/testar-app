@@ -14,12 +14,12 @@ const screenshots=process.env.RURAL_SCREENSHOT_DIR||path.resolve('test-results')
   }
   await page.screenshot({path:path.join(screenshots,'nova-visao-geral.png')});
   await page.locator('[name=subscriptionActivity][value=coffee]').check();assert.match(await page.locator('#activitySelectionSummary').innerText(),/1 atividade: Café/);
-  await page.locator('.buy-plan[data-plan=essential]').click();assert.match(await page.locator('#subscriptionChoice').innerText(),/Café · Essencial/);
+  await page.locator('.buy-plan[data-plan=essential]').click();await page.locator('.mail-dlg').waitFor();assert.match(await page.locator('.mail-dlg h3').innerText(),/Essencial/);await page.locator('.mail-dlg .mail-cancel').click();
   await page.locator('[name=subscriptionActivity][value=cattle]').check();assert.match(await page.locator('#activitySelectionSummary').innerText(),/2 atividades: Café \+ Gado/);
-  await page.locator('.buy-plan[data-plan=pro]').click();assert.match(await page.locator('#subscriptionChoice').innerText(),/Café \+ Gado · Profissional/);
+  await page.locator('.buy-plan[data-plan=pro]').click();await page.locator('.mail-dlg').waitFor();assert.match(await page.locator('.mail-dlg h3').innerText(),/Profissional/);await page.locator('.mail-dlg .mail-cancel').click();
   await page.locator('#selectAllActivities').click();assert.match(await page.locator('#activitySelectionSummary').innerText(),/3 atividades/);
-  await page.locator('.buy-plan[data-plan=group]').click();assert.match(await page.locator('#subscriptionChoice').innerText(),/Café \+ Gado \+ Grãos/);
-  assert.equal(checkouts,0);assert.deepEqual(await page.locator('[data-price]').allTextContents(),['A definir','A definir','A definir']);
+  await page.locator('.buy-plan[data-plan=group]').click();await page.locator('.mail-dlg').waitFor();assert.match(await page.locator('.mail-dlg h3').innerText(),/Grupo/);await page.locator('.mail-dlg .mail-cancel').click();
+  assert.equal(checkouts,0);assert.deepEqual((await page.locator('[data-price]').allTextContents()).map(v=>Number(v.replace(/\./g,'').replace(',','.'))),[397,997,1497]);
   await page.locator('.activity-plan-picker').screenshot({path:path.join(screenshots,'planos-por-atividade.png')});
   for(const [url,allowed] of [['/cafe',['visao','producao','mercado','equip','talhoes','banho','estoque','financeiro','notas','pagamentos','fazendas','usuarios','log','perfil']],['/graos',['visao','graos','equip','talhoes','estoque','financeiro','notas','usuarios','perfil']]]){
    await page.goto(s.url+url);assert.deepEqual(await page.locator('.app [data-pv]').evaluateAll(els=>els.map(el=>el.dataset.pv)),allowed);
@@ -34,6 +34,6 @@ const screenshots=process.env.RURAL_SCREENSHOT_DIR||path.resolve('test-results')
    }
   }
   await page.setViewportSize({width:1440,height:900});await page.emulateMedia({reducedMotion:'no-preference'});await page.goto(s.url+'/cafe');await page.locator('.hero-actions [href="#sistema"]').click();await page.waitForFunction(()=>Number(getComputedStyle(document.querySelector('#sistema')).opacity)>.9);
-  assert.deepEqual(errors,[]);console.log('PASS: visão geral própria; Café com frase original; prévias isoladas; indicadores sem corte; seleção de 1/2/3 atividades; preços a definir sem checkout; 5 larguras; animação; nenhum erro JavaScript.');
+  assert.deepEqual(errors,[]);console.log('PASS: visão geral própria; Café com frase original; prévias isoladas; indicadores sem corte; seleção de 1/2/3 atividades; preços configurados e cancelamento antes do checkout; 5 larguras; animação; nenhum erro JavaScript.');
  }finally{await browser.close();await s.stop();}
 })().catch(e=>{console.error(e);process.exit(1)});

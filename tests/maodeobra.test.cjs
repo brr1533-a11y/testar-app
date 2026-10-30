@@ -72,8 +72,9 @@ test('fiscal: lança sacos e diárias e inclui pessoa nova (só nome e função)
   assert.throws(() => run(a, f => { f.labor.entries[0].bags = 50; }, { ...fiscal, name: 'Outro fiscal' }), /próprios apontamentos/);
   // A visão do fiscal não tem CPF, Pix, valores nem adiantamentos.
   const seen = H.forFiscal(a.farms[0].labor);
-  assert.deepEqual(Object.keys(seen.workers[0]).sort(), ['active', 'id', 'name', 'role']);
-  assert.equal('rate' in seen.entries[0], false); assert.deepEqual(seen.plotRates, []); assert.deepEqual(seen.adjustments, []);
+  // Só marcas de "tem valor", nunca os valores (Etapa 2: o app avisa o fiscal na hora o que fica pendente).
+  assert.deepEqual(Object.keys(seen.workers[0]).sort(), ['active', 'hasDaily', 'id', 'name', 'role']);
+  assert.equal('rate' in seen.entries[0], false); assert.ok(seen.plotRates.every(r => !('ratePerBag' in r))); assert.deepEqual(seen.adjustments, []);
 });
 
 test('API: fiscal de colheita só recebe a tela de apontamento e o CEO fecha a semana com conta a pagar', async t => {
@@ -88,7 +89,7 @@ test('API: fiscal de colheita só recebe a tela de apontamento e o CEO fecha a s
   await api('/api/auth/change-password', t1, { currentPassword: s.password, newPassword: s.password + 'x1' });
   const fis = (await api('/api/auth/login', '', { groupCode: '1001', username: 'fiscal1', password: s.password + 'x1' })).json.token;
   const seen = (await api('/api/state', fis)).json.state.farms[0];
-  assert.equal(seen.labor.workers[0].cpf, undefined); assert.equal(seen.labor.workers[0].pix, undefined); assert.deepEqual(seen.labor.plotRates, []);
+  assert.equal(seen.labor.workers[0].cpf, undefined); assert.equal(seen.labor.workers[0].pix, undefined); assert.ok(seen.labor.plotRates.every(r => !('ratePerBag' in r)));
   assert.deepEqual(seen.finances, []); assert.deepEqual(seen.agriculture.cycles, []); assert.deepEqual(seen.tractors, []);
   assert.equal((await put(fis, st => st.farms[0].labor.entries.push({ id: 'ap1', date: day(0), plotId: 'carregado', workerId: 'ana', kind: 'saco', bags: 8 }, { id: 'ap2', date: day(0), plotId: 'carregado', workerId: 'beto', kind: 'diaria' }))).status, 200);
   let full = (await api('/api/state', ceo)).json.state.farms[0];

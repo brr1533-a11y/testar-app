@@ -9,15 +9,31 @@ const client = s => {
   return { api, put };
 };
 
-test('senhas: sequência vazada recusada; um estranho não bloqueia o CEO de outra rede', async t => {
+test('senhas: exige maiúscula, minúscula, número e símbolo; um estranho não bloqueia o CEO de outra rede', async t => {
   const s = await startServer(); t.after(() => s.stop()); const { api } = client(s);
   const ip = n => ({ 'X-Forwarded-For': '203.0.113.' + n });
   const ceo = (await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password }, null, ip(1))).json.token;
-  const weak = await api('/api/auth/change-password', ceo, { currentPassword: s.password, newPassword: '05091722@@Qualquer' }, null, ip(1));
-  assert.equal(weak.status, 400);
+  const noUpper = await api('/api/auth/change-password', ceo, { currentPassword: s.password, newPassword: 'fazenda2026@' }, null, ip(1));
+  assert.equal(noUpper.status, 400); assert.match(noUpper.json.error, /maiúscula/);
+  const noSymbol = await api('/api/auth/change-password', ceo, { currentPassword: s.password, newPassword: 'Fazenda2026' }, null, ip(1));
+  assert.equal(noSymbol.status, 400); assert.match(noSymbol.json.error, /símbolo/);
+  assert.equal((await api('/api/auth/change-password', ceo, { currentPassword: s.password, newPassword: 'abc' }, null, ip(1))).status, 400);
   for (let i = 0; i < 9; i++) await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: 'errada' + i }, null, ip(66));
   assert.equal((await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password }, null, ip(66))).status, 429);
   assert.equal((await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password }, null, ip(2))).status, 200);
+});
+
+test('senha antiga fora da regra entra, mas obriga a trocar antes de usar o painel', async t => {
+  const old = 'senhaantiga2024';
+  const s = await startServer({ SEED_CEO_PASSWORD: old }); t.after(() => s.stop()); const { api } = client(s);
+  const login = await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: old });
+  assert.equal(login.status, 200); assert.equal(login.json.mustChangePassword, true);
+  assert.equal((await api('/api/state', login.json.token)).status, 428);
+  const changed = await api('/api/auth/change-password', login.json.token, { currentPassword: old, newPassword: 'Fazenda@2026' });
+  assert.equal(changed.status, 200);
+  assert.equal((await api('/api/state', changed.json.token)).status, 200);
+  const again = await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: 'Fazenda@2026' });
+  assert.equal(again.json.mustChangePassword, false);
 });
 
 test('gravações ao mesmo tempo não se apagam e gravação sem versão é recusada', async t => {
