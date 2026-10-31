@@ -44,11 +44,11 @@ test('mão de obra da colheita: a conta do fechamento entra como mão de obra, d
     entries: [{ id: 'a', workerId: 'w', plotId: 't1', date: iso(12), kind: 'saco', bags: 6, rate: 10 }, { id: 'b', workerId: 'w', plotId: 't2', date: iso(11), kind: 'diaria', rate: 40 }, { id: 'c', workerId: 'w', plotId: 't2', date: iso(10), kind: 'saco', bags: 9, rate: 10, voided: true }] };
   f.management.payables.push({ id: 'labor_k1_w', activity: 'coffee', amount: 90, dueDate: iso(7), status: 'open', laborClosingId: 'k1', workerId: 'w', description: 'Colheita' });
   const rows = X.costSources(f).filter(s => s.key.startsWith('payable:labor_k1_w'));
-  assert.deepEqual(rows.map(r => [r.cycleId, r.amount, r.category]).sort(), [['c1', 54, 'mao-de-obra'], ['c2', 36, 'mao-de-obra']]); // 60 : 40 do valor apontado
-  assert.equal(X.costLines(f, { activity: 'coffee', targetType: 'cycle', targetId: 'c1' }).reduce((n, r) => n + r.amount, 0), 54);
+  assert.deepEqual(rows.map(r => [r.cycleId, r.amount, r.category]).sort(), [['c1', 60, 'mao-de-obra'], ['c2', 40, 'mao-de-obra']]); // Trabalho bruto de R$ 100; o saldo de R$ 90 não reduz o custo
+  assert.equal(X.costLines(f, { activity: 'coffee', targetType: 'cycle', targetId: 'c1' }).reduce((n, r) => n + r.amount, 0), 60);
   // Uma safra só: mantém a chave original (o rateio manual antigo continua valendo).
   f.agriculture.cycles[1].plotIds = ['t1']; f.agriculture.cycles[1].archived = true; f.agriculture.cycles[0].plotIds = ['t1', 't2'];
-  assert.deepEqual(X.costSources(f).filter(s => s.key.startsWith('payable:labor_k1_w')).map(r => [r.key, r.amount]), [['payable:labor_k1_w', 90]]);
+  assert.deepEqual(X.costSources(f).filter(s => s.key.startsWith('payable:labor_k1_w')).map(r => [r.key, r.amount]), [['payable:labor_k1_w', 100]]);
 });
 
 test('banho concluído entra como insumo pelo custo do estoque, dividido pela área dos talhões; banho sem baixa não entra', () => {
