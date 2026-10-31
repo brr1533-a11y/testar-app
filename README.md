@@ -1,3 +1,5 @@
+> **Entrega local com as cinco correções da revisão:** leia [CORRECOES-5-PONTOS.md](CORRECOES-5-PONTOS.md). Não houve publicação automática.
+
 # Gestão Rural v22 — Produção e Segurança
 
 > **Segurança:** as correções da revisão da v22 estão aplicadas nesta versão. Veja `SEGURANCA.md` (o que mudou e o que fazer no Render) e `CHECKLIST-PRODUCAO.md`. Testes: `tests/seguranca.test.cjs`.

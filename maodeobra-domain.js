@@ -65,13 +65,15 @@
   // Possível duplicidade (celulares sem internet lançando a mesma pessoa no mesmo dia): duas diárias no mesmo dia, ou
   // lançamentos da mesma pessoa no mesmo dia feitos por pessoas diferentes. Só some quando o escritório confirma que são
   // lançamentos diferentes (dupOk) ou estorna o repetido. Trava o fechamento da semana onde estão.
+  function authorMetadata(entry,users=[]){const out={...entry};if(out.recordedById||out.recordedByAmbiguous)return out;const matches=users.filter(u=>u.name===out.recordedBy||u.username===out.recordedBy);if(matches.length===1&&(matches[0].id||matches[0].username)){out.recordedById=String(matches[0].id||matches[0].username);out.recordedByUsername=matches[0].username||'';}else if(matches.length>1)out.recordedByAmbiguous=true;return out;}
+  function withAuthorMetadata(labor,users=[]){const out=clone(labor||{});out.entries=(out.entries||[]).map(e=>authorMetadata(e,users));return out;}
   function duplicateGroups(labor, start) {
     const groups = new Map();
     for (const e of labor.entries || []) {
       if (e.voided || (e.late && e.lateStatus === 'rejected') || (start && !entryInWeek(e, start))) continue;
       const k = e.workerId + '|' + e.date; (groups.get(k) || groups.set(k, []).get(k)).push(e);
     }
-    return [...groups.values()].filter(es => es.length > 1 && es.some(e => !e.dupOk) && (es.filter(e => e.kind === 'diaria').length > 1 || new Set(es.map(e => e.recordedBy || '')).size > 1))
+    return [...groups.values()].filter(es => es.length > 1 && es.some(e => !e.dupOk) && (es.filter(e => e.kind === 'diaria').length > 1 || (es.some(e=>e.recordedByAmbiguous)&&new Set(es.map(e=>e.plotId)).size<es.length)||new Set(es.map(e=>e.recordedById?'id:'+e.recordedById:e.recordedByUsername?'user:'+e.recordedByUsername:'nome:'+(e.recordedBy||''))).size > 1))
       .map(es => ({ workerId: es[0].workerId, date: es[0].date, entries: es }));
   }
   // Lista de pagamento de um fechamento: quem tem valor a receber, com a chave Pix cadastrada.
@@ -157,6 +159,18 @@
     const who = user.name || user.username;
     for (const f of after.farms || []) {
       const oldFarm = (before.farms || []).find(x => x.id === f.id) || {}, old = init(clone({ labor: oldFarm.labor })), L = init(f);
+      // Identificação estável do autor. Registros antigos só ganham ID quando há correspondência sem ambiguidade.
+      // Autoria antiga ambígua (dois usuários com o mesmo nome): o escritório pode dizer quem lançou, escolhendo um dos
+      // usuários com aquele nome. Fica registrado quem definiu; o aparelho do fiscal não consegue fazer isso.
+      const users = before.users || [];
+      for(const prev of old.entries){
+        Object.assign(prev,authorMetadata(prev,users));
+        const sent=L.entries.find(e=>e.id===prev.id);if(!sent)continue;
+        const chosen=prev.recordedByAmbiguous&&sent.recordedById&&String(sent.recordedById)!==String(prev.recordedById||'')?users.find(u=>String(u.id)===String(sent.recordedById)&&(u.name===prev.recordedBy||u.username===prev.recordedBy)):null;
+        if(prev.recordedByAmbiguous&&sent.recordedById&&!chosen&&user.labor==='manager')check(false,'Escolha um dos usuários com esse nome.');
+        if(chosen){check(user.labor==='manager','Só o escritório define a autoria de lançamento antigo.',403);for(const k of ['recordedById','recordedByUsername','recordedByAmbiguous'])delete prev[k];prev.recordedById=String(chosen.id);if(chosen.username)prev.recordedByUsername=chosen.username;prev.authorSetBy=who;prev.authorSetAt=now;}
+        for(const k of ['recordedById','recordedByUsername','recordedByAmbiguous','authorSetBy','authorSetAt']){delete sent[k];if(prev[k]!==undefined)sent[k]=prev[k];}sent.recordedBy=prev.recordedBy;
+      }
       // Contas geradas pelo fechamento: valor, pessoa e descrição não mudam, para nenhum perfil (o pagamento segue o fluxo normal).
       for (const p of oldFarm.management?.payables || []) if (p.laborClosingId) {
         const n = (f.management?.payables || []).find(x => x.id === p.id);
@@ -192,11 +206,13 @@
           if (closed) { e.late = { closedWeek: closed.weekStart, settleWeek: firstOpenWeek(old, today() > closed.weekEnd ? today() : addWeek(closed.weekStart)) }; e.lateStatus = 'pending'; }
           if (e.kind === 'diaria') delete e.bags;
           e.rate = rateFor(L, e); e.recordedBy = who; e.createdAt = now; delete e.voided; delete e.voidReason;
+          delete e.recordedById;delete e.recordedByUsername;delete e.recordedByAmbiguous;delete e.dupOk;delete e.dupOkBy;delete e.dupOkAt;
+          if(user.id||user.username)e.recordedById=String(user.id||user.username);if(user.username)e.recordedByUsername=user.username;
           continue;
         }
         if (same(prev, e)) continue;
         check(!entryLocked(old, prev), 'A semana deste apontamento já foi fechada.', 403);
-        if (user.labor === 'fiscal') check(prev.recordedBy === who, 'O fiscal só corrige os próprios apontamentos.', 403);
+        if (user.labor === 'fiscal') check(prev.recordedById?prev.recordedById===String(user.id||user.username):!prev.recordedByAmbiguous&&prev.recordedBy===who, 'O fiscal só corrige os próprios apontamentos.', 403);
         // A decisão sobre colheita na carência segue adiante; quem confere e carimba é o Carencia.stamp no servidor.
         const keep = { ...prev, bags: e.bags, voided: e.voided, voidReason: e.voidReason, ...(e.graceDecision && !prev.graceDecision ? { graceDecision: e.graceDecision } : {}) };
         // Revisão do apontamento atrasado: só o escritório (CEO/ADM com a página) aprova ou recusa, uma vez.
@@ -213,13 +229,17 @@
       }
       for (const e of L.entries) if (e.rate == null && !e.voided && !entryLocked(old, e)) { const r = rateFor(L, e); if (r) e.rate = r; }
       if (user.labor !== 'manager') { validateFarm(f); continue; }
+      // Vale (adiantamento) é dinheiro que saiu: vira uma saída no Financeiro, feita pelo servidor e marcada com a origem,
+      // para o caixa bater sem ninguém lançar de novo à mão. Não entra no custo da safra: o custo é o trabalho bruto.
+      // Estorno do vale lança a entrada de volta. Desconto não é dinheiro: não mexe no Financeiro.
+      const cash = (a, type, id, category) => { f.finances ||= []; if (f.finances.some(x => x.id === id)) return; const w = L.workers.find(x => x.id === a.workerId); f.finances.push({ id, activity: 'coffee', type, category, description: `${category} · ${w?.name || 'Colheita'}${a.reason ? ' · ' + a.reason : ''}`.slice(0, 200), date: type === 'saida' ? a.date : today(), value: a.amount, sourceLaborAdjustmentId: a.id, createdBy: who, createdAt: now }); };
       for (const a of L.adjustments) {
         const prev = old.adjustments.find(x => x.id === a.id);
-        if (!prev) { check(!locked(a.date), 'A semana deste lançamento já foi fechada.', 403); a.recordedBy = who; a.createdAt = now; delete a.voided; continue; }
+        if (!prev) { check(!locked(a.date), 'A semana deste lançamento já foi fechada.', 403); a.recordedBy = who; a.createdAt = now; delete a.voided; if (a.kind === 'adiantamento') cash(a, 'saida', 'laborvale_' + a.id, 'Vale da colheita'); continue; }
         if (same(prev, a)) continue;
         check(!locked(prev.date), 'A semana deste lançamento já foi fechada.', 403);
         const keep = { ...prev, voided: a.voided, voidReason: a.voidReason };
-        if (a.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; }
+        if (a.voided && !prev.voided) { keep.voidedBy = who; keep.voidedAt = now; if (prev.kind === 'adiantamento') cash(prev, 'entrada', 'laborvaleestorno_' + prev.id, 'Estorno de vale da colheita'); }
         Object.keys(a).forEach(k => delete a[k]); Object.assign(a, keep);
       }
       // Fechamentos novos: o servidor recalcula tudo e gera uma conta a pagar por pessoa com valor a receber.
@@ -263,5 +283,5 @@
     };
   }
 
-  return { KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, duplicateGroups, paymentList, accountantRows, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { withAuthorMetadata, KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, duplicateGroups, paymentList, accountantRows, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

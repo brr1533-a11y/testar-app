@@ -45,7 +45,7 @@ async function enable(){
     await writeSnapshot(nextKey,nextSalt,{...snapshot(),verifiedAt:at});
     key=nextKey;salt=nextSalt;verifiedAt=at;
     await registerDevice();
-    renderFieldMode();toast('Modo de campo habilitado neste aparelho, sem prazo de expiração offline.');
+    if(currentPage==='campo')renderFieldMode();toast('Modo de campo habilitado neste aparelho, sem prazo de expiração offline.');
   } catch(e) {toast('Não foi possível gravar o cofre. Confira o espaço e a permissão de armazenamento deste aparelho antes de testar sem internet.');}
 }
 // Abre o cofre com o PIN. Três casos:

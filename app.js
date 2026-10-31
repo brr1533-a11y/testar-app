@@ -2021,11 +2021,14 @@ function bindFinanceForm(after) {
     sync();
     $("#refreshQuoteBtn").onclick = async () => { await refreshQuote(); if (quote) { $("#quoteInput").value = quote.brlPerSaca.toFixed(2); sync(); } };
   }
-  $("#financeForm").onsubmit = e => {
+  $("#financeForm").onsubmit = async e => {
     e.preventDefault();
     const farm = activeFarm();
     if (!farm) return toast("Selecione uma fazenda específica para lançar.");
     const f = new FormData(e.target);
+    // Vale da colheita já entra no Financeiro sozinho quando é lançado na Mão de obra: lançar aqui de novo conta duas vezes.
+    const looksLikeVale = f.get("type") === "saida" && /\b(vale|adiantamento)s?\b/i.test(`${f.get("category")} ${f.get("description")}`) && (farm.labor?.workers || []).length > 0;
+    if (looksLikeVale && !await ask("Vale de quem trabalha na colheita deve ser lançado em Mão de obra › Adiantamento ou desconto: de lá ele já aparece aqui no Financeiro, uma vez só, e é descontado no fechamento. Se lançar também aqui, o caixa e o custo contam duas vezes. É outro tipo de vale (não da colheita)?", { title: "Vale da colheita?", okText: "É outro, lançar aqui" })) return;
     let value = Number(f.get("value") || 0);
     const bags = Number(f.get("bags") || 0);
     const q = Number(f.get("quote") || 0);

@@ -19,7 +19,10 @@
     "test:video": "node tests/video-browser.cjs",
     "test:soil": "node tests/soil-browser.cjs",
     "test:expansion": "node --test tests/expansao*.test.cjs",
-    "test:expansion:browser": "node tests/expansao-browser.cjs"
+    "test:expansion:browser": "node tests/expansao-browser.cjs",
+    "test:five-fixes": "node --test tests/cinco-correcoes*.test.cjs",
+    "test:five-fixes:browser": "node tests/cinco-correcoes-browser.cjs",
+    "test:adjustments:browser": "node tests/ajustes-browser.cjs"
   },
   "engines": {
     "node": ">=18"

@@ -1,0 +1,88 @@
+{
+  "baseRepository": "brr1533-a11y/testar-app",
+  "baseCommit": "32fe388109476cf3d8306c70133be1b8dabd5458",
+  "githubPublished": false,
+  "renderPublished": false,
+  "tests": {
+    "unitAndApi": 165,
+    "failed": 0
+  },
+  "selfExcluded": true,
+  "files": [
+    {
+      "path": "campo-offline.js",
+      "status": "alterado",
+      "sha256": "a5ae2a58a234effea0f03e3d4b5697f6bbba2e925c7309c865b769581dca57b9"
+    },
+    {
+      "path": "campo-sw.js",
+      "status": "alterado",
+      "sha256": "fcbe0ac70f426f8f07eaf2c068e38b8e7bbb137e1a1d545ce255facacfcfb6c7"
+    },
+    {
+      "path": "CORRECOES-5-PONTOS.md",
+      "status": "novo",
+      "sha256": "5f7f037dd6c2b625e02d6b879359d68cdc8ba8268b81e036b4d750fdac7d9e9e"
+    },
+    {
+      "path": "expansao-domain.js",
+      "status": "alterado",
+      "sha256": "ca52ba10167ce16b92ccbc2db235e2fda38573aea7bde9794f3ea058e00a27a0"
+    },
+    {
+      "path": "expansao.js",
+      "status": "alterado",
+      "sha256": "0de12651b9a70a92574a6c68dbf98cd5ae816d332ec951e8702a6adb6cd4a5d5"
+    },
+    {
+      "path": "maodeobra-domain.js",
+      "status": "alterado",
+      "sha256": "74056f18273020202c88e76b86daf2d56b43e44847feefcb3224aa0f5b6bd0ca"
+    },
+    {
+      "path": "maodeobra.js",
+      "status": "alterado",
+      "sha256": "5b2237ed0d66d163386ca93a701d4bf256268424f87b3e1e050ffef08fee9a40"
+    },
+    {
+      "path": "package.json",
+      "status": "alterado",
+      "sha256": "2a29d487142a3a3a195441102a78f1e1f081dface142518dd9263554965bbb9e"
+    },
+    {
+      "path": "README.md",
+      "status": "alterado",
+      "sha256": "c33f45eadbda65f1d8e4d836bd1b515dc3694b49f8bb124224517deb323a9f31"
+    },
+    {
+      "path": "server.js",
+      "status": "alterado",
+      "sha256": "1e025933ae791281e203c1312f678ec78c81ef30038968e8524d280a4af2dccd"
+    },
+    {
+      "path": "tests/cinco-correcoes-api.test.cjs",
+      "status": "novo",
+      "sha256": "c316d0fde0bcde75e77696e47e04a655be9c2361c318157fe7493e2c74cd1417"
+    },
+    {
+      "path": "tests/cinco-correcoes-browser.cjs",
+      "status": "novo",
+      "sha256": "a874fbdcf9bf29f4590f0e3eb04579182576627ee9a0c0d766b983e208cd4c05"
+    },
+    {
+      "path": "tests/cinco-correcoes.test.cjs",
+      "status": "novo",
+      "sha256": "46d19b16c134c024a371d2f5d9daf66477a8c7f0182d22078181ed6a5abf2f05"
+    },
+    {
+      "path": "tests/expansao-browser.cjs",
+      "status": "alterado",
+      "sha256": "f9c28aded96340ed8174fd39aad5b307977b25a46f67a42f6a97b8400fc7b494"
+    },
+    {
+      "path": "tests/revisao-custos.test.cjs",
+      "status": "alterado",
+      "sha256": "880cd930c314e1960f3809de13ec1af8cc6f0f4a36cec4f6c9a1323cfe70bc25"
+    }
+  ]
+}

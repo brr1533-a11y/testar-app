@@ -26,6 +26,30 @@ async function graceVoid(farm, d) {
   return laborChange(farm, L => { const e = L.entries.find(x => x.id === d.id); e.voided = true; e.voidReason = v.reason.trim(); });
 }
 
+// Custo por unidade: banhos antigos com valor estimado (sem preço guardado na época). Quem vê os valores informa o
+// preço pago em cada produto; o servidor recalcula, tira a marca de estimado e registra no histórico.
+{
+  const pageBefore = renderPage;
+  renderPage = function (options) {
+    pageBefore(options);
+    if (currentPage !== 'custos-unidade' || isGeneralView()) return;
+    const farm = activeFarm(); if (!farm) return;
+    const list = (farm.banho?.orders || []).filter(o => o.stockCostSnapshot?.estimated && o.stockCostSnapshot.items?.length);
+    if (!list.length) return;
+    const total = list.reduce((n, o) => n + (o.stockCostSnapshot.total || 0), 0);
+    $('#pageContent').insertAdjacentHTML('beforeend', `<div class="card grace-card bath-estimated"><h3>${list.length} banho${list.length > 1 ? 's' : ''} antigo${list.length > 1 ? 's' : ''} com valor estimado (${money(total)})</h3><p class="muted">Esses banhos são de antes de o sistema guardar o preço na hora da aplicação; o valor foi estimado pelo preço do estoque no dia da atualização. Se souber quanto pagou na época, informe: o custo da safra passa a usar esse preço e a troca fica no histórico.</p><div class="table-wrap"><table><thead><tr><th>Banho</th><th>Aplicado em</th><th>Produtos</th><th>Estimado</th><th></th></tr></thead><tbody>${list.map(o => `<tr><td><b>${escapeHTML(o.title || 'Banho')}</b></td><td>${dateBR(String(o.reportedAt || o.completedAt || '').slice(0, 10))}</td><td>${o.stockCostSnapshot.items.map(i => `${escapeHTML(i.name)}: ${Number(i.quantity).toLocaleString('pt-BR')} ${escapeHTML(i.unit)} × ${i.unitCost == null ? '<span class="badge gold">sem preço</span>' : money(i.unitCost)}`).join('<br>')}</td><td>${money(o.stockCostSnapshot.total)}</td><td><button class="btn small bath-price" data-id="${escapeHTML(o.id)}">Informar preço da época</button></td></tr>`).join('')}</tbody></table></div></div>`);
+    $$('.bath-price').forEach(b => b.onclick = async () => {
+      const o = list.find(x => x.id === b.dataset.id); if (!o) return;
+      const v = await askForm({ title: 'Preço da época · ' + (o.title || 'Banho'), text: 'Preço por unidade pago em cada produto quando o banho foi aplicado (nota fiscal ou pedido da época).', fields: o.stockCostSnapshot.items.map(i => ({ name: 'p' + i.productIndex, label: `${i.name} (R$ por ${i.unit}) · usados ${Number(i.quantity).toLocaleString('pt-BR')} ${i.unit}`, type: 'number', min: '0', step: '0.01', value: i.unitCost ?? '', required: true })) });
+      if (!v) return;
+      try {
+        const r = await api('/api/banho/preco-epoca', { method: 'POST', body: JSON.stringify({ farmId: farm.id, orderId: o.id, prices: o.stockCostSnapshot.items.map(i => ({ productIndex: i.productIndex, unitCost: Number(v['p' + i.productIndex]) })) }) });
+        absorbServerPayload(r); writeCache(); renderPage(); toast('Preço da época registrado. O custo da safra foi atualizado.');
+      } catch (e) { toast(e.message); }
+    });
+  };
+}
+
 {
   const pageBefore = renderPage;
   renderPage = function (options) {

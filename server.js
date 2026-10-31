@@ -1037,7 +1037,12 @@ app.post("/api/auth/register-request", limitRequests("register", 10, 3600_000, "
 function publicUser(u) {
   return { id: u.id, name: u.name, username: u.username, role: u.role, function: u.function, active: u.active !== false, allowedFarmId: u.allowedFarmId || "", allowedActivity: u.allowedActivity || "both" };
 }
-function stateForUser(state,user,plan) { return Expansion.project(stateForUserBase(state,user,plan),state,user,AdmAccess.pagesFor(state)); }
+function stateForUser(state,user,plan) {
+ const full=Expansion.project(stateForUserBase(state,user,plan),state,user,AdmAccess.pagesFor(state));
+ for(const f of full.farms||[])if(f.labor)f.labor=HarvestLabor.withAuthorMetadata(f.labor,state.users||[]);
+ if(user.role!=='ceo'&&!(user.role==='adm'&&AdmAccess.financeVisible(state)))for(const f of full.farms||[])for(const o of f.banho?.orders||[])delete o.stockCostSnapshot;
+ return full;
+}
 function stateForUserBase(state, user, plan) {
   const full = GroupAccess.project(sanitizeState(state));
   full.coffeeQualities ||= RuralOps.defaultQualities();
@@ -1243,32 +1248,38 @@ function unitFamily(u) {
   return x;
 }
 // Quando uma ordem de banho é concluída, os produtos usados saem do estoque (se houver item com o mesmo nome e unidade).
+function restoreTrustedBathState(before,after){
+ for(const farm of after.farms||[]){const oldFarm=(before.farms||[]).find(f=>f.id===farm.id);for(const order of farm.banho?.orders||[]){const old=oldFarm?.banho?.orders?.find(o=>String(o.id)===String(order.id));delete order.stockCostSnapshot;
+  if(old?.stockDeducted){order.stockDeducted=true;if(old.stockDeductedItems)order.stockDeductedItems=clone(old.stockDeductedItems);else delete order.stockDeductedItems;if(old.stockCostSnapshot?.version===1)order.stockCostSnapshot=clone(old.stockCostSnapshot);else if(old.status==='completed')order.stockCostSnapshot=Expansion.bathCostSnapshot(oldFarm,old,{estimated:true});}
+  else {delete order.stockDeducted;delete order.stockDeductedItems;}
+ }}
+}
 function applyBathStockDeduction(before, after, who) {
-  const oldOrders = new Map();
-  for (const f of before.farms || []) for (const o of f.banho?.orders || []) oldOrders.set(String(o.id), o.status);
-  for (const farm of after.farms || []) {
-    for (const order of farm.banho?.orders || []) {
-      if (order.status !== "completed" || order.stockDeducted) continue;
-      const prev = oldOrders.get(String(order.id));
-      if (prev === "completed" || prev === undefined && order.completedAt && Date.parse(order.completedAt) < Date.now() - 3600_000) continue;
-      const used = [];
-      for (const p of order.products || []) {
-        const item = (farm.stock || []).find(s => (s.activity || "coffee") === "coffee" && normName(s.item) === normName(p.name) && unitFamily(s.unit) === unitFamily(p.unit));
-        if (!item) continue;
-        // Com a quantidade real por talhão informada, baixa o que foi usado; sem ela, a quantidade planejada da ordem.
-        const real = Array.isArray(order.usage) ? order.usage.filter(u => String(u.productId) === String(p.productId)) : [];
-        const qty = real.length ? Math.round(real.reduce((n, u) => n + Number(u.quantity || 0), 0) * 1000) / 1000 : Number(p.quantity || 0);
-        if (!(qty > 0)) continue;
-        item.quantity = Math.round((Number(item.quantity || 0) - qty) * 1000) / 1000;
-        item.moves ||= [];
-        item.moves.push({ id: uid(), at: nowIso(), delta: -qty, reason: `Banho: ${order.title || "ordem"}`, by: order.completedByName || who.name || who.username });
-        item.moves = item.moves.slice(-60);
-        used.push(`${p.name} ${qty} ${p.unit}`);
-      }
-      order.stockDeducted = true;
-      if (used.length) order.stockDeductedItems = used;
-    }
+ for(const farm of after.farms||[]){
+  const oldFarm=(before.farms||[]).find(f=>f.id===farm.id),oldOrders=new Map((oldFarm?.banho?.orders||[]).map(o=>[String(o.id),o]));
+  for(const order of farm.banho?.orders||[]){
+   const old=oldOrders.get(String(order.id));
+   // Flags e preço congelado são do servidor; o cliente não pode forjar nem reavaliar uma aplicação.
+   delete order.stockCostSnapshot;
+   if(old?.stockDeducted){order.stockDeducted=true;if(old.stockDeductedItems)order.stockDeductedItems=clone(old.stockDeductedItems);else delete order.stockDeductedItems;}
+   else {delete order.stockDeducted;delete order.stockDeductedItems;}
+   if(old?.stockCostSnapshot?.version===1)order.stockCostSnapshot=clone(old.stockCostSnapshot);
+   if(order.status!=='completed')continue;
+   if(old?.stockDeducted){
+    // O preço histórico não foi guardado pelas versões antigas. Congela a avaliação anterior à edição, com essa indicação.
+    order.stockCostSnapshot ||= Expansion.bathCostSnapshot(oldFarm,old,{estimated:true});continue;
+   }
+   if(old?.status==='completed'||!old&&order.completedAt&&Date.parse(order.completedAt)<Date.now()-3600_000)continue;
+   const used=[];
+   for(const p of order.products||[]){
+    const item=(farm.stock||[]).find(s=>(s.activity||'coffee')==='coffee'&&normName(s.item)===normName(p.name)&&unitFamily(s.unit)===unitFamily(p.unit));if(!item)continue;
+    const real=Array.isArray(order.usage)?order.usage.filter(u=>String(u.productId)===String(p.productId)):[],qty=real.length?Math.round(real.reduce((n,u)=>n+Number(u.quantity||0),0)*1000)/1000:Number(p.quantity||0);if(!(qty>0))continue;
+    item.quantity=Math.round((Number(item.quantity||0)-qty)*1000)/1000;item.moves||=[];
+    item.moves.push({id:uid(),at:nowIso(),delta:-qty,reason:'Banho: '+(order.title||'ordem'),by:order.completedByName||who.name||who.username});item.moves=item.moves.slice(-60);used.push(p.name+' '+qty+' '+p.unit);
+   }
+   order.stockDeducted=true;order.stockDeductedItems=used;order.stockCostSnapshot=Expansion.bathCostSnapshot(farm,order);
   }
+ }
 }
 
 app.get("/api/state", auth, async (req, res) => {
@@ -1548,6 +1559,7 @@ app.put("/api/state", auth, async (req, res, next) => {
     PlanFeatures.restoreLocked(before, allowedState, group.plan);
     // Prazo do teste grátis é do servidor.
     if (before.trial) allowedState.trial = clone(before.trial); else delete allowedState.trial;
+    restoreTrustedBathState(before,allowedState);
     Expansion.prepare(before, allowedState, incoming, user, AdmAccess.pagesFor(before));
     SoilAnalysis.prepare(before, allowedState, user);
     PlotHistory.sealAndValidate(before, allowedState, user);
@@ -2490,6 +2502,27 @@ app.get("/api/cotacao-cafe", async (req,res)=>{try{if(cache.data&&Date.now()-cac
 // ---------- Limpar os dados de uma fazenda (CEO) ----------
 // Apaga talhões, máquinas, estoque, produção, gado, financeiro, gestão, campo e mão de obra; mantém a fazenda, o nome e
 // os usuários. Não tem volta: exige a senha do CEO e o nome da fazenda digitado, e fica registrado no histórico.
+// ---------- Preço da época de um banho antigo ----------
+// Banhos de antes do preço congelado ganharam um valor estimado (preço do estoque no dia da migração). Quem vê dinheiro
+// (CEO ou ADM com página de valores) informa o preço pago na época, por produto; o valor deixa de ser estimado e a troca
+// vai para o histórico. Banho com preço registrado na baixa (não estimado) não é alterado por aqui.
+app.post("/api/banho/preco-epoca", auth, requireRole("ceo", "adm"), async (req, res, next) => {
+  try {
+    if (req.auth.user.role === "adm" && !AdmAccess.financeVisible(req.auth.group.state)) return res.status(403).json({ error: "Sem acesso aos valores." });
+    const farmId = String(req.body.farmId || ""), orderId = String(req.body.orderId || ""), prices = Array.isArray(req.body.prices) ? req.body.prices : [];
+    const { saved } = await mutateGroup(req.auth.group.id, g => {
+      const farm = (g.state.farms || []).find(f => String(f.id) === farmId), order = farm?.banho?.orders?.find(o => String(o.id) === orderId);
+      if (!order?.stockCostSnapshot) throw httpError(404, "Banho não encontrado.");
+      const snap = order.stockCostSnapshot;
+      if (!snap.estimated) throw httpError(409, "Este banho já tem o preço registrado na baixa do estoque.");
+      const next = Expansion.informBathPrice(farm, order, prices, req.auth.user.name || req.auth.user.username, nowIso());
+      order.stockCostSnapshot = next;
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "informou preço da época", area: "Custo do banho", label: `${order.title || "Banho"} · estimado R$ ${Number(snap.total).toFixed(2)} → R$ ${Number(next.total).toFixed(2)}`.slice(0, 200), farm: farm.name }].slice(-1500);
+    });
+    res.json(statePayload(saved, req.auth.user));
+  } catch (e) { next(e); }
+});
+
 app.post("/api/farms/:id/reset", auth, requireRole("ceo"), async (req, res, next) => {
   try {
     if (!rateHit(`farm-reset|${req.auth.user.id}`, 5, 3600_000)) return res.status(429).json({ error: "Muitas tentativas. Aguarde uma hora." });
