@@ -1,0 +1,138 @@
+{
+  "version": "4.2.0",
+  "base": "gestao-rural-equipamentos-transferencia-v5.zip",
+  "githubPublished": false,
+  "renderPublished": false,
+  "tests": {
+    "passed": 222,
+    "failed": 0
+  },
+  "changes": [
+    {
+      "file": "app.html",
+      "status": "modified",
+      "previousSha256": "3db7e705defd3864f9b81a87917189529d84165a5d1b0bfd1a4605c891a066fe",
+      "sha256": "cc0ec72ba1d2b179d3c13b8bf9d12d8fdbb59eac160d385d0d379dac10dd08a4"
+    },
+    {
+      "file": "app.js",
+      "status": "modified",
+      "previousSha256": "49717d1da481ceb45712d492f46e09c4a81b347ad244e390992c3a3db47388e3",
+      "sha256": "d79565da72f88d1b2a8885e104a2376fe80637bb468556e9626d6a78ee17f7e7"
+    },
+    {
+      "file": "assets/vendor/leaflet/leaflet.css",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "a7837102824184820dfa198d1ebcd109ff6d0ff9a2672a074b9a1b4d147d04c6"
+    },
+    {
+      "file": "assets/vendor/leaflet/leaflet.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "db49d009c841f5ca34a888c96511ae936fd9f5533e90d8b2c4d57596f4e5641a"
+    },
+    {
+      "file": "assets/vendor/leaflet/LICENSE",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "53e8dc25862014e4324741ca18fbe3611e11d42ef69f59f86ea8c5389647d4cb"
+    },
+    {
+      "file": "campo-sw.js",
+      "status": "modified",
+      "previousSha256": "4f8a76d0cf92fefcbbf080c4ef5a88255d784883c3aa32e1a257c4386f7a4e94",
+      "sha256": "8783432ddd27c1bc1fdfefd41f3b0661e3b89dfe784a1c83f79c7a56cfb02687"
+    },
+    {
+      "file": "evolucao.js",
+      "status": "modified",
+      "previousSha256": "e55d0c13fc1c76d7d2418812d0578f851e301f01d95045b340756e945252bd9a",
+      "sha256": "3ba831074d8046f526be7aec8fde6298ef0cf29712711eeaf07382bde9d30fb4"
+    },
+    {
+      "file": "maodeobra-domain.js",
+      "status": "modified",
+      "previousSha256": "0923e4b672b442e5df439c73c2672afcf0ba20a024ce1abc4031b17693c8acbf",
+      "sha256": "23489a907d5a39930d1877d6f45567410bf7d3948394465163da72c8653166f0"
+    },
+    {
+      "file": "maodeobra.js",
+      "status": "modified",
+      "previousSha256": "ca10086758cad6f6bf1d87bcd15d17a849cd7dac91a80de622e8fa26db68fcae",
+      "sha256": "64867c6bd9e775da8af2af1e5ed435523c171ceda7c35e2bc58e06ab39b40b6e"
+    },
+    {
+      "file": "mapa-satelite.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "df76329325996321a716b44d1c1d294b2774a67c0c0ec2d0e2222b4c9495e360"
+    },
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "previousSha256": "e5d270b6c53f8550d1190ac7e57a5885611fc4c263281f5f7f22c07a23b20ebb",
+      "sha256": "b6d810b6c5a64bb6957b9b7b47816c2fc1dcddcf0cf80623d80cc336a94d15ff"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "previousSha256": "bc21af3e7e8e7b4836669215fadd5519d70d543d609d1b92c101f91beb3d0504",
+      "sha256": "39ecf8d13e02b7f8e16ee16975f31dcf5d026d692ea8fe11ce2c7ba53f3b7421"
+    },
+    {
+      "file": "PRIORIDADES-4.2.md",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "271a2b458480fb9e6ec33d11005507ce682c0ef939d326d299662c915c146420"
+    },
+    {
+      "file": "prioridades-domain.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "3e42c27e27f9adcb6a24558bfd24560ae545847b2c0444079ff73fbb4c8fe0aa"
+    },
+    {
+      "file": "prioridades-server.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "c13eace03f94ba3afc670ef5bef0827680ee0f83d00b402a2678bea3900ac944"
+    },
+    {
+      "file": "prioridades.css",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "ffaabc7237805d161aa1a95b1396e4ae24baaeae13574a5d15a6206681fe05d3"
+    },
+    {
+      "file": "prioridades.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "54597c1b307a8bcdd64ae8824288042a64ca940fce7d8bb61b1827ec11c3b60d"
+    },
+    {
+      "file": "rascunhos-domain.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "2e5ac7ae2acb626e7ae6359efbad202ddf468cfadc0cc149012c907b16a11f82"
+    },
+    {
+      "file": "server.js",
+      "status": "modified",
+      "previousSha256": "1d8769f5ea6cd286313a7a72f67bd2cabf198f962f9ca600461dc57509e6420b",
+      "sha256": "876d71da758f9012a060f7f0d44fb2f04320e9ad858a7e489dccd427850de062"
+    },
+    {
+      "file": "tests/prioridades.test.cjs",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "7ee66ce60a3172c8e71cd20d28ff9a4849924bb64c9fa0cd8130be793df41350"
+    },
+    {
+      "file": "tests/teste-ampliado.test.cjs",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "bfa6d3811a6523399d9d33257e1f6f816c1be766c3f32d5d51b42538484c5628"
+    }
+  ]
+}

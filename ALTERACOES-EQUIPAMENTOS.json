@@ -1,0 +1,119 @@
+{
+  "version": "4.1.3",
+  "base": "gestao-rural-menu-personalizavel-v4.zip",
+  "published": false,
+  "tests": {
+    "passed": 211,
+    "failed": 0
+  },
+  "changes": [
+    {
+      "file": "app-minimal.css",
+      "status": "modified",
+      "sha256": "2c15e46ede24be4dff3f887703926cc40e3f84045355e607cb1448684ee4b3cd",
+      "previousSha256": "b9945807e7b7f84ffc55bf66023b905a0902ed664a74a00973e4b768c1b6ceab"
+    },
+    {
+      "file": "app.html",
+      "status": "modified",
+      "sha256": "3db7e705defd3864f9b81a87917189529d84165a5d1b0bfd1a4605c891a066fe",
+      "previousSha256": "6a3334b5fdd1fe49013c7e78a1411d5f950e49bb4eae6a4975c6c43d565b7442"
+    },
+    {
+      "file": "app.js",
+      "status": "modified",
+      "sha256": "49717d1da481ceb45712d492f46e09c4a81b347ad244e390992c3a3db47388e3",
+      "previousSha256": "c480e7cbff0e071ed9bf0d8247b0f10e070ccd44c2a20a3a650cb7220d131ba2"
+    },
+    {
+      "file": "campo-sw.js",
+      "status": "modified",
+      "sha256": "4f8a76d0cf92fefcbbf080c4ef5a88255d784883c3aa32e1a257c4386f7a4e94",
+      "previousSha256": "fcbe0ac70f426f8f07eaf2c068e38b8e7bbb137e1a1d545ce255facacfcfb6c7"
+    },
+    {
+      "file": "CATEGORIAS-E-TRANSFERENCIA.md",
+      "status": "added",
+      "sha256": "7c97a2bef84defa9fcfa71d3aa4455eb5d147f6c881b698d8da8ca9a8a690be9",
+      "previousSha256": null
+    },
+    {
+      "file": "equipamentos-domain.js",
+      "status": "added",
+      "sha256": "8ba3bdf929297ddb72306ba6d3e47d86675e291412752b3d9d730e88e922fd89",
+      "previousSha256": null
+    },
+    {
+      "file": "equipamentos-server.js",
+      "status": "added",
+      "sha256": "3c01c710df7f855685599337debcd07f4bfc525fa1517d0595b21d8821902655",
+      "previousSha256": null
+    },
+    {
+      "file": "equipamentos.js",
+      "status": "added",
+      "sha256": "2ce0b9885e02935c0d0812908321c80bb04e9eb8c2f7df73de6fe9ada55a28b1",
+      "previousSha256": null
+    },
+    {
+      "file": "evolucao-domain.js",
+      "status": "modified",
+      "sha256": "d6f1e81fdf27ae54f840dd4d05c7aed35471c32eb78fb8597f9dd36bfe8ef615",
+      "previousSha256": "78e442e8287b8b4008d85c133dbbda61010478df68ac2ef30d9b73f4c9668902"
+    },
+    {
+      "file": "evolucao.js",
+      "status": "modified",
+      "sha256": "e55d0c13fc1c76d7d2418812d0578f851e301f01d95045b340756e945252bd9a",
+      "previousSha256": "809a595276939497028195c52c366f225da4a95133d9b4cbbe29fb6aef560af9"
+    },
+    {
+      "file": "expansao-domain.js",
+      "status": "modified",
+      "sha256": "49bf00960d2ab0f9597d1e0dd6cf0cb211aa4c390290521b0283a834de6ac1c3",
+      "previousSha256": "75d0b5eaf9ee70ac5a9e42f1285cfaab037b2dc1a77363c923b7adf14bf27f95"
+    },
+    {
+      "file": "expansao.js",
+      "status": "modified",
+      "sha256": "b17c029db7ac1724b32dd81706fba6a2d0648fffeff3af8a388ec3543d9f27cc",
+      "previousSha256": "c96736b8f330993abe73696d05790164b3a1cf4d13ec6f6ebc7536fc218b350f"
+    },
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "sha256": "e5d270b6c53f8550d1190ac7e57a5885611fc4c263281f5f7f22c07a23b20ebb",
+      "previousSha256": "14362638b7f5961a54a45cced391c14d16cb749d7058761e4c08a0b86bed352b"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "sha256": "bc21af3e7e8e7b4836669215fadd5519d70d543d609d1b92c101f91beb3d0504",
+      "previousSha256": "fa1d412183568e046229595803255dbb294690f65d3d36dca944028bbabd9e16"
+    },
+    {
+      "file": "planilhas-domain.js",
+      "status": "modified",
+      "sha256": "1a0a76a2b2cfc9de0259e8b335103f1951896c7a878374ae8ccb9b9d8097262a",
+      "previousSha256": "05bf3e34461f6de7bd7f74248adfc4053c4ff58695cf2bed2147f588c5c84ea5"
+    },
+    {
+      "file": "server.js",
+      "status": "modified",
+      "sha256": "1d8769f5ea6cd286313a7a72f67bd2cabf198f962f9ca600461dc57509e6420b",
+      "previousSha256": "680fbffdcac1cfc04a8464c177b5f626c4bc1381c1b35790cc4da0608de7d360"
+    },
+    {
+      "file": "tests/equipamentos-api.test.cjs",
+      "status": "added",
+      "sha256": "e749cbb94410c1a738d60be6fcd35ba8b904166b5218defa9c2f1dd47faa8238",
+      "previousSha256": null
+    },
+    {
+      "file": "tests/equipamentos.test.cjs",
+      "status": "added",
+      "sha256": "23bff3bfebc0b988cf4afb86ee40dd7fb3a890159e868bbc9b4bd7164f6abc49",
+      "previousSha256": null
+    }
+  ]
+}

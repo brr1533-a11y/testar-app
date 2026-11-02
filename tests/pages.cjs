@@ -1,3 +1,4 @@
+const {go:navigate}=require('./support/navigation.cjs');
 const {chromium}=require('playwright');
 const {startServer}=require('./support/server.cjs');
 const assert=require('node:assert/strict');
@@ -36,7 +37,7 @@ const screenshots=process.env.RURAL_SCREENSHOT_DIR||path.resolve('test-results')
   }
   // O arquivo separado precisa registrar a tela de Grãos no painel real.
   await page.goto(server.url+'/app');await page.locator('#loginGroup').fill('1001');await page.locator('#loginUser').fill('testceo');await page.locator('#loginPassword').fill(server.password);await page.locator('#loginForm button[type=submit]').click();
-  await page.locator('#modeSwitchBtn').click();await page.locator('.dlg button[name=mode][value=grains]').click();await page.locator('#navMenu button[data-page=safras]').click();
+  await page.locator('#modeSwitchBtn').click();await page.locator('.dlg button[name=mode][value=grains]').click();await navigate(page,'safras');
   assert.equal(await page.evaluate(()=>typeof renderGrains),'function');assert.equal(await page.locator('script[src="graos.js"]').count(),1);await page.locator('#ruralNewCycle').waitFor();
   // Saída sem erro também no caminho com animação habilitada.
   await page.emulateMedia({reducedMotion:'no-preference'});await page.goto(server.url+'/gado');await page.locator('.hero-actions a[href="#sistema"]').click();

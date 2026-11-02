@@ -15,6 +15,9 @@ const HarvestLabor = require("./maodeobra-domain.js");
 const Carencia = require("./carencia-domain.js");
 const Medicamentos = require("./medicamentos-domain.js");
 const Expansion = require("./expansao-domain.js");
+const FarmPriorities = require('./prioridades-domain');
+const RuralRoutine = require('./rotina-rural-domain');
+const EquipmentRegistry = require("./equipamentos-domain.js");
 const express = require("express");
 const path = require("path");
 const fs = require("fs");
@@ -33,7 +36,7 @@ app.use((req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
-  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; media-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'");
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; media-src 'self'; img-src 'self' data: blob: https://services.arcgisonline.com; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'self'; form-action 'self'");
   if (IS_PRODUCTION && req.headers['x-forwarded-proto'] === 'https') res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   res.setHeader("Cache-Control", req.path.startsWith('/api/') ? "no-store" : "no-cache");
   next();
@@ -104,7 +107,7 @@ const PASSWORD_RESET_MINUTES = Math.max(5, Number(process.env.PASSWORD_RESET_MIN
 
 // Corpo grande só onde precisa (dados do Grupo e anexos). Nas demais rotas, inclusive as públicas, até 64 KB:
 // um anônimo não consegue mais mandar megabytes num cadastro ou num login.
-const BIG_BODY_ROUTES = new Set(["PUT /api/state", "POST /api/state/import-local", "POST /api/files"]);
+const BIG_BODY_ROUTES = new Set(["PUT /api/state", "POST /api/state/import-local", "POST /api/files", "POST /api/spreadsheets/preview", "POST /api/spreadsheets/import"]);
 const bigJson = express.json({ limit: "12mb" }), smallJson = express.json({ limit: "64kb" });
 app.use((req, res, next) => (BIG_BODY_ROUTES.has(`${req.method} ${req.path}`) ? bigJson : smallJson)(req, res, next));
 
@@ -1041,7 +1044,13 @@ function stateForUser(state,user,plan) {
  const full=Expansion.project(stateForUserBase(state,user,plan),state,user,AdmAccess.pagesFor(state));
  for(const f of full.farms||[])if(f.labor)f.labor=HarvestLabor.withAuthorMetadata(f.labor,state.users||[]);
  if(user.role!=='ceo'&&!(user.role==='adm'&&AdmAccess.financeVisible(state)))for(const f of full.farms||[])for(const o of f.banho?.orders||[])delete o.stockCostSnapshot;
- return full;
+ if(user.role==='ceo'||user.role==='adm')full.equipmentCategories=EquipmentRegistry.catalog(state);else delete full.equipmentCategories;
+ if(user.role==='contribuinte'){delete full.equipmentTransfers;for(const f of full.farms||[])delete f.equipmentArchive;}
+ if(user.role==='adm'&&!AdmAccess.can(state,'equipamentos')&&!AdmAccess.can(state,'log-equipamentos'))delete full.equipmentTransfers;
+ if(user.role==='adm'&&!AdmAccess.can(state,'equipamentos')&&!AdmAccess.can(state,'manutencao'))for(const f of full.farms||[])delete f.equipmentArchive;
+ for(const f of full.farms||[]){if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'estoque')&&!AdmAccess.can(state,'manutencao'))delete f.fuelDepot;if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'mapa'))delete f.geoPlots;}
+ if(user.role==='contribuinte')delete full.fuelSettings;
+ return RuralRoutine.project(full,state,user);
 }
 function stateForUserBase(state, user, plan) {
   const full = GroupAccess.project(sanitizeState(state));
@@ -1095,7 +1104,7 @@ function stateForUserBase(state, user, plan) {
   full.farms = (full.farms || []).filter(f => String(f.id) === farmId).map(f => ({
     id: f.id, name: f.name, type: f.type, photo: f.photo || "",
     // Só os campos que a tela do campo usa: um custo cadastrado no futuro não vaza para o trabalhador.
-    tractors: (f.tractors || []).map(t => ({ id: t.id, name: t.name, model: t.model || "", plate: t.plate || "", status: t.status })),
+    tractors: (f.tractors || []).map(t => ({ id: t.id, name: t.name, model: t.model || "", plate: t.plate || "", category: t.category || "", status: t.status })),
     implements: (f.implements || []).map(i => ({ id: i.id, name: i.name, category: i.category || "", status: i.status })),
     talhoes: f.talhoes || [],
     assignments: (f.assignments || []).filter(isMine), equipmentLogs: (f.equipmentLogs || []).filter(isMine),
@@ -1115,7 +1124,7 @@ function stateForUserBase(state, user, plan) {
     const source = (state.farms || []).find(f => String(f.id) === farmId);
     // Carência dos banhos vai pronta por talhão (o fiscal não recebe as ordens), para avisar também sem internet.
     const grace = source ? Carencia.forFiscalPlots(source) : {};
-    full.farms = full.farms.map(f => ({ ...f, tractors: [], implements: [], assignments: [], equipmentLogs: [], occupancy: [], banho: { products: [], orders: [] }, cattle: { paddocks: [], lots: [], weighings: [] }, agriculture: { cycles: [], harvests: [], sales: [] }, operations: {}, talhoes: (f.talhoes || []).map(t => ({ id: t.id, name: t.name, ...(grace[t.id] ? { carencia: grace[t.id] } : {}) })), labor: HarvestLabor.forFiscal(source?.labor) }));
+    full.farms = full.farms.map(f => ({ ...f, tractors: [], implements: [], assignments: [], equipmentLogs: [], occupancy: [], banho: { products: [], orders: [] }, cattle: { paddocks: [], lots: [], weighings: [] }, agriculture: { cycles: [], harvests: [], sales: [] }, operations: {}, talhoes: HarvestLabor.coffeePlots(source||f).map(t => ({ id: t.id, name: t.name, activity:"coffee", ...(grace[t.id] ? { carencia: grace[t.id] } : {}) })), labor: HarvestLabor.forFiscal(source?.labor) }));
   }
   return full;
 }
@@ -1372,6 +1381,8 @@ function mergeStateByRole(existing, incoming, user) {
   const next = ["ceo","adm"].includes(user.role) ? GroupAccess.restore(current,incoming) : clone(incoming);
   if (current.subscriptionActivities !== undefined) next.subscriptionActivities = clone(current.subscriptionActivities);
   else delete next.subscriptionActivities;
+  // O registro do aceite dos termos é do servidor: o navegador não cria nem altera.
+  if (current.termsAcceptance !== undefined) next.termsAcceptance = clone(current.termsAcceptance); else delete next.termsAcceptance;
   if (user.role === "ceo") {
     // E-mail é dado de recuperação de senha e só muda pela rota protegida /api/account/email.
     const emailById = new Map((current.users || []).map(u => [String(u.id), u.email]));
@@ -1393,7 +1404,7 @@ function mergeStateByRole(existing, incoming, user) {
     if (mineIn && mineStored) {
       mineStored.name = String(mineIn.name || mineStored.name).slice(0, 120);
       mineStored.pixKey = String(mineIn.pixKey || "").slice(0, 140);
-      mineStored.function = String(mineIn.function || mineStored.function || "Administração").slice(0, 60);
+      // A função de acesso é definida pelo CEO, inclusive para o ADM.
     }
     next.pendingRegistrations = current.pendingRegistrations;
     next.receipts = current.receipts;
@@ -1469,7 +1480,7 @@ function mergeStateByRole(existing, incoming, user) {
     if (!permitted.includes(activityModule)) throw httpError(422, "Essa atividade não está liberada para você.");
     if (!RuralDomain.validDate(date) || date > nowIso().slice(0,10)) throw httpError(422, "A data do trabalho não confere. Informe uma data válida, sem ser futura.");
     if ([...keptMine, ...added].some(x => x.date === date && moduleOf(x) === activityModule)) throw httpError(422, "Você já confirmou o trabalho desse dia.");
-    const tractor = a.tractorId ? (oldFarm.tractors || []).find(t => String(t.id) === String(a.tractorId)) : null;
+    const tractor = a.tractorId ? [...(oldFarm.tractors || []),...(oldFarm.equipmentArchive||[]).filter(t=>t.equipmentType==='tractor'&&a.date<String(t.transferredAt||'').slice(0,10))].find(t => String(t.id) === String(a.tractorId)) : null;
     const implemento = a.implementId ? (oldFarm.implements || []).find(i => String(i.id) === String(a.implementId)) : null;
     if (a.tractorId && (!tractor || tractor.status !== "Disponível")) throw httpError(422, "Esse trator não está disponível. Atualize a tela e escolha outro.");
     if (a.implementId && (!implemento || implemento.status !== "Disponível")) throw httpError(422, "Esse implemento não está disponível. Atualize a tela e escolha outro.");
@@ -1534,7 +1545,7 @@ function validIsoOrNull(value) {
   return Number.isFinite(t) && t <= Date.now() + 5 * 60_000 ? new Date(t).toISOString() : null;
 }
 
-app.put("/api/state", auth, async (req, res, next) => {
+async function saveStateRoute(req, res, next) {
   try {
     const incoming = req.body.state;
     if (!incoming || typeof incoming !== "object") return res.status(400).json({ error: "Estado inválido" });
@@ -1560,6 +1571,7 @@ app.put("/api/state", auth, async (req, res, next) => {
     // Prazo do teste grátis é do servidor.
     if (before.trial) allowedState.trial = clone(before.trial); else delete allowedState.trial;
     restoreTrustedBathState(before,allowedState);
+    EquipmentRegistry.prepare(before,allowedState,user);
     Expansion.prepare(before, allowedState, incoming, user, AdmAccess.pagesFor(before));
     SoilAnalysis.prepare(before, allowedState, user);
     PlotHistory.sealAndValidate(before, allowedState, user);
@@ -1574,6 +1586,8 @@ app.put("/api/state", auth, async (req, res, next) => {
     FieldOps.prepare(before, allowedState, user);
     // Manutenção, combustível, rastreabilidade e mapa: preserva histórico, autoria e regras de cada área.
     RuralManagement.prepare(before, allowedState, user);
+    RuralRoutine.preserve(before,allowedState);
+    FarmPriorities.prepare(before,allowedState,user,page=>page.startsWith('activity:')?SubscriptionDomain.licensed(before).includes(page.slice(9)):user.role==='ceo'||user.role==='adm'&&AdmAccess.can(before,page));
     // Mão de obra da colheita: valor congelado nos apontamentos, semana fechada travada e contas a pagar geradas no fechamento.
     const laborRole = user.role === "ceo" || (user.role === "adm" && AdmAccess.can(before, "mao-de-obra")) ? "manager" : user.role === "contribuinte" && user.function === HarvestLabor.FISCAL ? "fiscal" : null;
     HarvestLabor.prepare(before, allowedState, { ...user, labor: laborRole });
@@ -1608,7 +1622,8 @@ app.put("/api/state", auth, async (req, res, next) => {
     if (changes.some(c => c.area === "Nota fiscal" || c.area === "Comprovante")) cleanupOrphanFiles(saved);
     res.json({ ok: true, savedAt: nowIso(), ...statePayload(saved, user) });
   } catch (e) { next(e); }
-});
+}
+app.put("/api/state", auth, saveStateRoute);
 
 app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, next) => {
   try {
@@ -1618,6 +1633,8 @@ app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, n
     const incoming = req.body.state;
     if (!incoming || typeof incoming !== "object") return res.status(400).json({ error: "Dados locais inválidos" });
     const currentCeo = req.auth.user;
+    RuralRoutine.preserve(group.state,incoming);
+    EquipmentRegistry.prepare(group.state,incoming,currentCeo); FarmPriorities.prepare(group.state,incoming,currentCeo,page=>page.startsWith('activity:')?SubscriptionDomain.licensed(group.state).includes(page.slice(9)):true);
     if (group.state.subscriptionActivities !== undefined) incoming.subscriptionActivities = clone(group.state.subscriptionActivities);
     else delete incoming.subscriptionActivities;
     SoilAnalysis.prepare(group.state, incoming, currentCeo);
@@ -2305,6 +2322,7 @@ app.post("/api/public/purchases/:id/onboard", limitRequests("onboard", 20, 3600_
     const ceoPassword = String(req.body.ceoPassword || "");
     if (!name || !slug || !ceoName || !validateUsername(ceoUser)) return res.status(400).json({ error: "Confira Grupo, CEO e usuário" });
     const passwordIssue = passwordProblem(ceoPassword); if (passwordIssue) return res.status(400).json({ error: passwordIssue });
+    if (!termsAccepted(req.body)) return res.status(400).json({ error: "Para criar o Grupo, aceite os Termos de uso e a Política de privacidade." });
 
     // Reserva a compra antes de criar o Grupo: dois envios ao mesmo tempo não criam dois Grupos com um pagamento só.
     if (!(await store.claimPurchase(purchase.id))) return res.status(409).json({ error: "Esta compra já foi usada para criar um Grupo" });
@@ -2316,6 +2334,7 @@ app.post("/api/public/purchases/:id/onboard", limitRequests("onboard", 20, 3600_
       initialState.farms = [makeFarm("Minha Fazenda")];
       const purchasedActivities = await store.getConfig(`purchaseActivities:${purchase.id}`);
       initialState.subscriptionActivities = purchasedActivities ? SubscriptionDomain.normalize(purchasedActivities) : RuralDomain.ACTIVITIES;
+      initialState.termsAcceptance = termsRecord(req);
       group = {
         id: uid(), slug, code, name, status: "active", plan: selectedPlan,
         state: initialState, cloudInitialized: true,
@@ -2350,6 +2369,7 @@ app.post("/api/public/trial", limitRequests("trial", 3, 24 * 3600_000, "Muitos t
     const name = String(req.body.groupName || "").trim().slice(0, 120), ceoName = String(req.body.ceoName || "").trim().slice(0, 120), ceoUser = String(req.body.ceoUser || "").trim(), ceoPassword = String(req.body.ceoPassword || "");
     if (!name || !ceoName || !validateUsername(ceoUser)) return res.status(400).json({ error: "Confira o nome do Grupo, seu nome e o usuário." });
     const passwordIssue = passwordProblem(ceoPassword); if (passwordIssue) return res.status(400).json({ error: passwordIssue });
+    if (!termsAccepted(req.body)) return res.status(400).json({ error: "Para criar o Grupo, aceite os Termos de uso e a Política de privacidade." });
     const emailKey = `trialEmail:${crypto.createHash("sha256").update(email).digest("hex")}`;
     if (await store.getConfig(emailKey)) return res.status(409).json({ error: "Este e-mail já usou o teste grátis. Para continuar, assine um plano." });
     const code = await allocateGroupCode();
@@ -2357,6 +2377,7 @@ app.post("/api/public/trial", limitRequests("trial", 3, 24 * 3600_000, "Muitos t
     const state = makeDefaultState({ ceoName, ceoUser, ceoPasswordHash: await bcrypt.hash(ceoPassword, 11), ceoEmail: email });
     state.farms = [makeFarm("Minha Fazenda")];
     state.subscriptionActivities = activities;
+    state.termsAcceptance = termsRecord(req);
     const startedAt = nowIso();
     state.trial = { startedAt, endsAt: new Date(Date.now() + TRIAL_DAYS * 86400_000).toISOString(), days: TRIAL_DAYS };
     const group = { id: uid(), slug, code, name, status: "active", plan: "pro", state, cloudInitialized: true, subscriptionId: `TRIAL-${uid()}`, payerEmail: email, createdAt: startedAt, updatedAt: startedAt };
@@ -2612,8 +2633,18 @@ function startPriceWatch() {
 
 // Só os arquivos do site são públicos. server.js, README, package.json, .env e o banco local nunca são servidos.
 require("./expansao-server")({app,auth,requireRole,store,mutateGroup,statePayload,AdmAccess,PlanFeatures,normalizeEmail,passwordProblem,bcrypt,rateHit,market:()=>marketCache.data,refreshMarket:refreshMarketSnapshot,FieldOps,RuralDomain,FarmManagement,trialExpired});
+const Melhorias = require("./melhorias-server")({app,auth,requireRole,store,AdmAccess,bcrypt,rateHit,platformAuth,cancelSubscriptionBeforeGroupDeletion,sanitizeState,recordPlatformAudit,SEED_GROUP_SLUG,SEED_GROUP_CODE});
+// Aceite dos termos de uso e da política de privacidade na criação do Grupo (versão e data ficam nos dados do Grupo).
+const termsAccepted = body => body && (body.acceptTerms === true || body.acceptTerms === "on" || body.acceptTerms === "true");
+const termsRecord = req => ({ version: Melhorias.TERMS_VERSION, at: nowIso(), ipHash: crypto.createHash("sha256").update(String(req.ip || "")).digest("hex").slice(0, 16) });
 
-const PUBLIC_FILES = new Set(["/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+require("./planilhas-server")({app,auth,requireRole,rateHit,saveState:saveStateRoute,statePayload});
+require("./equipamentos-server")({app,auth,requireRole,mutateGroup,statePayload,validateStatePlanLimits});
+require("./prioridades-server")({app,auth,requireRole,mutateGroup,statePayload});
+require("./rotina-rural-server")({app,auth,mutateGroup,statePayload});
+require("./ia-server").register({app,auth,requireRole,stateForUser});
+
+const PUBLIC_FILES = new Set(["/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
 // Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
 // Sem cache no navegador, para o celular sempre conferir se há versão nova.
 let SERVICE_WORKER = "";
@@ -2632,6 +2663,8 @@ app.use((req, res, next) => {
 });
 app.use("/api", (req, res) => res.status(404).json({ error: "Rota não encontrada" }));
 app.get("/contador", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"contador.html")));
+app.get("/termos", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"termos.html")));
+app.get("/privacidade", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"privacidade.html")));
 app.get("/demo", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"demo.html")));
 app.get("/app", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"app.html")));
 app.get("/app.html", (req,res)=>res.sendFile(path.join(PUBLIC_DIR,"app.html")));

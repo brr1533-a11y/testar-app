@@ -57,7 +57,9 @@ test('LCDPR sai no leiaute 1.3: abertura, imóvel, conta, lançamentos com saldo
 
 test('API: teste grátis cria o Grupo com prazo, um por e-mail, e o prazo não muda pelo navegador', async t => {
   const s = await startServer(); t.after(() => s.stop()); const { api, put } = client(s);
-  const body = { email: 'teste@example.invalid', groupName: 'Fazenda Teste', ceoName: 'Pessoa', ceoUser: 'testador', ceoPassword: s.password, activities: ['coffee', 'cattle'] };
+  // Sem o aceite dos termos o Grupo não é criado.
+  assert.equal((await api('/api/public/trial', '', { email: 'semtermos@example.invalid', groupName: 'Fazenda Teste', ceoName: 'Pessoa', ceoUser: 'semtermos', ceoPassword: s.password, activities: ['coffee'] })).status, 400);
+  const body = { email: 'teste@example.invalid', groupName: 'Fazenda Teste', ceoName: 'Pessoa', ceoUser: 'testador', ceoPassword: s.password, activities: ['coffee', 'cattle'], acceptTerms: true };
   const r = await api('/api/public/trial', '', body);
   assert.equal(r.status, 200); assert.equal(r.json.days, 14);
   assert.equal((await api('/api/public/trial', '', { ...body, ceoUser: 'outro' })).status, 409);

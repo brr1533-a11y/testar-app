@@ -31,7 +31,7 @@ test('assinatura de uma atividade persiste e não pode ser ampliada pelo cliente
  const s=await startServer({ACTIVITY_PRICES_JSON:'{"essential":{"coffee":100}}',TEST_PURCHASE_MODE:'true'});t.after(()=>s.stop());
  const request=async(url,body,token,method)=>{const r=await fetch(s.url+url,{method:method||(body?'POST':'GET'),headers:{'Content-Type':'application/json',...(token?{Authorization:'Bearer '+token}:{})},...(body?{body:JSON.stringify(body)}:{})});return {status:r.status,json:await r.json()};};
  const checkout=await request('/api/public/checkout',{email:'test@example.invalid',planId:'essential',billingCycle:'monthly',activities:['coffee']});assert.equal(checkout.status,200);assert.equal(checkout.json.amount,100);
- const onboard=await request('/api/public/purchases/'+checkout.json.purchaseId+'/onboard',{groupName:'Café teste',ceoName:'Pessoa teste',ceoUser:'coffeeowner',ceoPassword:s.password});assert.equal(onboard.status,200);
+ const onboard=await request('/api/public/purchases/'+checkout.json.purchaseId+'/onboard',{groupName:'Café teste',ceoName:'Pessoa teste',ceoUser:'coffeeowner',ceoPassword:s.password,acceptTerms:true});assert.equal(onboard.status,200);
  const login=await request('/api/auth/login',{groupCode:onboard.json.group.code,username:'coffeeowner',password:s.password});assert.equal(login.status,200);const token=login.json.token;
  const state=await request('/api/state',null,token);assert.deepEqual(state.json.state.subscriptionActivities,['coffee']);
  const altered=structuredClone(state.json.state);altered.subscriptionActivities=['coffee','cattle','grains'];altered.farms[0].cattle.lots.push({id:'fake',heads:1,name:'Lote não contratado'});

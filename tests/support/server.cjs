@@ -15,7 +15,7 @@ exports.startServer = async function (extraEnv = {}) {
   await new Promise(resolve => listener.close(resolve));
   // Senha de teste dentro da regra: maiúscula, minúscula, número e símbolo.
   const password = 'Aa1@' + crypto.randomBytes(24).toString('hex');
-  const child = spawn(process.execPath, [path.join(folder,'server.js')], { windowsHide:true, env:{...process.env, NODE_ENV:'test', DATABASE_URL:'', NODE_PATH:path.join(root,'node_modules'), PORT:String(port), SEED_CEO_USER:'testceo', SEED_CEO_PASSWORD:password, SEED_CEO_EMAIL:'test@example.invalid', PLATFORM_ADMIN_EMAIL:'admin@example.invalid', PLATFORM_ADMIN_PASSWORD:password, TEST_PURCHASE_MODE:'false', ...extraEnv} });
+  const child = spawn(process.execPath, [path.join(folder,'server.js')], { windowsHide:true, env:{...process.env, NODE_ENV:'test', DATABASE_URL:'', NODE_PATH:path.join(root,'node_modules'), PORT:String(port), SEED_CEO_USER:'testceo', SEED_CEO_PASSWORD:password, SEED_CEO_EMAIL:'test@example.invalid', PLATFORM_ADMIN_EMAIL:'admin@example.invalid', PLATFORM_ADMIN_PASSWORD:password, TEST_PURCHASE_MODE:'false', WEATHER_PROVIDER:'off', BACKUP_HOURS:'0', ...extraEnv} });
   let log='';child.stdout.on('data',c=>log+=c);child.stderr.on('data',c=>log+=c);
   const url='http://127.0.0.1:'+port;
   async function stop() {

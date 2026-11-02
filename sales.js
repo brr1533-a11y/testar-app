@@ -119,6 +119,7 @@ qs("#startTrial")?.addEventListener("click",()=>{
     <label>Seu nome<input name="ceoName" required autocomplete="name"></label>
     <label>Usuário para entrar<input name="ceoUser" required pattern="[a-zA-Z0-9._-]{3,30}" placeholder="Ex.: joaosilva"></label>
     <label>Senha<input name="ceoPassword" type="password" minlength="8" required autocomplete="new-password" placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)"></label>
+    <label class="terms-accept"><input type="checkbox" name="acceptTerms" required> Li e aceito os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.</label>
     <div class="mail-actions"><button type="button" class="btn" data-x>Cancelar</button><button class="btn btn-cafe" type="submit">Começar teste</button></div><p class="trial-result" role="status"></p></form>`;
   document.body.appendChild(back);
   const f=back.querySelector("form"), close=()=>back.remove();
@@ -134,6 +135,8 @@ qs("#startTrial")?.addEventListener("click",()=>{
   setTimeout(()=>f.email.focus(),30);
 });
 // Cadastro depois do pagamento: quem já testou continua no mesmo Grupo.
+// Aceite dos termos na criação do Grupo (o servidor recusa sem ele; quem converte o teste já aceitou ao começar).
+{const onb=qs("#onboardingForm"),actions=onb?.querySelector("button[type=submit]")?.parentElement;if(onb&&actions&&!onb.querySelector("[name=acceptTerms]")){const l=document.createElement("label");l.className="terms-accept wide";l.innerHTML='<input type="checkbox" name="acceptTerms" required> Li e aceito os <a href="/termos" target="_blank" rel="noopener">Termos de uso</a> e a <a href="/privacidade" target="_blank" rel="noopener">Política de privacidade</a>.';actions.before(l);}}
 qs("#hasTrial")?.addEventListener("change",e=>{
   const on=e.target.checked;
   document.querySelectorAll("#onboardingForm .trial-only").forEach(el=>el.classList.toggle("hidden",!on));

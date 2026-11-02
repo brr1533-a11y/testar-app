@@ -60,6 +60,7 @@ function openDialog(build) {
       if (!form.reportValidity()) return;
       const out = {};
       new FormData(form).forEach((v, k) => { out[k] = v; });
+      if (e.submitter?.name) out[e.submitter.name] = e.submitter.value;
       form.querySelectorAll("select[multiple][name]").forEach(el=>{out[el.name]=[...el.selectedOptions].map(o=>o.value);});
       form.querySelectorAll('[data-choice-name]').forEach(group=>{out[group.dataset.choiceName]=[...group.querySelectorAll('input:checked')].map(c=>c.value);});
       const empty=[...form.querySelectorAll('[data-choice-required]')].find(g=>!g.querySelector('input:checked'));if(empty){toast('Escolha pelo menos uma opção em '+empty.querySelector('legend').textContent);empty.querySelector('input')?.focus();return;}
@@ -543,7 +544,16 @@ function absorbServerPayload(payload) {
   writeCache();
 }
 function hasLocalChangesAgainst(base) { return !sameJSON(data, base); }
+function persistPendingDraft() {
+  if(!currentUser||!currentGroup?.id||!serverBase)return;
+  const key=PendingDrafts.key(currentGroup.id,currentUser.id);
+  try {if(hasLocalChanges())sessionStorage.setItem(key,JSON.stringify({version:1,groupId:currentGroup.id,userId:currentUser.id,identity:PendingDrafts.identity(serverBase,currentUser.id),base:safeLocalState(serverBase),state:safeLocalState(data),at:Date.now()}));else {const prior=JSON.parse(sessionStorage.getItem(key)||'null');if(!prior||prior.identity===PendingDrafts.identity(serverBase,currentUser.id))sessionStorage.removeItem(key);}}
+  catch(e){setTimeout(()=>toast('Não foi possível guardar o rascunho nesta aba. Aguarde Salvo antes de recarregar; habilite o Modo de campo para proteção cifrada.'),0);}
+}
+function recoverPendingDraft(payload){try{const record=JSON.parse(sessionStorage.getItem(PendingDrafts.key(payload.group?.id,payload.userId))||'null');return PendingDrafts.recover(record,payload)?record:null;}catch{return null;}}
+// Rascunho de recarga fica nesta aba; fechar o navegador exige o cofre do Modo de campo.
 function writeCache() {
+  persistPendingDraft();
   // A cópia local é só um atalho. Se o navegador recusar (memória cheia, aba anônima), o sistema continua salvando no servidor.
   try { sessionStorage.setItem(cacheStorageKey(currentGroup?.slug || ""), JSON.stringify(safeLocalState(data))); } catch (_) {}
   // Modo de campo: atualiza o cofre cifrado deste aparelho (quando habilitado com PIN).
@@ -734,10 +744,12 @@ async function pullStateFromServer({ rerender = true, signal } = {}) {
       else if ($("#syncStatus")?.dataset.kind === "offline") setSyncStatus("ok", "Salvo");
       return payload;
     }
-    const local = hasLocalChanges();
-    const base = serverBase;
+    const draft = !serverBase ? recoverPendingDraft(payload) : null;
+    const local = hasLocalChanges() || Boolean(draft);
+    const base = draft ? draft.base : serverBase;
+    const pending = draft ? draft.state : data;
     const fresh = adoptServerPayload(payload);
-    replaceData(local ? merge3(base, data, fresh) : fresh);
+    replaceData(local ? merge3(base, pending, fresh) : fresh);
     const previousUsername = currentUser?.username;
     currentUser = data.users.find(u => u.id === payload.userId) || data.users.find(u => u.username === previousUsername) || null;
     writeCache();
@@ -1031,6 +1043,7 @@ async function mustChangePasswordAgain() {
 }
 
 async function logout(silent = false) {
+  if(!silent&&hasLocalChanges()&&!(typeof FieldMode!=='undefined'&&FieldMode.enabled())){persistPendingDraft();toast('Há lançamentos aguardando o servidor. Aguarde Salvo ou habilite o Modo de campo antes de sair.');return;}
   // Modo de campo: grava o que falta no cofre e tranca (o cofre continua no aparelho, protegido pelo PIN).
   if (typeof FieldMode !== "undefined") {
     try { await FieldMode.flush(); }
@@ -1246,49 +1259,72 @@ function goToPage(page, focusForm = false) {
     form.querySelector("input:not([type=hidden]),select,textarea")?.focus({ preventScroll: true });
   }, 60);
 }
+// Preferência visual por grupo e usuário, neste navegador. Não concede nem retira permissões.
+const menuLayoutMemory = new Map();
+function menuLayoutKey() { return 'grMenuLayout:v1:' + encodeURIComponent(currentGroup?.id || currentGroup?.slug || currentGroup?.code || 'grupo') + ':' + encodeURIComponent(currentUser?.id || currentUser?.username || 'usuario'); }
+function menuLayoutRead() {
+  const key = menuLayoutKey(); let value = menuLayoutMemory.get(key);
+  if (!value) { try { value = JSON.parse(localStorage.getItem(key) || 'null'); } catch (_) {} }
+  const mode = ['closed','active','all'].includes(value?.mode) ? value.mode : 'closed';
+  const groups = Object.fromEntries(Object.entries(value?.groups && typeof value.groups === 'object' && !Array.isArray(value.groups) ? value.groups : {}).filter(([k,v]) => typeof v === 'boolean' && k.length < 100));
+  return { mode, groups };
+}
+function menuLayoutSave(value) { menuLayoutMemory.set(menuLayoutKey(), value); try { localStorage.setItem(menuLayoutKey(), JSON.stringify(value)); } catch (_) {} }
+function menuCategoryOpen(group, active, preferences) { return Object.hasOwn(preferences.groups, group) ? preferences.groups[group] : preferences.mode === 'all' || preferences.mode === 'active' && active; }
+function menuRememberCategories(root) {
+  root.querySelectorAll('details[data-menu-category] > summary').forEach(summary => summary.addEventListener('click', () => {
+    setTimeout(() => { const pref = menuLayoutRead(); root.querySelectorAll('details[data-menu-category]').forEach(d => { pref.groups[d.dataset.menuCategory] = d.open; }); menuLayoutSave(pref); }, 0);
+  }));
+}
+async function organizeMenu() {
+  const pref = menuLayoutRead(), canChoosePages = currentUser?.role === 'ceo' && navItems().some(i => i[0] === 'modulos');
+  const choice = await openDialog(() => `<form class="dlg menu-organize" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"><h3 id="dlgTitle">Organizar menu</h3><p>As categorias deixam o menu mais curto. Você abre só o que precisa e este navegador lembra sua escolha para o seu usuário.</p><label>Como começar o menu<select name="layout">${[['closed','Categorias fechadas'],['active','Só a categoria da página atual aberta'],['all','Todas as categorias abertas']].map(([value,label])=>`<option value="${value}" ${pref.mode===value?'selected':''}>${label}</option>`).join('')}</select></label><p class="menu-organize-note">Salvar esta opção redefine quais categorias estão abertas. Depois você pode abrir e fechar cada uma normalmente.</p>${canChoosePages?'<section class="menu-page-choice"><h4>Quais telas aparecem?</h4><p>Escolha as telas usadas por esta fazenda. Essa configuração do CEO também vale para os demais usuários da fazenda, respeitando o acesso de cada perfil. Nenhum registro é apagado.</p><button class="btn" type="submit" name="action" value="pages">Escolher telas da fazenda</button></section>':'<p>As telas disponíveis continuam seguindo seu perfil e os módulos liberados pelo CEO.</p>'}<div class="dlg-actions"><button type="button" class="btn" data-dlg-cancel>Cancelar</button><button type="submit" name="action" value="save" class="btn primary">Salvar visual do menu</button></div></form>`);
+  if (!choice) return;
+  if (choice.action === 'pages') { if (canChoosePages) goToPage('modulos'); return; }
+  if (!['closed','active','all'].includes(choice.layout)) return;
+  menuLayoutSave({ mode: choice.layout, groups: {} }); renderNav(); toast('Visual do menu salvo neste navegador.');
+}
 function renderNav() {
-  // Itens marcados como "tab" são abas dentro de outra página (veja menu.js); o 4º campo é o grupo do menu.
-  const items = navItems().filter(i => i[4] !== "tab");
-  const activeId = typeof menuActive === "function" ? menuActive(currentPage) : currentPage;
-  const canSwitchMode = availableInterfaceModes().length > 1;
-  const modeLabel = "Atividade: " + farmTypeLabel();
-  // No celular cabem 4 abas na barra de baixo; o resto fica em "Mais".
+  const items = navItems().filter(i => i[4] !== 'tab');
+  const activeId = typeof menuActive === 'function' ? menuActive(currentPage) : currentPage;
+  const canSwitchMode = availableInterfaceModes().length > 1, modeLabel = 'Atividade: ' + farmTypeLabel(), pref = menuLayoutRead();
   let shown = items, extra = [];
-  if (mobileNav.matches && items.length > 5) {
+  // Quatro atalhos e Mais no celular; Mais também agrupa as demais telas por categoria.
+  if (mobileNav.matches && items.length > 4) {
     const activeIndex = items.findIndex(i => i[0] === activeId);
-    shown = activeIndex >= 4 ? [...items.slice(0, 3), items[activeIndex]] : items.slice(0, 4);
+    shown = activeIndex >= 4 ? [...items.slice(0,3), items[activeIndex]] : items.slice(0,4);
     extra = items.filter(i => !shown.includes(i));
   }
-  const button = ([id, icon, label]) => `<button class="nav-btn ${activeId === id ? "active" : ""}" data-page="${id}" ${activeId === id ? 'aria-current="page"' : ""}>${mobileNav.matches ? ico(icon) : ""}<span class="nav-label">${label}</span></button>`;
-  // No computador, cada grupo pode ser recolhido; a escolha fica neste navegador e o grupo da página aberta fica sempre aberto.
-  let closedGroups = []; try { closedGroups = JSON.parse(localStorage.getItem("grNavClosed") || "[]"); } catch (_) {}
-  const groups = [...new Set(shown.map(i => i[3] || ""))];
-  const menu = mobileNav.matches || groups.every(g => !g) ? shown.map(button).join("")
-    : groups.map(g => { const list = shown.filter(i => (i[3] || "") === g); if (!g) return list.map(button).join(""); const open = list.some(i => i[0] === activeId) || !closedGroups.includes(g); return `<details class="nav-group" data-group="${escapeHTML(g)}" ${open ? "open" : ""}><summary>${escapeHTML(g)}</summary>${list.map(button).join("")}</details>`; }).join("");
-  const more = extra.length || (mobileNav.matches && canSwitchMode) ? `<button class="nav-btn nav-more" id="navMore" type="button" aria-haspopup="dialog">${mobileNav.matches ? ico("grid") : ""}<span class="nav-label">Mais</span></button>` : "";
-  const modeSwitch = canSwitchMode && !mobileNav.matches
-    ? `<button class="nav-btn mode-switch-btn" id="modeSwitchBtn" type="button"><span class="nav-label">${modeLabel}</span></button>`
-    : "";
-  $("#navMenu").innerHTML = menu + (mobileNav.matches ? more : "") + modeSwitch;
-  $$("#navMenu .nav-btn[data-page]").forEach(btn => btn.onclick = () => goToPage(btn.dataset.page));
-  $$("#navMenu details.nav-group").forEach(d => d.addEventListener("toggle", () => { try { const set = new Set(JSON.parse(localStorage.getItem("grNavClosed") || "[]")); d.open ? set.delete(d.dataset.group) : set.add(d.dataset.group); localStorage.setItem("grNavClosed", JSON.stringify([...set])); } catch (_) {} }));
-  const modeBtn = $("#modeSwitchBtn");
-  if (modeBtn) modeBtn.onclick = switchInterfaceMode;
-  const moreBtn = $("#navMore");
-  if (moreBtn) moreBtn.onclick = async () => {
-    const choice = await openDialog(() => `<form class="dlg sheet" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
-      <h3 id="dlgTitle">Mais opções</h3>
-      <div class="sheet-list">${extra.map(([id, icon, label, group], i) => `${group && group !== extra[i - 1]?.[3] ? `<div class="sheet-group">${escapeHTML(group)}</div>` : ""}<button type="submit" name="go" value="${id}" class="sheet-item ${activeId === id ? "active" : ""}">${ico(icon)}<span>${label}</span></button>`).join("")}
-      ${canSwitchMode ? `<button type="submit" name="go" value="__mode" class="sheet-item">${ico("swap")}<span>${modeLabel}</span></button>` : ""}
-      <button type="submit" name="go" value="__logout" class="sheet-item danger">${ico("logout")}<span>Sair</span></button></div>
-      <div class="dlg-actions"><button type="button" class="btn" data-dlg-cancel>Fechar</button></div></form>`);
-    const go = choice?.go;
-    if (!go) return;
-    if (go === "__mode") return switchInterfaceMode();
-    if (go === "__logout") return logout();
-    goToPage(go);
+  const helpItem = items.find(i=>i[0]==='ajuda');
+  if(mobileNav.matches && helpItem && items.length>4){const primary=items.filter(i=>i[0]!=='ajuda').slice(0,3);if(activeId!=='ajuda'&&!primary.some(i=>i[0]===activeId)){const active=items.find(i=>i[0]===activeId);if(active)primary[2]=active;}shown=[...primary,helpItem];extra=items.filter(i=>!shown.includes(i));}
+  const button = ([id,icon,label]) => `<button class="nav-btn ${activeId===id?'active':''}" data-page="${escapeHTML(id)}" ${activeId===id?'aria-current="page"':''}>${mobileNav.matches?ico(icon):''}<span class="nav-label">${escapeHTML(label)}</span></button>`;
+  const groups = [...new Set(shown.map(i=>i[3]||''))];
+  const menu = mobileNav.matches || groups.every(g=>!g) ? shown.map(button).join('') : groups.map(g=>{
+    const list=shown.filter(i=>(i[3]||'')===g); if(!g)return list.map(button).join('');
+    const active=list.some(i=>i[0]===activeId),open=menuCategoryOpen(g,active,pref);
+    return `<details class="nav-group ${active?'has-current':''}" data-menu-category="${escapeHTML(g)}" ${open?'open':''}><summary>${escapeHTML(g)}<span class="menu-category-count" aria-label="${list.length} telas">${list.length}</span></summary>${list.map(button).join('')}</details>`;
+  }).join('');
+  const organize = '<button class="nav-btn menu-layout-btn" id="organizeMenu" type="button"><span class="nav-label">Organizar menu</span></button>';
+  const more = '<button class="nav-btn nav-more" id="navMore" type="button" aria-haspopup="dialog">'+ico('grid')+'<span class="nav-label">Mais</span></button>';
+  const modeSwitch = canSwitchMode && !mobileNav.matches ? `<button class="nav-btn mode-switch-btn" id="modeSwitchBtn" type="button"><span class="nav-label">${escapeHTML(modeLabel)}</span></button>` : '';
+  $('#navMenu').innerHTML = menu + (mobileNav.matches?more:organize+modeSwitch);
+  $$('#navMenu .nav-btn[data-page]').forEach(btn=>btn.onclick=()=>goToPage(btn.dataset.page));
+  menuRememberCategories($('#navMenu'));
+  const organizeBtn=$('#organizeMenu'); if(organizeBtn)organizeBtn.onclick=organizeMenu;
+  const modeBtn=$('#modeSwitchBtn'); if(modeBtn)modeBtn.onclick=switchInterfaceMode;
+  const moreBtn=$('#navMore'); if(moreBtn)moreBtn.onclick=async()=>{
+    const groupNames=[...new Set(extra.map(i=>i[3]||'Outras opções'))];
+    const choicePromise=openDialog(()=>`<form class="dlg sheet menu-more-sheet" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"><h3 id="dlgTitle">Mais opções</h3><div class="sheet-list">${groupNames.map(g=>{
+      const list=extra.filter(i=>(i[3]||'Outras opções')===g),active=list.some(i=>i[0]===activeId);
+      return `<details class="sheet-category" data-menu-category="${escapeHTML(g)}" ${menuCategoryOpen(g,active,menuLayoutRead())?'open':''}><summary>${escapeHTML(g)}<span class="menu-category-count">${list.length}</span></summary>${list.map(([id,icon,label])=>`<button type="submit" name="go" value="${escapeHTML(id)}" class="sheet-item">${ico(icon)}<span>${escapeHTML(label)}</span></button>`).join('')}</details>`;
+    }).join('')}<button type="submit" name="go" value="__organize" class="sheet-item menu-organize-link">${ico('grid')}<span>Organizar menu</span></button>${canSwitchMode?`<button type="submit" name="go" value="__mode" class="sheet-item">${ico('swap')}<span>${escapeHTML(modeLabel)}</span></button>`:''}<button type="submit" name="go" value="__logout" class="sheet-item danger">${ico('logout')}<span>Sair</span></button></div><div class="dlg-actions"><button type="button" class="btn" data-dlg-cancel>Fechar</button></div></form>`);
+    const root=document.querySelector('.dlg-back:not(.closing) .menu-more-sheet'); if(root)menuRememberCategories(root);
+    const choice=await choicePromise,go=choice?.go;if(!go)return;
+    if(go==='__organize')return organizeMenu();if(go==='__mode')return switchInterfaceMode();if(go==='__logout')return logout();
+    if(items.some(i=>i[0]===go))goToPage(go);
   };
 }
+
 mobileNav.addEventListener?.("change", () => { if (currentUser && !$("#appView").classList.contains("hidden")) renderNav(); });
 // O botão clicado num formulário de diálogo vira o valor enviado.
 document.addEventListener("click", e => {
@@ -1345,6 +1381,13 @@ function renderPage({ animate = true } = {}) {
   const managementPages = typeof gestaoExtraPages === "function" ? gestaoExtraPages() : [];
   if (![...allowed, ...financeDetailPages, ...managementPages].includes(currentPage)) currentPage = allowed[0];
   const pages = {
+    'assistente-ia': () => renderRuralAssistant(),
+    'ajuda': () => renderRuralAssistant(),
+    'cafe-chao': () => renderCoffeeGround(),
+    'dicas-cafe': () => renderCoffeeTips(),
+    'horas-salarios': () => renderWorkCosts(),
+    'feedbacks': () => renderFeedbacks(),
+    'acessibilidade': () => renderReadability(),
     'custos-unidade':()=>renderExpansionPage('custos-unidade'),
     'comercializacao':()=>renderExpansionPage('comercializacao'),
     'orcamento-safra':()=>renderExpansionPage('orcamento-safra'),
@@ -1414,7 +1457,7 @@ function renderPage({ animate = true } = {}) {
     manutencao: () => renderManagement(["maintenance", "fuel"].includes(mgTab) ? mgTab : "maintenance"),
     rastreabilidade: renderTraceability
   };
-  pages[currentPage]();
+  (pages[currentPage] || (() => renderExpansionPage(currentPage)))();
   enhanceTables();
   lastRenderedPageState = pageRenderFingerprint();
   if (animate) animatePageEntry();
@@ -1639,13 +1682,12 @@ function todayPanel() {
 }
 
 function renderEquipmentAdmin() {
-  if (selectedType() === "cattle") return renderCattle();
   setHeader("PATRIMÔNIO", isGeneralView() ? "Equipamentos gerais" : "Tratores e implementos");
   if (isGeneralView()) {
     const tractors = contextEquipment("tractor");
     const implementsList = contextEquipment("implement");
     $("#pageContent").innerHTML = `
-      <div class="card soft"><span class="eyebrow dark">VISÃO GERAL DE CAFÉ</span><h2>${tractors.length + implementsList.length} ativos</h2><p class="muted">Modo geral apenas para consulta. Para cadastrar ou editar, escolha uma fazenda específica.</p></div>
+      <div class="card soft"><span class="eyebrow dark">VISÃO GERAL DE EQUIPAMENTOS</span><h2>${tractors.length + implementsList.length} ativos</h2><p class="muted">Modo geral apenas para consulta. Para cadastrar ou editar, escolha uma fazenda específica.</p></div>
       <div class="section-head"><h2>Tratores</h2></div>
       ${tractors.length ? `<div class="table-wrap"><table><thead><tr><th>Fazenda</th><th>Nome</th><th>Modelo</th><th>Status</th></tr></thead><tbody>${tractors.map(t => `<tr><td>${escapeHTML(t.farmName)}</td><td><b>${escapeHTML(t.name)}</b></td><td>${escapeHTML(t.model || "—")} • ${escapeHTML(t.plate || "—")}</td><td><span class="badge ${t.status === "Disponível" ? "green" : "gold"}">${escapeHTML(t.status)}</span></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum trator cadastrado.</div>`}
       <div class="section-head"><h2>Implementos</h2></div>
@@ -2483,7 +2525,7 @@ function renderProfile() {
     <div class="section-head"><div><h2>Perfis dos contribuidores</h2><p>Defina a função e a única fazenda que cada contribuinte poderá visualizar.</p></div></div>
     ${contributors.length ? `<div class="table-wrap"><table><thead><tr><th>Contribuinte</th><th>Usuário</th><th>Função</th><th>Atividade</th><th>Fazenda liberada</th><th>Status</th></tr></thead><tbody>${contributors.map(u => `<tr><td><b>${escapeHTML(u.name)}</b></td><td>${escapeHTML(u.username)}</td><td><select class="profile-user-function" data-id="${u.id}" style="min-width:135px">${functionOptions(u.function)}</select></td><td><select class="profile-user-activity" data-id="${u.id}" style="min-width:135px">${activityOptions(u.allowedActivity || "both")}</select></td><td><select class="profile-user-farm" data-id="${u.id}" style="min-width:210px">${farmOptions(u.allowedFarmId)}</select></td><td><span class="badge ${u.active !== false ? "green" : "red"}">${u.active !== false ? "Ativo" : "Bloqueado"}</span></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum contribuinte cadastrado.</div>`}` : "";
 
-  const functionField = currentUser.role === "contribuinte"
+  const functionField = currentUser.role !== "ceo"
     ? `<label>Função<input name="function" value="${escapeHTML(currentUser.function || "")}" disabled></label>`
     : `<label>Função<input name="function" value="${escapeHTML(currentUser.function || "")}"></label>`;
 
@@ -2510,7 +2552,7 @@ function renderProfile() {
   $("#profileForm").onsubmit = e => {
     e.preventDefault();
     const f = new FormData(e.target);
-    const fn = currentUser.role === "contribuinte" ? currentUser.function : String(f.get("function") || "").trim();
+    const fn = currentUser.role !== "ceo" ? currentUser.function : String(f.get("function") || "").trim();
     currentUser.name = String(f.get("name") || "").trim();
     currentUser.function = fn;
     currentUser.pixKey = String(f.get("pixKey") || "").trim();
@@ -3009,5 +3051,8 @@ $("#logoutTop").innerHTML = ico("logout");
 $("#logoutTop").onclick = () => logout(false);
 showAuthMode("login");
 const requestedTheme=new URLSearchParams(location.search).get("activity");if(RuralDomain.ACTIVITIES.includes(requestedTheme))document.body.dataset.loginActivity=requestedTheme;
-restoreSession();
+// Os módulos que estendem o menu e as telas vêm depois de app.js no HTML.
+// Restaure a sessão apenas quando todos terminaram de carregar.
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', restoreSession, { once: true });
+else restoreSession();
 

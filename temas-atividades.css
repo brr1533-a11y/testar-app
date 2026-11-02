@@ -13,7 +13,6 @@ body[data-activity=cattle] .hero-surface{background:linear-gradient(90deg,rgba(2
 body[data-activity=grains] .hero-surface{background:linear-gradient(90deg,rgba(76,59,29,.9),rgba(76,59,29,.2)),url('assets/graos-paisagem.svg') center/cover;color:#fff7df}
 body[data-activity] .hero-surface .eyebrow{color:inherit;opacity:.8}
 body[data-activity] .hero-surface p{color:inherit;opacity:.88}
-body[data-activity=coffee] #appView :is(button,a,select,summary,[role=button],label[for],input[type=checkbox],input[type=file]){cursor:url('assets/cursor-cafe.svg') 16 16,pointer}
 body[data-login-activity=coffee] .login-art{background:linear-gradient(90deg,rgba(37,22,14,.85),rgba(37,22,14,.15)),url('assets/cafe-paisagem.svg') center/cover}
 body[data-login-activity=cattle] .login-art{background:linear-gradient(90deg,rgba(27,49,33,.65),rgba(27,49,33,.15)),url('assets/gado-paisagem.svg') center/cover}
 body[data-login-activity=grains] .login-art{background:linear-gradient(90deg,rgba(75,59,30,.65),rgba(75,59,30,.12)),url('assets/graos-paisagem.svg') center/cover}
@@ -43,5 +42,4 @@ html::-webkit-scrollbar{width:5px;height:5px}
 html::-webkit-scrollbar-track{background:transparent}
 html::-webkit-scrollbar-thumb{background:transparent;border-radius:10px}
 html:hover::-webkit-scrollbar-thumb,html:focus-within::-webkit-scrollbar-thumb{background:rgba(105,116,91,.35)}
-body[data-activity=coffee]{cursor:url('assets/cursor-cafe.svg') 16 16,auto}
 body:not([data-activity=coffee]){cursor:auto}

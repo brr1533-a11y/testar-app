@@ -22,6 +22,7 @@
   const clone = x => JSON.parse(JSON.stringify(x));
   const id = v => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v);
   const today = () => new Date().toISOString().slice(0, 10);
+  function coffeePlots(farm){return (farm.talhoes||[]).filter(p=>p.activity?p.activity==='coffee':!['soja','milho','trigo'].includes(String(p.crop||p.culture||'').toLowerCase()));}
   function init(farm) { farm.labor ||= {}; for (const k of KEYS) farm.labor[k] ||= []; if (!farm.labor.settings || typeof farm.labor.settings !== 'object' || Array.isArray(farm.labor.settings)) farm.labor.settings = {}; return farm.labor; }
 
   // Semana de segunda a domingo.
@@ -156,6 +157,8 @@
 
   // Servidor. user.labor: 'manager' (CEO/ADM com a página), 'fiscal' (só apontamentos) ou nada (não mexe).
   function prepare(before, after, user, now = new Date().toISOString()) {
+    for(const f of after.farms||[]){const old=before.farms?.find(x=>x.id===f.id),allowed=new Set(coffeePlots(f).map(p=>p.id));for(const e of f.labor?.entries||[]){const prior=old?.labor?.entries?.find(x=>x.id===e.id);if(!prior||prior.plotId!==e.plotId)check(allowed.has(e.plotId),'A colheita manual de café exige um talhão de café.');}}
+
     const who = user.name || user.username;
     for (const f of after.farms || []) {
       const oldFarm = (before.farms || []).find(x => x.id === f.id) || {}, old = init(clone({ labor: oldFarm.labor })), L = init(f);
@@ -283,5 +286,5 @@
     };
   }
 
-  return { withAuthorMetadata, KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, duplicateGroups, paymentList, accountantRows, computeClosing, receiptText, validateFarm, prepare, forFiscal };
+  return { coffeePlots, withAuthorMetadata, KEYS, ROLES, FISCAL, init, weekStart, weekEnd, closingFor, validCPF, plotRate, rateFor, hasRate, pendingSummary, entryAmount, pendingRates, graceOpen, lateOpen, entryLocked, entryCounts, firstOpenWeek, duplicateGroups, paymentList, accountantRows, computeClosing, receiptText, validateFarm, prepare, forFiscal };
 });

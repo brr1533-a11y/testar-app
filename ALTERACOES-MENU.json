@@ -1,0 +1,37 @@
+{
+  "version": "4.1.2",
+  "source": "gestao-rural-importacao-planilhas-v3.zip",
+  "published": false,
+  "changes": [
+    {
+      "file": "app-minimal.css",
+      "status": "modified",
+      "sha256": "b9945807e7b7f84ffc55bf66023b905a0902ed664a74a00973e4b768c1b6ceab"
+    },
+    {
+      "file": "app.js",
+      "status": "modified",
+      "sha256": "c480e7cbff0e071ed9bf0d8247b0f10e070ccd44c2a20a3a650cb7220d131ba2"
+    },
+    {
+      "file": "melhorias.js",
+      "status": "modified",
+      "sha256": "7db3973b1d35469937f6dd665229c48e4a643a5e81729c5845fa14ab7a48e187"
+    },
+    {
+      "file": "MENU-PERSONALIZADO.md",
+      "status": "added",
+      "sha256": "11a17109522944bfe7c8a6532523e38fc036569ace44f9f51c6382edcbcd4689"
+    },
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "sha256": "14362638b7f5961a54a45cced391c14d16cb749d7058761e4c08a0b86bed352b"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "sha256": "fa1d412183568e046229595803255dbb294690f65d3d36dca944028bbabd9e16"
+    }
+  ]
+}

@@ -48,7 +48,7 @@ function hfGraceNotice(farm) {
 function renderHarvestField() {
   setHeader('COLHEITA', 'Apontar colheita');
   const farm = laborFarm(); if (!farm) return;
-  const L = farm.labor, plots = farm.talhoes || [];
+  const L = farm.labor, plots = HarvestLabor.coffeePlots(farm);
   hfDate ||= todayISO(); if (!plots.some(p => p.id === hfPlot)) hfPlot = plots[0]?.id || '';
   const closed = HarvestLabor.closingFor(L, hfDate);
   const workers = L.workers.filter(w => w.active !== false && (!hfSearch || w.name.toLocaleLowerCase('pt-BR').includes(hfSearch.toLocaleLowerCase('pt-BR')))).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
@@ -91,7 +91,7 @@ function renderHarvestField() {
     const noRate = rows.filter(r => !HarvestLabor.hasRate(farm.labor, r)).length;
     const warn = !noRate ? '' : isFiscal() ? ` ${noRate} sem valor definido: ficam pendentes para o escritório completar.` : ` ${noRate} sem valor: defina a diária ou o valor do saco antes de fechar a semana.`;
     const lateNote = closed ? ' A semana já foi paga: vão para revisão do escritório e entram no próximo pagamento.' : '';
-    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) salvo(s).` + warn + lateNote); renderHarvestField(); }
+    if (laborChange(farm, Lb => Lb.entries.push(...rows))) { hfCounts = {}; toast(`${rows.length} apontamento(s) registrado(s). Aguarde o indicador Salvo para confirmar o envio.` + warn + lateNote); renderHarvestField(); }
   };
   $('#hfNewWorker').onclick = async () => {
     const v = await askForm({ title: 'Nova pessoa', text: isFiscal() ? 'Só o nome e a função. O escritório completa CPF, Pix e valores depois.' : 'Cadastro rápido. Complete CPF, Pix e diária em Mão de obra › Pessoas.', fields: [{ name: 'name', label: 'Nome', required: true, autofocus: true }, { name: 'role', label: 'Função', type: 'select', value: 'panhador', options: Object.entries(HarvestLabor.ROLES) }] });

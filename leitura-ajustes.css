@@ -1,0 +1,37 @@
+/* Texto ampliado precisa de reflow, além de um font-size maior. */
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(#appView,.dlg,.ai-corner-panel) :is(button,.btn,.nav-label,.sheet-item){white-space:normal;overflow-wrap:anywhere;text-overflow:clip;height:auto;max-width:100%}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu .nav-btn{align-items:flex-start;min-width:0}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu .nav-label{display:block;white-space:normal;overflow:visible;text-overflow:clip;min-width:0;width:100%;line-height:1.35}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu .nav-group>summary{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:6px}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu summary>span:first-child{min-width:0;overflow-wrap:anywhere;white-space:normal}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu summary .menu-category-count{font-size:14px!important;white-space:nowrap;margin-left:0}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .topbar{flex-wrap:wrap;align-items:flex-start;height:auto}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .topbar-actions{width:100%;min-width:0;flex-wrap:wrap;align-items:flex-end}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .farm-switcher{flex:1 1 100%;min-width:0;max-width:100%}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(input,select,textarea){box-sizing:border-box;min-width:0;max-width:100%;height:auto;min-height:56px}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) input:is([type=checkbox],[type=radio]){min-height:0;flex:none}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.form-grid,.grid.two,.grid.three,.grid.four,.quick-grid){grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr))}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .dlg-grid{grid-template-columns:minmax(0,1fr)}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.card,.form-card,.kpi,.grid>*,.form-grid>*,.dlg-grid>*){min-width:0}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.section-head,.form-actions,.dlg-actions,.row-actions,.kpi-label,.ai-corner-panel>header){flex-wrap:wrap;gap:12px}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.section-head,.form-actions,.dlg-actions,.row-actions)>*{max-width:100%;min-width:0}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(p,label,h1,h2,h3,h4,.kpi-value,.kpi-foot,.badge){overflow-wrap:anywhere}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.table-wrap,.table-scroll){max-width:100%;overflow-x:auto}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .ai-open-help{padding:6px;width:60px;height:60px;min-height:60px;font-size:20px!important}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .reading-settings label{align-items:flex-start;flex-wrap:nowrap}
+body:is([data-reading-size=large],[data-reading-size=verylarge]) .reading-settings label:first-child{display:grid}
+@media(min-width:721px){
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) .app{grid-template-columns:256px minmax(0,1fr)}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) .sidebar{width:auto;min-width:0;padding-left:12px;padding-right:12px}
+}
+@media(max-width:720px){
+ body:is([data-reading-size=large],[data-reading-size=verylarge],[data-large-buttons=true]) .page-content{padding-bottom:calc(var(--reading-nav-height,120px) + 28px)}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu{align-items:stretch;overflow:visible}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu .nav-btn{align-items:center;justify-content:flex-start;min-width:0;min-height:64px;padding:8px 3px!important}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) #navMenu .nav-label{font-size:18px!important;line-height:1.25;white-space:normal;overflow-wrap:anywhere;overflow:visible}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) .sheet-item{font-size:var(--reading-font);min-height:56px;line-height:1.35;white-space:normal}
+ body:is([data-reading-size=large],[data-reading-size=verylarge],[data-large-buttons=true]) .ai-open-help{bottom:calc(var(--reading-nav-height,100px) + 12px)}
+ body:is([data-reading-size=large],[data-reading-size=verylarge],[data-large-buttons=true]) .ai-corner-panel{bottom:calc(var(--reading-nav-height,100px) + 80px);max-height:calc(100dvh - var(--reading-nav-height,100px) - 104px)}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) .page-content{padding-left:12px;padding-right:12px}
+ body:is([data-reading-size=large],[data-reading-size=verylarge]) :is(.dlg,.form-card,.rural-ai){padding-left:16px;padding-right:16px}
+}

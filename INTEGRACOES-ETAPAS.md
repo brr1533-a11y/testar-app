@@ -2,7 +2,12 @@
 
 ## Estado desta entrega
 
-Fiscal/SEFAZ, previsão do tempo e WhatsApp permanecem sem adaptador. As APIs respondem HTTP 503 quando a operação depende desses serviços. Não existem credenciais, certificados ou senhas reais neste pacote.
+Atualizado nas melhorias 2027:
+
+- **Previsão do tempo:** ligada pelo Open-Meteo (`clima-openmeteo.js`, sem chave). `WEATHER_PROVIDER=off` desliga.
+- **Push:** ligado, com chaves geradas pelo servidor.
+- **Comparador:** passa a usar também os XML importados.
+- **Fiscal/SEFAZ (NF-e) e WhatsApp:** continuam sem adaptador. As APIs respondem HTTP 503 quando a operação depende deles. Não existem credenciais, certificados ou senhas reais neste pacote.
 
 Não basta trocar uma variável para emitir NF-e: é necessário implementar e homologar um adaptador do provedor escolhido. `integracoes-etapas.js` concentra esse vínculo; o restante do painel não precisa conhecer o fornecedor.
 
@@ -25,7 +30,13 @@ Referências oficiais: [notas técnicas da NF-e](https://www.nfe.fazenda.gov.br/
 
 ## Push
 
-`PUSH_ENABLED=false` por padrão. Para testar depois, configurar `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` somente no ambiente do servidor e habilitar a flag. A chave privada não vai ao navegador.
+Ligado por padrão:
+
+- **Chaves:** sem `VAPID_PUBLIC_KEY` e `VAPID_PRIVATE_KEY` no ambiente, o servidor gera um par na primeira vez e guarda na configuração do banco (`push-vapid-keys`). As próximas inicializações usam o mesmo par, então os aparelhos já autorizados continuam valendo.
+- **Remetente:** `VAPID_SUBJECT` (`mailto:` ou `https://`); se ficar vazio, usa `PUBLIC_BASE_URL` ou o e-mail do Super Admin.
+- **Desligar:** `PUSH_ENABLED=false`.
+- **Segurança:** a chave privada não vai ao navegador.
+- **Trocar as chaves:** os aparelhos precisam autorizar de novo.
 
 O usuário precisa instalar/abrir o app em um navegador compatível, conceder permissão, autorizar o aparelho e ativar push em suas preferências. No iPhone, validar no app adicionado à Tela de Início. O servidor verifica endpoints dos serviços de push aceitos, limita a cinco assinaturas por usuário, elimina assinaturas expiradas e registra tentativas. Mensagens levam um aviso genérico e abrem `/app`.
 
@@ -35,8 +46,11 @@ Biblioteca: [web-push](https://github.com/web-push-libs/web-push).
 
 ## Comparador e privacidade
 
-- Importar XML não marca a compra como verificada para publicação coletiva.
-- Só notas verificadas por integração no servidor e fazendas com consentimento participam.
+- **Notas verificadas:** as conferidas pela integração no servidor entram como verificadas.
+- **XML importado:** entra no comparador quando a chave de acesso tem 44 dígitos, modelo 55/65 e dígito verificador correto. A mesma nota (chave + item) só conta uma vez, mesmo que seja importada em vários Grupos.
+- **Uma fazenda, um voto:** o cálculo usa a mediana de cada fazenda. Assim, uma fazenda que importa muitas notas, ou notas forjadas, não puxa o preço sozinha.
+- **Aviso:** a resposta mostra quando há notas importadas ainda não conferidas na SEFAZ.
+- **Consentimento:** só participam fazendas que aceitaram (`sharePrices`).
 - Normalização: município/UF, produto padronizado, princípio ativo e unidade base; preço dividido pela quantidade da embalagem.
 - Janelas fixas de 30/60/90 dias; mínimo de três fazendas de três grupos distintos.
 - Retorno apenas de mínimo, mediana, máximo e contagem agregada; sem nomes, notas ou IDs de fazendas.

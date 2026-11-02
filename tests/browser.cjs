@@ -1,3 +1,4 @@
+const {go:navigate}=require('./support/navigation.cjs');
 const {chromium}=require('playwright');
 const {startServer}=require('./support/server.cjs');
 const assert=require('node:assert/strict');
@@ -19,7 +20,7 @@ fs.mkdirSync(screenshotDir,{recursive:true});
   await page.locator('#loginForm button[type=submit]').click();await page.locator('#modeSwitchBtn').waitFor();
   const sync=()=>page.waitForFunction(()=>document.querySelector('#syncStatus')?.dataset.kind==='ok');
   async function mode(value){await page.locator('#modeSwitchBtn').click();await page.locator(`.dlg button[name=mode][value=${value}]`).click();await page.waitForFunction(v=>selectedType()===v,value);}
-  async function go(value){await page.locator(`#navMenu button[data-page="${value}"]`).click();}
+  async function go(value){await navigate(page,value);}
   async function saveDialog(){await page.locator('.dlg button[type=submit]').click();await page.locator('.dlg-back').waitFor({state:'detached'});await sync();}
   async function newCycle(name,crop){
    await page.locator('#ruralNewCycle').click();await page.locator('.dlg [name=name]').fill(name);await page.locator('.dlg [name=crop]').selectOption(crop);

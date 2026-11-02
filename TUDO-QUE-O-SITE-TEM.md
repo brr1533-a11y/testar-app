@@ -275,11 +275,23 @@ Legenda: **(desligado)** significa que a tela existe, mas o serviço de fora ain
 
 ## 9. O que ainda depende de algo de fora
 - **NF-e:** emissão e busca na SEFAZ precisam de provedor, certificado digital e homologação.
-- **Comparador de preços:** fica vazio até existir a busca de notas na SEFAZ.
-- **Avisos e clima:** previsão do tempo, push no celular e WhatsApp precisam de provedor ou das chaves.
+- **WhatsApp:** os avisos por WhatsApp precisam de uma conta WhatsApp Business (Meta ou um intermediário) com modelo de mensagem aprovado.
 - **Pagamento em lote:** o arquivo de remessa do banco (CNAB) depende de saber qual banco a fazenda usa.
+- **Lançamento por foto ou áudio:** precisa de um serviço de inteligência artificial contratado (chave e custo por uso).
 - **Contador:** ainda não tem "Esqueci a senha".
 - **Testes que faltam:**
   - num celular de verdade (Android e iPhone);
   - com os dados de uma fazenda real;
   - no Render com PostgreSQL de produção.
+
+## 10. Novidades das melhorias 2027
+Detalhes em `MELHORIAS-2027.md`.
+- **Ligado agora:** push no celular (sem configurar chaves), previsão do tempo de 7 dias (Open-Meteo) e comparador de preços usando as notas XML importadas.
+- **Lavoura:** Parceria e meação (acerto em sacas e reais, recibo), Arrendamentos (terra arrendada e cedida), Prestadores terceirizados (comparados com a colheita manual).
+- **Pecuária:** Animais individuais (brinco, histórico, planilha SISBOV, pesagem por arquivo ou cabo da balança) e indicadores do leite (dias em lactação, intervalo entre partos, previsão de secagem).
+- **Financeiro e fiscal:** Funrural e Senar, Financiamentos e dívidas (custeio, Pronaf, investimento, CPR), Fluxo de caixa projetado, Relatório para crédito (PDF) e Comparar com fazendas parecidas.
+- **Início:** Resumo do dono, feito para o celular.
+- **Configurações:** Módulos e modelo da fazenda (só o que usa no menu) e Meus dados e privacidade (baixar tudo, excluir a conta).
+- **Em todas as telas:** botão de ajuda (?) com texto, vídeo e WhatsApp do suporte.
+- **Site:** Termos de uso e Política de privacidade, com aceite na criação do Grupo.
+- **Super Admin:** backup automático com teste de restauração, uso por página e pedidos de exclusão.
