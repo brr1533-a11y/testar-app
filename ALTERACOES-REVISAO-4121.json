@@ -1,0 +1,56 @@
+{
+  "version": "4.12.1",
+  "base": "4.12.0",
+  "tests": {
+    "passed": 300,
+    "failed": 0
+  },
+  "checks": {
+    "syntaxFiles": 170,
+    "staticAssets": 93,
+    "qrActualSvgDecoded": true,
+    "qrAccessRestrictionsTested": true
+  },
+  "publication": "Preparado para envio autorizado ao brr1533-a11y/testar-app. Commit confirmado é informado separadamente.",
+  "limitations": [
+    "Teste físico de câmera/iPhone offline pendente",
+    "npm audit: 9 avisos moderados na cadeia ExcelJS; não aplicada atualização incompatível"
+  ],
+  "changes": [
+    {
+      "file": "ALTERACOES-REVISAO-4121.json",
+      "sha256": "0736636c765f3d6375f3d97ce8161dd3bf04dc01aa53c610f86574312d691eba",
+      "status": "added"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "ce95168f3a197aaf632507204eae5fbe0ed85f0b00cdb1a5b70cd762757692d0",
+      "status": "modified"
+    },
+    {
+      "file": "coffee-studio.js",
+      "sha256": "46f5c9e266359ead9bc1414a8a25a4d075d6dc3fb6109d0c6baaed12b1d2b5ef",
+      "status": "modified"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "a2d70f34bf4e376ce71bd86a3cdcc25e466ce179ea5512da501edb6fb32b5883",
+      "status": "modified"
+    },
+    {
+      "file": "package.json",
+      "sha256": "d09ca29773a70a6ce61b8e58fe54fcad883240460fcd6debf6b5bd1583a970db",
+      "status": "modified"
+    },
+    {
+      "file": "REVISAO-QR-4.12.1.md",
+      "sha256": "902dfef32d6c90d4126988e558e49ae8d60de0ce809648caf58da769040ca41a",
+      "status": "added"
+    },
+    {
+      "file": "tests/coffee-qr.test.cjs",
+      "sha256": "1ba19bf6beee897df0ed626072b151e4c73d727932fd8dfed26ebef26f246f85",
+      "status": "added"
+    }
+  ]
+}

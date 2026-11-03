@@ -1,0 +1,62 @@
+{
+  "version": "4.12.0",
+  "base": "4.11.0",
+  "githubPublished": false,
+  "renderPublished": false,
+  "tests": {
+    "passed": 297,
+    "failed": 0
+  },
+  "checks": {
+    "syntaxFiles": 169,
+    "staticAssets": 93
+  },
+  "scope": "Sistema completo; pacote de café e início da parte 2 agrícola: vínculos comerciais e cenários; leite e precisão pendentes",
+  "changes": [
+    {
+      "file": "AGRICOLA-PARTE-2-4.12.md",
+      "sha256": "2ecfa0337d440fc9fa73e8e6e3de41b670c021e04e497d8dd0a259c067ebd042",
+      "status": "added"
+    },
+    {
+      "file": "agricultural-flow-domain.js",
+      "sha256": "a47792e6da76624b19ec217fe0a0344a571c171ce93992ff2bad09b5413a4329",
+      "status": "added"
+    },
+    {
+      "file": "agricultural-flow.css",
+      "sha256": "8990298a69e185b3a0da96d9eefe7d1107cfc3e2176103117c543242389d9038",
+      "status": "added"
+    },
+    {
+      "file": "agricultural-flow.js",
+      "sha256": "9615c6e3c2813d68ed05deceffa6ff6732b4700b42014480996ac3cd74419852",
+      "status": "added"
+    },
+    {
+      "file": "app.html",
+      "sha256": "ed660206e86127ae9db311944973b1c256413ce141259a6f9b9a29d7bf2b6959",
+      "status": "modified"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "a062888ca2a4d1f3fe3976f08bb3baf6e3163fd5d198b76ae6eef7b58e2012ec",
+      "status": "modified"
+    },
+    {
+      "file": "package.json",
+      "sha256": "43460deb271fc9257eace5ebbd98ebca98dc77d02574b3ed6ef341074353b004",
+      "status": "modified"
+    },
+    {
+      "file": "server.js",
+      "sha256": "e8df1b5471dd48e000876fc5ddca6cb6eabb148d4d68f65d9cd7e826e0c4ce62",
+      "status": "modified"
+    },
+    {
+      "file": "tests/agricultural-flow.test.cjs",
+      "sha256": "b7d0bca5f56c27066a04da4ac60f98deecad774f61c70c0db038bd48c9337c58",
+      "status": "added"
+    }
+  ]
+}

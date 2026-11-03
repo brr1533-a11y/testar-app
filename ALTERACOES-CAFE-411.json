@@ -1,0 +1,77 @@
+{
+  "version": "4.11.0",
+  "base": "4.10.0",
+  "githubPublished": false,
+  "renderPublished": false,
+  "tests": {
+    "passed": 290,
+    "failed": 0
+  },
+  "checks": {
+    "syntaxFiles": 166,
+    "staticAssets": 90
+  },
+  "scope": "Sistema completo; etapa de genealogia do café, terreiro, amostras, ofertas líquidas e preferências de provedores; demais ampliações pendentes",
+  "changes": [
+    {
+      "file": "app.html",
+      "sha256": "d41b7e91834f6bb62a063ef5f4bd5f5beac122425ab9bcf91dd45e584b67768c",
+      "status": "modified"
+    },
+    {
+      "file": "CAFE-E-PROVEDORES-4.11.md",
+      "sha256": "3b8ea78e2f2dbe92c1016f452d0d1fbb12a6e5d88f77dbda28285e0b96762446",
+      "status": "added"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "99bb1391c65fb3e87c8885cd987ceb22ed0bcce253d8bbda24c240e61561b03a",
+      "status": "modified"
+    },
+    {
+      "file": "coffee-studio-domain.js",
+      "sha256": "e0ec4159f943fea14437f7d3a1c61df4858ac6c59a47a58a17030b461b13473b",
+      "status": "added"
+    },
+    {
+      "file": "coffee-studio.css",
+      "sha256": "aaac7188738b30f4a5115ac6188c98e236679e57330bc3f532448657c43e5c5c",
+      "status": "added"
+    },
+    {
+      "file": "coffee-studio.js",
+      "sha256": "6360fde6c092476753b9e5e7e207fb00014bf064ed0c45a1de895bad3a589258",
+      "status": "added"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "1feeee8d7a4b93bb7b890e62fb7090ceb1185cb7947c925c287a1831de24aa28",
+      "status": "modified"
+    },
+    {
+      "file": "package.json",
+      "sha256": "6976aa7d9056192d120e55b656739f4fdf28270bf69202220c645af29f1e3b96",
+      "status": "modified"
+    },
+    {
+      "file": "provider-catalog.js",
+      "sha256": "47b41d4584bfca5d4306addd9cb8b4199544a69dc8216f8855dd5fdc4365c159",
+      "status": "added"
+    },
+    {
+      "file": "provider-preferences.js",
+      "sha256": "2312a5ba5dfe6695cea94657018b2bd1f21f4a48fdcf133fdab11dd0fac9bf81",
+      "status": "added"
+    },
+    {
+      "file": "server.js",
+      "sha256": "675fff3203182b55c05fb8280747d765ca08c3fdf4cd1ca3cfc2365802a72a8b",
+      "status": "modified"
+    },
+    {
+      "file": "tests/coffee-studio.test.cjs",
+      "sha256": "ff989b9734bc533b05d92c81ee3324acfdcaf439932618b2e4fae38bb62e8486",
+      "status": "added"
+    }
+  ]
+}
