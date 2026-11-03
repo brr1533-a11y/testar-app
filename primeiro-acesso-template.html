@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width,initial-scale=1">
+ <meta name="color-scheme" content="light">
+ <title>Crie sua senha · Gestão Rural</title>
+ <style>
+  *{box-sizing:border-box}body{margin:0;background:#f1eee6;color:#282b22;font-family:Arial,Helvetica,sans-serif;-webkit-font-smoothing:antialiased;line-height:1.5}
+  .welcome{min-height:100svh;display:grid;grid-template-columns:minmax(300px,.9fr) minmax(390px,1.1fr);max-width:1600px;margin:auto}
+  .intro{position:relative;isolation:isolate;overflow:hidden;background:#293e32;color:#f5f3e9;padding:48px clamp(30px,5vw,88px);display:flex;flex-direction:column;justify-content:space-between;gap:56px}
+  .intro:before,.intro:after{content:"";position:absolute;z-index:-1;width:1050px;height:560px;border:1px solid #b7c29c28;border-radius:48%;transform:rotate(-24deg);left:-420px;bottom:-300px}
+  .intro:after{left:-350px;bottom:-365px;width:1250px;box-shadow:0 -44px 0 0 #aabc9b09,0 -88px 0 0 #aabc9b08,0 -132px 0 0 #aabc9b07}
+  .brand{display:flex;align-items:center;gap:12px;color:inherit;font:600 23px Georgia,'Times New Roman',serif;letter-spacing:-.5px}
+  .brand svg{width:36px;height:36px;flex:none}.eyebrow{font-size:11px;font-weight:700;letter-spacing:2.2px;text-transform:uppercase;color:#d0d6b7;margin:0 0 20px}
+  .intro h2{font:normal clamp(38px,4.4vw,68px)/1.08 Georgia,'Times New Roman',serif;letter-spacing:-2px;margin:0 0 24px;max-width:450px}
+  .intro h2 em{color:#d4d9ad;font-weight:normal}.intro-description{color:#d0d8cf;max-width:340px;font-size:16px;margin:0}
+  .intro-footer{border-top:1px solid #f5f3e925;padding-top:22px;font-size:12px;color:#c8d0c4;display:flex;align-items:center;gap:10px}.status-dot{width:7px;height:7px;flex:none;background:#c8d098;border-radius:50%}
+  .form-area{display:flex;align-items:center;justify-content:center;padding:48px 32px;min-width:0}
+  .form-card{width:100%;max-width:470px;background:#fffdf8;border:1px solid #e7e0d2;border-radius:24px;padding:38px 38px 30px;box-shadow:0 18px 60px -36px #3f3b2c55}
+  .step{display:inline-flex;align-items:center;gap:9px;font-size:11px;font-weight:700;letter-spacing:1.4px;text-transform:uppercase;color:#526448;margin:0 0 22px}
+  .step-number{border:1px solid #ccd4be;background:#f0f3e9;border-radius:50%;width:26px;height:26px;display:grid;place-items:center;letter-spacing:0}
+  h1{font:normal 37px/1.12 Georgia,'Times New Roman',serif;letter-spacing:-1.1px;margin:0 0 13px}.description{font-size:15px;color:#6b6c61;margin:0 0 23px}
+  .account{display:flex;gap:0;background:#f3f0e7;border-radius:12px;padding:13px 0;margin-bottom:27px}.account div{padding:0 20px;min-width:0}.account div+div{border-left:1px solid #ddd8c9}.account dt{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:#77786b}.account dd{font-size:16px;font-weight:600;margin:3px 0 0}
+  label{display:block;font-size:14px;font-weight:600;margin:20px 0 8px}input[type=password]{width:100%;min-height:54px;border:1px solid #d9d9cc;border-radius:10px;background:#fffefb;color:#282b22;padding:13px 15px;font:18px Arial,Helvetica,sans-serif;transition:border-color .15s,box-shadow .15s}
+  input:hover{border-color:#aab59d}input:focus-visible{outline:2px solid #526746;outline-offset:3px;border-color:#526746;box-shadow:0 0 0 4px #5267460d}
+  .requirements{display:flex;flex-wrap:wrap;gap:6px 14px;margin:11px 0 23px;padding:0;list-style:none;font-size:12px;color:#6a7061}.requirements li:before{content:"·";color:#839174;font-weight:bold;margin-right:5px}
+  .submit{display:flex;align-items:center;justify-content:center;gap:18px;width:100%;min-height:56px;background:#344d3b;color:#fffdf6;border:1px solid #344d3b;border-radius:11px;font:600 15px Arial,Helvetica,sans-serif;cursor:pointer;margin-top:26px;transition:background .15s,transform .15s;box-shadow:0 5px 12px #344d3b12}
+  .submit:hover{background:#253e2d}.submit:active{transform:translateY(1px)}.submit:focus-visible{outline:3px solid #8b9f72;outline-offset:4px}.submit svg{width:18px;height:18px}
+  .safe-note{display:flex;justify-content:center;align-items:center;gap:7px;font-size:11px;color:#7a7e70;margin:17px 0 0}.safe-note svg{width:13px;height:13px;flex:none}
+  .next-step{border-top:1px solid #ece7dc;margin:25px 0 0;padding-top:20px;font-size:12px;color:#797a6f;text-align:center}.next-step b{font-weight:600;color:#515a48}
+  .error{background:#fff0e9;border:1px solid #e8c5b6;color:#873e2b;border-radius:10px;padding:12px 14px;font-size:14px;margin:0 0 20px}.error[hidden]{display:none}
+  @media(max-width:760px){.welcome{display:block}.intro{padding:25px 26px 28px;gap:28px;border-radius:0 0 28px 28px}.brand{font-size:22px}.brand svg{width:31px;height:31px}.intro-copy{display:none}.intro-footer{border:0;padding:0;font-size:12px}.form-area{padding:25px 18px 36px}.form-card{padding:29px 25px 25px;border-radius:20px;max-width:470px}h1{font-size:33px}.step{margin-bottom:19px}.description{font-size:14px}.account{margin-bottom:23px}.requirements{font-size:12px}.next-step{margin-top:22px}}
+  @media(max-width:360px){.form-area{padding:20px 12px 28px}.form-card{padding:25px 20px}h1{font-size:31px}.intro{padding:22px}.account div{padding:0 16px}}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+ </style>
+</head>
+<body>
+ <main class="welcome">
+  <aside class="intro" aria-label="Gestão Rural">
+   <div class="brand"><svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M10 28C9 16 18 9 32 8c-1 14-7 23-20 23" stroke="#d4d9ad" stroke-width="1.5"/><path d="M8 33L26 15M16 25v-8m0 8h8" stroke="#d4d9ad" stroke-width="1.5" stroke-linecap="round"/></svg>Gestão Rural</div>
+   <div class="intro-copy"><p class="eyebrow">Um novo começo</p><h2>O campo em movimento.<br><em>Você no controle.</em></h2><p class="intro-description">Um espaço para organizar sua fazenda, acompanhar a equipe e cuidar de cada etapa da produção.</p></div>
+   <div class="intro-footer"><span class="status-dot" aria-hidden="true"></span>Seu grupo está pronto para começar.</div>
+  </aside>
+  <section class="form-area" aria-labelledby="access-title">
+   <div class="form-card">
+    <p class="step"><span class="step-number">01</span> Primeiro acesso</p>
+    <h1 id="access-title">Crie sua senha</h1>
+    <p class="description">Defina uma senha só sua para começar a usar o Gestão Rural.</p>
+    <dl class="account"><div><dt>Grupo</dt><dd>1001</dd></div><div><dt>Seu usuário</dt><dd>ceo</dd></div></dl>
+    <div class="error" role="alert" {{ERROR_HIDDEN}}>{{ERROR}}</div>
+    <form method="post" action="/primeiro-acesso">
+     <input type="hidden" name="csrf" value="{{CSRF}}">
+     <label for="new-password">Sua nova senha</label>
+     <input id="new-password" type="password" name="password" autocomplete="new-password" minlength="10" maxlength="128" aria-describedby="password-rules" required>
+     <ul class="requirements" id="password-rules"><li>10 caracteres ou mais</li><li>Maiúscula e minúscula</li><li>Número e símbolo</li></ul>
+     <label for="confirm-password">Confirme a senha</label>
+     <input id="confirm-password" type="password" name="confirm" autocomplete="new-password" minlength="10" maxlength="128" required>
+     <button class="submit" type="submit">Criar minha senha<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M3 10h13m-5-5 5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </form>
+    <p class="safe-note"><svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="2" stroke="currentColor"/><path d="M5 7V5a3 3 0 0 1 6 0v2" stroke="currentColor"/></svg>Não compartilhe sua senha.</p>
+    <p class="next-step">Depois de criar a senha, você será levado ao <b>login do sistema</b>.</p>
+   </div>
+  </section>
+ </main>
+</body>
+</html>

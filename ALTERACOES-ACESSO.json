@@ -1,0 +1,51 @@
+{
+  "version": "4.6.1",
+  "base": "gestao-rural-cargos-ponto-v11-4.6.0.zip",
+  "aiEnabled": false,
+  "liveProviderTested": false,
+  "paidCalls": 0,
+  "tests": {
+    "passed": 257,
+    "failed": 0
+  },
+  "githubPublished": false,
+  "renderPublished": false,
+  "changes": [
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "previousSha256": "6f8aa447e61788a87ca62843ea98af4cf3d5032deaf82fa37b9f98ea363a0949",
+      "sha256": "08a69bd1812e8a3178dc9e77bd1c0eb4e9e9ecff6d886ab30b889c5dbcfb914f"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "previousSha256": "d6e890b1060decf76cd38a89f1e3000bdc2f5b2d2e16f340172c0758ce9f996f",
+      "sha256": "852f202c862b375a41ebce3879dc0482793d944db4dc0674adc0e66562605e2f"
+    },
+    {
+      "file": "PRIMEIRO-ACESSO-4.6.1.md",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "01249551d6711c8f6c400fc3a4af7e45e35cd31ba0d89cb5215354c557b9df4f"
+    },
+    {
+      "file": "primeiro-acesso-template.html",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "765c245ac9777a8371f290053af7526d9e7892604d9c4827220350faf36e74da"
+    },
+    {
+      "file": "tests/primeiro-acesso.test.cjs",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "d4ac8a38811175ce9b1b7735bd9f9efaeef6f27d49ac6518e4854c0779d16bcb"
+    },
+    {
+      "file": "tools/primeiro-acesso-local.cjs",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "c63b7bf9860162756d36d701a65e5778abf3f2d0c050e06d136e2c59f1f687e6"
+    }
+  ]
+}

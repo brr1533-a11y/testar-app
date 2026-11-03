@@ -1050,6 +1050,7 @@ function stateForUser(state,user,plan) {
  if(user.role==='adm'&&!AdmAccess.can(state,'equipamentos')&&!AdmAccess.can(state,'manutencao'))for(const f of full.farms||[])delete f.equipmentArchive;
  for(const f of full.farms||[]){if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'estoque')&&!AdmAccess.can(state,'manutencao'))delete f.fuelDepot;if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'mapa'))delete f.geoPlots;}
  if(user.role==='contribuinte')delete full.fuelSettings;
+ full.workforce = TeamRegistry.project(state,user);
  return RuralRoutine.project(full,state,user);
 }
 function stateForUserBase(state, user, plan) {
@@ -1376,9 +1377,12 @@ function mergeAgricultureForAdm(current, proposed, user) {
   return { ...prop, cycles, sales: [...(cur.sales || []), ...newSales] };
 }
 
+const TeamRegistry = require("./equipe-domain");
 function mergeStateByRole(existing, incoming, user) {
   const current = clone(existing);
   const next = ["ceo","adm"].includes(user.role) ? GroupAccess.restore(current,incoming) : clone(incoming);
+  if (current.workforce !== undefined) next.workforce = clone(current.workforce); else delete next.workforce;
+  for (const u of next.users || []) { const old = (current.users || []).find(x=>x.id===u.id); if(old?.cargoId && old.role===u.role && old.function===u.function) {u.cargoId=old.cargoId;u.cargoName=old.cargoName;} else {delete u.cargoId;delete u.cargoName;} }
   if (current.subscriptionActivities !== undefined) next.subscriptionActivities = clone(current.subscriptionActivities);
   else delete next.subscriptionActivities;
   // O registro do aceite dos termos é do servidor: o navegador não cria nem altera.
@@ -2642,9 +2646,10 @@ require("./planilhas-server")({app,auth,requireRole,rateHit,saveState:saveStateR
 require("./equipamentos-server")({app,auth,requireRole,mutateGroup,statePayload,validateStatePlanLimits});
 require("./prioridades-server")({app,auth,requireRole,mutateGroup,statePayload});
 require("./rotina-rural-server")({app,auth,mutateGroup,statePayload});
+require("./equipe-server")({app,auth,mutateGroup,statePayload,store,validateStatePlanLimits});
 require("./ia-server").register({app,auth,requireRole,stateForUser});
 
-const PUBLIC_FILES = new Set(["/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+const PUBLIC_FILES = new Set(["/equipe-domain.js","/equipe.js","/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
 // Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
 // Sem cache no navegador, para o celular sempre conferir se há versão nova.
 let SERVICE_WORKER = "";

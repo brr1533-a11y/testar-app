@@ -1,0 +1,20 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('fs'),http=require('http'),crypto=require('crypto'),setup=require('../tools/primeiro-acesso-local.cjs');
+const root=require('path').resolve(__dirname,'..'),template=fs.readFileSync(root+'/primeiro-acesso-template.html','utf8');
+test('primeiro acesso local: origem/CSRF, validação, erros sem eco de senha, senha real de teste e uso único',async t=>{
+ const backend=await require(root+'/tests/support/server.cjs').startServer({PRICE_WATCH_HOURS:'0',AI_ENABLED:'false',OPENAI_API_KEY:''});t.after(()=>backend.stop());
+ const call=async(p,tk,body)=>{const r=await fetch(backend.url+p,{method:'POST',headers:{'Content-Type':'application/json',...(tk?{Authorization:'Bearer '+tk}:{})},body:JSON.stringify(body)});return{status:r.status,json:await r.json()};};
+ const token=(await call('/api/auth/login','',{groupCode:'1001',username:'testceo',password:backend.password})).json.token;assert.ok(token);
+ let handler,done=false,count=0;const server=http.createServer((q,r)=>handler(q,r));await new Promise(r=>server.listen(0,'127.0.0.1',r));t.after(()=>new Promise(r=>server.close(r)));
+ const origin='http://127.0.0.1:'+server.address().port,csrf=crypto.randomBytes(32).toString('hex');
+ handler=setup({template,origin,csrf,isComplete:()=>done,changePassword:pw=>call('/api/auth/change-password',token,{currentPassword:backend.password,newPassword:pw}),onComplete:async r=>{count++;await call('/api/auth/logout',r.token,{});done=true;}});
+ const get=await fetch(origin+'/primeiro-acesso');assert.equal(get.status,200);assert.equal(get.headers.get('cache-control'),'no-store');assert.match(get.headers.get('content-security-policy'),/frame-ancestors 'none'/);const html=await get.text();assert.ok(html.includes('value="'+csrf+'"'));assert.ok(!html.includes('{{CSRF}}'));assert.ok(!html.includes(backend.password));
+ const post=(values,headers={})=>fetch(origin+'/primeiro-acesso',{method:'POST',redirect:'manual',headers:{Origin:origin,'Content-Type':'application/x-www-form-urlencoded',...headers},body:new URLSearchParams({csrf,password:'Aa1@TesteFalso',confirm:'Aa1@TesteFalso',...values})});
+ assert.equal((await post({}, {Origin:'https://example.invalid'})).status,403);assert.equal((await post({csrf:'errado'})).status,403);assert.equal((await post({}, {'Content-Type':'application/json'})).status,415);
+ let bad=await post({password:'muito-curta',confirm:'outra'});assert.equal(bad.status,400);assert.ok(!(await bad.text()).includes('value="muito-curta"'));
+ assert.equal((await post({password:'Ab1@',confirm:'Ab1@'})).status,400);assert.equal((await post({password:'semnumerosemsimbolo',confirm:'semnumerosemsimbolo'})).status,400);
+ assert.equal((await post({password:'A'.repeat(5000),confirm:'A'.repeat(5000)})).status,413);
+ const pw='Bb2@'+crypto.randomBytes(24).toString('hex'),good=await post({password:pw,confirm:pw});assert.equal(good.status,303);assert.equal(good.headers.get('location'),'/app');assert.equal(count,1);
+ const old=await call('/api/auth/login','',{groupCode:'1001',username:'testceo',password:backend.password});assert.equal(old.status,401);
+ assert.equal((await call('/api/auth/login','',{groupCode:'1001',username:'testceo',password:pw})).status,200);
+ assert.equal((await post({password:pw,confirm:pw})).status,303);assert.equal(count,1);
+});
