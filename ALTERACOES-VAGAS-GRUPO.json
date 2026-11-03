@@ -1,0 +1,117 @@
+{
+  "version": "4.8.0",
+  "base": "gestao-rural-funcionarios-login-v13-4.7.0.zip",
+  "aiEnabled": false,
+  "liveProviderTested": false,
+  "paidCalls": 0,
+  "tests": {
+    "passed": 264,
+    "failed": 0
+  },
+  "githubPublished": false,
+  "renderPublished": false,
+  "changes": [
+    {
+      "file": "app.js",
+      "status": "modified",
+      "previousSha256": "bde78381463a47aa5fda67b75c4682f1be305e99b5ba4aaba17266f0e72d6df9",
+      "sha256": "4282f113e8b25eacbaaedccc51f98b378ae1ccea493427a11f28ea180dc6e84d"
+    },
+    {
+      "file": "cafe.html",
+      "status": "modified",
+      "previousSha256": "3812cd4ede0e028059d26cb8dcb982889447c8a12dbe190406ab2c62076f9701",
+      "sha256": "f5e08687eefcc3f8b1df37a48939e607e56d208164e5248b898fd50cb20b56a3"
+    },
+    {
+      "file": "campo-sw.js",
+      "status": "modified",
+      "previousSha256": "bf1956ea26ba8d969f71fc6355377f7d699a4efa20245b27b5b1c3b0bab2f1ff",
+      "sha256": "854b9a03137cc8c0fb978657e1fcfcd31dd579f67a98eff20cc406bfa2ca380a"
+    },
+    {
+      "file": "employee-access-server.js",
+      "status": "modified",
+      "previousSha256": "d4aa4f6cf4182b03433051a945fa1b9fd683a73d7059137d8dc4acd505314bbf",
+      "sha256": "6303484c8487eb8971c5a75be312de2930f064060190d146591ca6ffa402fcbf"
+    },
+    {
+      "file": "employee-limits.js",
+      "status": "modified",
+      "previousSha256": "b172ca055f4d91f2fd56f58ed5d39d325c3d7e26c836af49719b743e0acb4d6e",
+      "sha256": "8bcf6ac37881d9d922ddc7faf2bb9b0aaedac40eba4a8960d2bbb693f809c25b"
+    },
+    {
+      "file": "FUNCIONARIOS-E-LOGIN-4.7.md",
+      "status": "modified",
+      "previousSha256": "160707d8e9f8caa2ca6e6d6c42bea8b6836c41266fcb77fa570731e31e53f936",
+      "sha256": "eeb5b8e5f9eb351cffcd062a5c7ba00631116c4c35ae809aef5f08fe0526ae7c"
+    },
+    {
+      "file": "gado.html",
+      "status": "modified",
+      "previousSha256": "48a1a29ee590ce01c545b853400e44ddc5517fe17aa283466fb9f8c53ba47f0e",
+      "sha256": "eb56f59eaed1071ada01bd2336d1e6efabc8de16c6caf72898bb65ed4c244658"
+    },
+    {
+      "file": "graos.html",
+      "status": "modified",
+      "previousSha256": "9992f1c484e1244d1c1a6c72e35ef940abf0be93e748b602b7aca7376406ed1e",
+      "sha256": "f660900ff5c2dd0d907fbe36013a8acdc0d77a2151166400a5c2c1053980d6ed"
+    },
+    {
+      "file": "index.html",
+      "status": "modified",
+      "previousSha256": "6b3794b99614b11b02d2cc8c01b67cd3c387f9b4d15ba31006777b07032f4809",
+      "sha256": "3c7d5f527cd18116a1978bfe04efa7dda3e1419b54b187800b93175a8b0b3e20"
+    },
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "previousSha256": "22255591e03b4fe35829b8cd720762acf2dc2cdd6044f348f619741a6535a2c3",
+      "sha256": "cb1a41c9a170ff4eeb3804bf7e06358031f97b34ac9f925e38f1d9a115610b5b"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "previousSha256": "77628062ac01d6ba2a5988136b0449944450233965d7724b7e860edb1b9e4676",
+      "sha256": "fe4b2785a6ee859b4a3dc5ff3f8750eef8345cc2813fa9d45d68d0a1cc24b378"
+    },
+    {
+      "file": "platform-employees.js",
+      "status": "modified",
+      "previousSha256": "b410e3553a27616f1698af5ffb2198108f349ebf261a8fcec5917b9a5efd0fa0",
+      "sha256": "baf6f6095c1c36452ee19880ae07420014883803f4930c9fd9e8dad6e09e4cd7"
+    },
+    {
+      "file": "platform.html",
+      "status": "modified",
+      "previousSha256": "b010863a01a20853eaa789f88f79ad54520e5c6fd4fbd682ddc7db5a3c8279a2",
+      "sha256": "e76fd0f18bee689cc28e21bd74454916864e6795db1abbc2058bccfd1cd10e49"
+    },
+    {
+      "file": "platform.js",
+      "status": "modified",
+      "previousSha256": "18d5b134fa7d34cc9f43df535ca8bbce6b20994a08696bde917d0b5c7bbdf54e",
+      "sha256": "daf0b3a39a1d349704dc5f307c8d08f2c90b523f0f9efab5c499a551dfa1dfcb"
+    },
+    {
+      "file": "server.js",
+      "status": "modified",
+      "previousSha256": "24bbeb74ade0917ab644138c2cc6e3d7cce4b930d4f1cfab84ebf96dc037653a",
+      "sha256": "54ceaaf5f73f7895ef0fdb650dff835836d5d609f65b4804b51ed442190bdd60"
+    },
+    {
+      "file": "tests/employee-access.test.cjs",
+      "status": "modified",
+      "previousSha256": "30d89509063fdf318b229b102921a14c4fa4274db6071c19c4005db48e84bc4d",
+      "sha256": "c7da5ba31f15b03bbdb4457a37bdcf1a886b2db2f6e85a286a1573e0248d5f8b"
+    },
+    {
+      "file": "VAGAS-POR-GRUPO-4.8.md",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "61ace55024a8a0e96667f84d6ce14ac9ffdb4e207cba1736620f71bdd86c0e3d"
+    }
+  ]
+}

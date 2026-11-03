@@ -1,0 +1,99 @@
+{
+  "version": "4.7.0",
+  "base": "gestao-rural-primeiro-acesso-v12-4.6.1.zip",
+  "aiEnabled": false,
+  "liveProviderTested": false,
+  "paidCalls": 0,
+  "tests": {
+    "passed": 262,
+    "failed": 0
+  },
+  "githubPublished": false,
+  "renderPublished": false,
+  "changes": [
+    {
+      "file": "app.html",
+      "status": "modified",
+      "previousSha256": "7182a9c97ed4116134a4c73ecf69e9ff285f827e8de6cb4f147e3e2e5268af5d",
+      "sha256": "aaf1dd1fc74ebb61ffbaef7c2210db9036d8825e3d2b82111d7c9f6ccb7f6e20"
+    },
+    {
+      "file": "app.js",
+      "status": "modified",
+      "previousSha256": "88de6ee46a9f39da5ec35263f2c8570596c89ba7d5f59e1a5fb9a4d161614cb9",
+      "sha256": "bde78381463a47aa5fda67b75c4682f1be305e99b5ba4aaba17266f0e72d6df9"
+    },
+    {
+      "file": "campo-sw.js",
+      "status": "modified",
+      "previousSha256": "de4f3b9c37434ea7def4e51774bf623f65ec4b3e123d16497a903b913ef731f5",
+      "sha256": "bf1956ea26ba8d969f71fc6355377f7d699a4efa20245b27b5b1c3b0bab2f1ff"
+    },
+    {
+      "file": "employee-access-server.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "d4aa4f6cf4182b03433051a945fa1b9fd683a73d7059137d8dc4acd505314bbf"
+    },
+    {
+      "file": "employee-access.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "67f876792bed947259bd913c47ddbb39f78bdb8a2336f11aaefc9d1a245ad21b"
+    },
+    {
+      "file": "employee-limits.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "b172ca055f4d91f2fd56f58ed5d39d325c3d7e26c836af49719b743e0acb4d6e"
+    },
+    {
+      "file": "FUNCIONARIOS-E-LOGIN-4.7.md",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "160707d8e9f8caa2ca6e6d6c42bea8b6836c41266fcb77fa570731e31e53f936"
+    },
+    {
+      "file": "package-lock.json",
+      "status": "modified",
+      "previousSha256": "08a69bd1812e8a3178dc9e77bd1c0eb4e9e9ecff6d886ab30b889c5dbcfb914f",
+      "sha256": "22255591e03b4fe35829b8cd720762acf2dc2cdd6044f348f619741a6535a2c3"
+    },
+    {
+      "file": "package.json",
+      "status": "modified",
+      "previousSha256": "852f202c862b375a41ebce3879dc0482793d944db4dc0674adc0e66562605e2f",
+      "sha256": "77628062ac01d6ba2a5988136b0449944450233965d7724b7e860edb1b9e4676"
+    },
+    {
+      "file": "platform-employees.js",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "b410e3553a27616f1698af5ffb2198108f349ebf261a8fcec5917b9a5efd0fa0"
+    },
+    {
+      "file": "platform.html",
+      "status": "modified",
+      "previousSha256": "dd4f4994a49e4dd9ce9ff85d395538a57973b8aa561243263043ed9a60d3b3ee",
+      "sha256": "b010863a01a20853eaa789f88f79ad54520e5c6fd4fbd682ddc7db5a3c8279a2"
+    },
+    {
+      "file": "platform.js",
+      "status": "modified",
+      "previousSha256": "cb05b6d3d9feddd7ce3e70c2283ba143abb3c3c97a97ed741bf6c6729f554de3",
+      "sha256": "18d5b134fa7d34cc9f43df535ca8bbce6b20994a08696bde917d0b5c7bbdf54e"
+    },
+    {
+      "file": "server.js",
+      "status": "modified",
+      "previousSha256": "e1225bfa8146cda6c3321b0c537c083253dbeb66eb0fb74a5a150ed63fccbe7e",
+      "sha256": "24bbeb74ade0917ab644138c2cc6e3d7cce4b930d4f1cfab84ebf96dc037653a"
+    },
+    {
+      "file": "tests/employee-access.test.cjs",
+      "status": "added",
+      "previousSha256": null,
+      "sha256": "30d89509063fdf318b229b102921a14c4fa4274db6071c19c4005db48e84bc4d"
+    }
+  ]
+}

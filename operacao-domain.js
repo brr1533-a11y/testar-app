@@ -35,7 +35,7 @@
  function progress(farms,activity,period){
   let total=0,done=0;
   for(const f of farms){
-   const plots=new Set((f.talhoes||[]).map(p=>p.id));total+=plots.size;
+   const plots=new Set((f.talhoes||[]).filter(p=>!p.activity||p.activity===activity).map(p=>p.id));total+=plots.size;
    const cycles=new Map((f.agriculture?.cycles||[]).filter(c=>c.activity===activity&&campaign(c)===period).map(c=>[c.id,c]));
    const completed=new Set();
    for(const h of f.agriculture?.harvests||[]){const c=cycles.get(h.cycleId);if(!c||!h.finishesPlot)continue;const id=h.plotId||(plotIds(c).length===1?plotIds(c)[0]:null);if(plots.has(id))completed.add(id);}
@@ -92,7 +92,7 @@
    for(const h of f.agriculture.harvests){const c=cycles.get(h.cycleId);check(!h.plotId||plotIds(c).includes(h.plotId),'A colheita deve usar um talhão vinculado à safra.');check(!h.finishesPlot||!!(h.plotId||plotIds(c).length===1),'Escolha o talhão cuja colheita foi concluída.');check(!h.qualityId||c.activity==='coffee'&&qids.has(h.qualityId),'Qualidade de café não cadastrada pelo CEO.');}
    for(const s of f.agriculture.sales)check(s.bagKg==null||Number.isFinite(s.bagKg)&&s.bagKg>0,'Peso da saca da venda inválido.');
    for(const s of f.agriculture.sales)if(s.installments){check(Array.isArray(s.installments)&&s.installments.length>0&&s.installments.length<=24,'Parcelamento inválido.');const ids=new Set();let sum=0;for(const p of s.installments){check(p&&typeof p.id==='string'&&!ids.has(p.id)&&D.validDate(p.date)&&p.date>=s.date&&Number.isFinite(p.amount)&&p.amount>0&&Math.abs(cents(p.amount)-p.amount*100)<0.000001,'Parcela inválida.');ids.add(p.id);sum+=cents(p.amount);}if(s.pricePerKg!==undefined)check(sum===cents(s.kg*s.pricePerKg),'As parcelas devem somar o valor da venda.');}
-   for(const e of op.deliveries){const s=f.agriculture.sales.find(s=>s.id===e.saleId);check(s&&cycles.get(s.cycleId)?.activity===e.activity&&e.date>=s.date&&e.date<=new Date().toISOString().slice(0,10)&&Number.isFinite(e.kg)&&e.kg>0,'Confira a venda, data e peso da entrega.');check(op.deliveries.filter(r=>r.saleId===s.id).reduce((n,r)=>n+r.kg,0)<=s.kg+0.000001,'A entrega supera a quantidade da venda.');}
+   for(const e of op.deliveries){if(["dispatchKg","receivedKg","weightDiscountKg","moisturePct","impuritiesPct","moneyDiscount"].some(k=>e[k]!=null)){check(e.activity==="grains","A conferência de balança é exclusiva de grãos.");const insights=typeof module==="object"&&module.exports?require("./decisoes-domain.js"):globalThis.RuralDecisions;insights.delivery(e);}const s=f.agriculture.sales.find(s=>s.id===e.saleId);check(s&&cycles.get(s.cycleId)?.activity===e.activity&&e.date>=s.date&&e.date<=new Date().toISOString().slice(0,10)&&Number.isFinite(e.kg)&&e.kg>0,'Confira a venda, data e peso da entrega.');check(op.deliveries.filter(r=>r.saleId===s.id).reduce((n,r)=>n+r.kg,0)<=s.kg+0.000001,'A entrega supera a quantidade da venda.');}
    for(const l of lots.values()){check(Number.isInteger(l.heads)&&l.heads>=0,'Cabeças do lote devem ser um inteiro não negativo.');check(!l.stageId||stages.some(s=>s.id===l.stageId),'Etapa do lote não cadastrada pelo CEO.');check(l.quotePerArroba==null||Number.isFinite(l.quotePerArroba)&&l.quotePerArroba>0,'Cotação de arroba inválida.');check(l.carcassYieldPct==null||Number.isFinite(l.carcassYieldPct)&&l.carcassYieldPct>0&&l.carcassYieldPct<=100,'Rendimento informado deve estar entre 0 e 100%.');check(!l.valuationBasis||['live','carcass'].includes(l.valuationBasis),'Base da avaliação inválida.');}
   }
   return state;
@@ -144,5 +144,15 @@
   for(const f of before.farms||[])if(!after.farms?.some(n=>n.id===f.id)&&((f.agriculture?.cycles||[]).length||(f.cattle?.lots||[]).length||keys.some(k=>(f.operations?.[k]||[]).length)))fail('A fazenda possui produção ou histórico. Preserve seus registros.',403);
   validate(after);
  }
- return {init,plotIds,campaign,saleBagKg,progress,costs,schedule,receivables,applyMove,validate,prepare,defaultQualities,defaultStages,composition,estimate,lotEstimate};
+ function coffeeBands(profile){
+  const bands=[{label:'Especial',kg:0,color:'#89b6a0'},{label:'COC 01 a 04',kg:0,color:'#d4ad72'},{label:'COC 05 a 08',kg:0,color:'#b5b485'},{label:'Demais qualidades',kg:0,color:'#9b8c7b'},{label:'Não classificado',kg:0,color:'#7e8b85'}];
+  for(const g of profile.groups||[]){if(!Number.isFinite(g.kg)||g.kg<0)continue;const r=g.rank,i=!Number.isFinite(r)?4:r===0?0:r>=1&&r<=4?1:r>=5&&r<=8?2:3;bands[i].kg+=g.kg;}
+  return bands.filter((b,i)=>i<4||b.kg>0).map(b=>({...b,percent:profile.total>0?b.kg/profile.total*100:0}));
+ }
+ function qualityDetails(farms,cycles,qualities){
+  const selected=new Set(cycles.map(r=>r.farm.id+'|'+r.cycle.id)),rows=new Map(qualities.map(q=>[q.id,{id:q.id,label:q.name,rank:q.rank,kg:0,sacks:0}]));let total=0;
+  for(const f of farms)for(const h of f.agriculture?.harvests||[]){if(!selected.has(f.id+'|'+h.cycleId))continue;const c=f.agriculture.cycles.find(c=>c.id===h.cycleId);if(c?.activity!=='coffee')continue;const key=rows.has(h.qualityId)?h.qualityId:'unknown',r=rows.get(key)||{id:key,label:'Não classificado',kg:0,sacks:0};r.kg+=h.netKg;r.sacks+=h.netKg/(Number(c.bagKg)>0?Number(c.bagKg):60);total+=h.netKg;rows.set(key,r);}
+  return [...rows.values()].sort((a,b)=>(a.rank??Infinity)-(b.rank??Infinity)).map(r=>({...r,percent:total?r.kg/total*100:0}));
+ }
+ return {init,plotIds,campaign,saleBagKg,progress,costs,schedule,receivables,applyMove,validate,prepare,defaultQualities,defaultStages,composition,coffeeBands,qualityDetails,estimate,lotEstimate};
 });

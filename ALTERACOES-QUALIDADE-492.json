@@ -1,0 +1,72 @@
+{
+  "version": "4.9.2",
+  "base": "4.9.1",
+  "githubPublished": false,
+  "renderPublished": false,
+  "tests": {
+    "passed": 270,
+    "failed": 0
+  },
+  "checks": {
+    "syntaxFiles": 158,
+    "staticAssets": 82
+  },
+  "scope": "Sistema completo; tema adaptado da prévia, mantendo módulos e regras existentes",
+  "changes": [
+    {
+      "file": "app.js",
+      "sha256": "91c0b0f8c429b09c528db0b9155d85491091e32ce039d81fc54f02f35e20c9a6",
+      "status": "modified"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "1360976db6506ea41c2d435acb2af5f7b461839b2242737e4bf96e34ae8f41c7",
+      "status": "modified"
+    },
+    {
+      "file": "equipment-insights.js",
+      "sha256": "113df8edad14c2be2b7f85f25179869db94e6591d220b0f345e67a47c35c1a0a",
+      "status": "modified"
+    },
+    {
+      "file": "operacao-domain.js",
+      "sha256": "ad2a91e5a64cb59b1914b6fc5980c9d6c3f16432a43021b4589298af64b48df2",
+      "status": "modified"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "888047b0ac660186bc9fb63e2e3c12eb41b2fce0d870fb462370cd956319cb29",
+      "status": "modified"
+    },
+    {
+      "file": "package.json",
+      "sha256": "a1c1e9169d54f03e937bf6ff153e412246edaed2396cb3c8e5a8e7e4fa4125e8",
+      "status": "modified"
+    },
+    {
+      "file": "QUALIDADE-E-BUSCA-4.9.2.md",
+      "sha256": "e6622df764fe9db2efbecd6bd6580073b3c2dbae23fa4f0258b346e48dd4ef94",
+      "status": "added"
+    },
+    {
+      "file": "safra-painel.js",
+      "sha256": "b33652e34eaf76c8e52616aa200adaad9a51b13339d12e03c7e3547973fa0a88",
+      "status": "modified"
+    },
+    {
+      "file": "tests/quality-bands.test.cjs",
+      "sha256": "9ca5f8c89a586d867897869d5223ddd6ad1712329c2f34be1262be075ad37b5d",
+      "status": "added"
+    },
+    {
+      "file": "visual-painel.css",
+      "sha256": "0475c10b98240c384d7798444a1ddfe3b99d2efb9f42fbff28bd1131763b3c0e",
+      "status": "modified"
+    },
+    {
+      "file": "visual-painel.js",
+      "sha256": "3ee028de25cabce09eefc37f61794329c746e4ba5852651c60e53a6fb0da8552",
+      "status": "modified"
+    }
+  ]
+}

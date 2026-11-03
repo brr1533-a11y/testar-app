@@ -63,7 +63,7 @@
         <label>Nome do CEO<input id="newCeoName" placeholder="Ex.: Carlos Oliveira" required></label>
         <label>E-mail do CEO<input id="newCeoEmail" type="email" placeholder="carlos@empresa.com" required></label>
         <label>Usuário do CEO<input id="newCeoUser" placeholder="carlosoliveira" minlength="3" required></label>
-        <label>Plano<select id="newGroupPlan"><option value="essential">Essencial</option><option value="pro" selected>Profissional</option><option value="group">Grupo</option></select></label>
+        <label>Total de funcionários no grupo<input id="newEmployeeLimit" type="number" min="0" step="1" value="50" required></label><label>Plano<select id="newGroupPlan"><option value="essential">Essencial</option><option value="pro" selected>Profissional</option><option value="group">Grupo</option></select></label>
 <label class="wide">Atividades contratadas<select id="newGroupActivities"><option value="coffee">Café</option><option value="cattle">Gado</option><option value="grains">Grãos</option><option value="coffee+cattle">Café + Gado</option><option value="coffee+grains">Café + Grãos</option><option value="cattle+grains">Gado + Grãos</option><option value="coffee+cattle+grains" selected>Café + Gado + Grãos</option></select></label>
         <label>Senha inicial<input id="newCeoPassword" type="password" minlength="8" placeholder="8+ caracteres: maiúscula, minúscula, número e símbolo (@)" required></label>
       </div>
@@ -72,6 +72,7 @@
     </form>
   </div>
   <script src="platform.js"></script>
+<script src="platform-employees.js"></script>
   <script src="platform-melhorias.js"></script>
   <script src="fx.js"></script>
 </body>

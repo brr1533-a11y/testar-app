@@ -1,0 +1,9 @@
+(function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.EmployeeLimits=factory();})(globalThis,function(){
+ const valid=n=>Number.isSafeInteger(n)&&n>=0;
+ function count(state,farmId){return(state?.users||[]).filter(u=>u.active!==false&&u.role==='contribuinte'&&(farmId===undefined||String(u.allowedFarmId)===String(farmId))).length;}
+ function limit(state){const c=state?.employeeLimits;if(valid(c?.totalLimit))return c.totalLimit;if(valid(c?.defaultLimit)){const farms=state.farms||[];return farms.length?farms.reduce((n,f)=>Math.min(Number.MAX_SAFE_INTEGER,n+(valid(c.farms?.[f.id])?c.farms[f.id]:c.defaultLimit)),0):c.defaultLimit;}return 50;}
+ function migrate(state,at){if(valid(state.employeeLimits?.totalLimit))return false;const old=state.employeeLimits;state.employeeLimits={scope:'group',totalLimit:Math.max(limit(state),count(state)),migratedFrom:valid(old?.defaultLimit)?'farm':'legacy',updatedAt:at,updatedBy:'sistema'};return true;}
+ function validate(state,body){const error=m=>{throw Object.assign(Error(m),{statusCode:422});};if(!valid(body.totalLimit))error('Informe uma quantidade total inteira, zero ou maior, para o grupo.');if(body.defaultLimit!==undefined||body.farms!==undefined)error('O limite agora é por grupo. Atualize esta página antes de salvar.');const n=count(state);if(n>body.totalLimit)error('O grupo já tem '+n+' funcionários ativos. Desative os excedentes antes de reduzir para '+body.totalLimit+'. Transferir entre fazendas não libera vaga.');return {scope:'group',totalLimit:body.totalLimit};}
+ function preserve(before,after){if(before.employeeLimits!==undefined)after.employeeLimits=JSON.parse(JSON.stringify(before.employeeLimits));else delete after.employeeLimits;}
+ return{valid,limit,count,validate,preserve,migrate};
+});

@@ -12,7 +12,7 @@
   dots.replaceChildren();const distance=[0];for(let i=1;i<points.length;i++)distance.push(distance[i-1]+Math.hypot(points[i][0]-points[i-1][0],points[i][1]-points[i-1][1]));
   points.forEach((p,i)=>{const c=document.createElementNS('http://www.w3.org/2000/svg','circle');c.setAttribute('cx',p[0]);c.setAttribute('cy',p[1]);c.setAttribute('r','3.5');c.setAttribute('class','ponto');const title=document.createElementNS(c.namespaceURI,'title');title.textContent=labels[i]+': '+data[i].toLocaleString('pt-BR')+' '+unit;c.append(title);dots.append(c);});
   const length=path.getTotalLength();path.style.strokeDasharray=length||1;path.style.strokeDashoffset=length;
-  const start=performance.now();function frame(t){if(!svg.isConnected)return;const p=reduced()?1:Math.min(1,(t-start)/1600),drawn=length*(1-Math.pow(1-p,3));path.style.strokeDashoffset=length-drawn;[...dots.children].forEach((c,i)=>{c.style.opacity=drawn+0.01>=distance[i]?1:0;});if(p<1)requestAnimationFrame(frame);}requestAnimationFrame(frame);
+  const start=performance.now();function frame(t){if(!svg.isConnected)return;const p=reduced()?1:Math.min(1,(t-start)/1000),drawn=length*p;path.style.strokeDashoffset=length-drawn;[...dots.children].forEach((c,i)=>{c.style.opacity=drawn+0.01>=distance[i]?1:0;});if(p<1)requestAnimationFrame(frame);}requestAnimationFrame(frame);
  }
  function ring(card,value,options={}){
   const arc=card.querySelector('.valor'),text=card.querySelector('.centro'),target=Math.max(0,Math.min(100,Number(value)||0)),turn=2*Math.PI*62;

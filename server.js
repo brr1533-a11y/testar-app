@@ -1,3 +1,4 @@
+const EmployeeLimits = require("./employee-limits");
 const RuralDomain = require("./rural-domain.js");
 const SubscriptionDomain = require("./subscription-domain.js");
 const PlotHistory = require("./talhoes-domain.js");
@@ -63,9 +64,9 @@ const SEED_CEO_EMAIL = String(process.env.SEED_CEO_EMAIL || "").trim().toLowerCa
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const PLAN_CATALOG = {
   // monthlyPrice: valor das três atividades, usado só por compras antigas que não guardaram a escolha de atividades.
-  essential: { id: "essential", name: "Essencial", monthlyPrice: 397, maxFarms: 1, usersPerFarm: 10 },
-  pro: { id: "pro", name: "Profissional", monthlyPrice: 997, maxFarms: 5, usersPerFarm: 10 },
-  group: { id: "group", name: "Grupo", monthlyPrice: 1497, maxFarms: 15, usersPerFarm: 10 }
+  essential: { id: "essential", name: "Essencial", monthlyPrice: 397, maxFarms: 1, usersPerGroup: 50 },
+  pro: { id: "pro", name: "Profissional", monthlyPrice: 997, maxFarms: 5, usersPerGroup: 50 },
+  group: { id: "group", name: "Grupo", monthlyPrice: 1497, maxFarms: 15, usersPerGroup: 50 }
 };
 const BILLING_CYCLES = {
   monthly: { id: "monthly", label: "Mensal", months: 1, discount: 0 },
@@ -171,6 +172,7 @@ function makeDefaultState({ ceoName, ceoUser, ceoPasswordHash, ceoEmail = "" }) 
   return {
     version: 21,
     interfaceMode: "coffee",
+    employeeLimits: {scope:"group",totalLimit:50},
     users: [{
       id: uid(), username: ceoUser, passwordHash: ceoPasswordHash, name: ceoName, email: String(ceoEmail || "").trim().toLowerCase(),
       role: "ceo", active: true, function: "CEO", pixKey: "", allowedFarmId: "", allowedActivity: "both",
@@ -897,6 +899,7 @@ function groupUsage(group) {
     farms: farms.length,
     users: users.filter(u => u.active !== false).length,
     contributors: contributors.length,
+    employeeLimit: EmployeeLimits.limit(group.state),
     perFarm: farms.map(f => ({ id: f.id, name: f.name, contributors: contributors.filter(u => String(u.allowedFarmId) === String(f.id)).length }))
   };
 }
@@ -1051,6 +1054,7 @@ function stateForUser(state,user,plan) {
  for(const f of full.farms||[]){if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'estoque')&&!AdmAccess.can(state,'manutencao'))delete f.fuelDepot;if(user.role==='contribuinte'||user.role==='adm'&&!AdmAccess.can(state,'mapa'))delete f.geoPlots;}
  if(user.role==='contribuinte')delete full.fuelSettings;
  full.workforce = TeamRegistry.project(state,user);
+ if(user.role==='contribuinte')delete full.employeeLimits;
  return RuralRoutine.project(full,state,user);
 }
 function stateForUserBase(state, user, plan) {
@@ -1310,13 +1314,8 @@ function validateStatePlanLimits(group, state) {
   if (Number.isFinite(rules.maxFarms) && farms.length > rules.maxFarms) {
     throw Object.assign(new Error(`Seu plano ${rules.name} permite até ${rules.maxFarms} fazenda${rules.maxFarms === 1 ? "" : "s"}.`), { statusCode: 422 });
   }
-  const activeContributors = (state?.users || []).filter(u => u.active !== false && u.role === "contribuinte");
-  for (const farm of farms) {
-    const count = activeContributors.filter(u => String(u.allowedFarmId || "") === String(farm.id)).length;
-    if (count > rules.usersPerFarm) {
-      throw Object.assign(new Error(`O plano permite até ${rules.usersPerFarm} usuários operacionais por fazenda. ${farm.name || "Uma fazenda"} está com ${count}.`), { statusCode: 422 });
-    }
-  }
+  const count=EmployeeLimits.count(state),cap=EmployeeLimits.limit(state);
+  if(count>cap)throw httpError(422,`O grupo permite até ${cap} funcionários ativos e está com ${count}. Peça ao Super Admin para ajustar a quantidade.`);
 }
 
 function validateSubscriptionWrites(before, after) {
@@ -1380,6 +1379,7 @@ function mergeAgricultureForAdm(current, proposed, user) {
 const TeamRegistry = require("./equipe-domain");
 function mergeStateByRole(existing, incoming, user) {
   const current = clone(existing);
+  EmployeeLimits.preserve(current,incoming);
   const next = ["ceo","adm"].includes(user.role) ? GroupAccess.restore(current,incoming) : clone(incoming);
   if (current.workforce !== undefined) next.workforce = clone(current.workforce); else delete next.workforce;
   for (const u of next.users || []) { const old = (current.users || []).find(x=>x.id===u.id); if(old?.cargoId && old.role===u.role && old.function===u.function) {u.cargoId=old.cargoId;u.cargoName=old.cargoName;} else {delete u.cargoId;delete u.cargoName;} }
@@ -1390,7 +1390,7 @@ function mergeStateByRole(existing, incoming, user) {
   if (user.role === "ceo") {
     // E-mail é dado de recuperação de senha e só muda pela rota protegida /api/account/email.
     const emailById = new Map((current.users || []).map(u => [String(u.id), u.email]));
-    for (const u of next.users || []) if (emailById.has(String(u.id))) u.email = emailById.get(String(u.id));
+    for (const u of next.users || []) if (emailById.has(String(u.id))) {u.email = emailById.get(String(u.id));u.username=(current.users||[]).find(x=>String(x.id)===String(u.id)).username;}
     // Permissões do ADM: só páginas conhecidas; data e autor da mudança vêm do servidor.
     if (next.admAccess !== undefined) {
       const pages = AdmAccess.normalize(next.admAccess?.pages), approvalLimit = AdmAccess.approvalLimit(next);
@@ -1637,6 +1637,8 @@ app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, n
     const incoming = req.body.state;
     if (!incoming || typeof incoming !== "object") return res.status(400).json({ error: "Dados locais inválidos" });
     const currentCeo = req.auth.user;
+    EmployeeLimits.preserve(group.state,incoming);
+    if(group.state.workforce!==undefined)incoming.workforce=clone(group.state.workforce);else delete incoming.workforce;
     RuralRoutine.preserve(group.state,incoming);
     EquipmentRegistry.prepare(group.state,incoming,currentCeo); FarmPriorities.prepare(group.state,incoming,currentCeo,page=>page.startsWith('activity:')?SubscriptionDomain.licensed(group.state).includes(page.slice(9)):true);
     if (group.state.subscriptionActivities !== undefined) incoming.subscriptionActivities = clone(group.state.subscriptionActivities);
@@ -1669,6 +1671,7 @@ app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, n
     importedCeo.passwordHash = currentCeo.passwordHash;
     importedCeo.email = normalizeEmail(importedCeo.email || currentCeo.email || group.payerEmail);
     delete importedCeo.password;
+    validateStatePlanLimits(group,normalized);
     group.state = normalized;
     group.cloudInitialized = true;
     await extractInlineFiles(group, group.state, "migração");
@@ -1744,10 +1747,12 @@ app.post("/api/users", auth, requireRole("ceo"), async (req, res, next) => {
     const checkUserCanBeAdded = (g, targetFarmId) => {
       if ((g.state.users || []).some(u => String(u.username || "").toLowerCase() === username.toLowerCase())) throw httpError(409, "Esse usuário já existe");
       if (role !== "contribuinte") return;
+      if(!g.state.farms.some(f=>f.id===targetFarmId))throw httpError(422,"Escolha uma fazenda existente.");
       if (!RuralDomain.activitiesFor(allowedActivity).some(a => SubscriptionDomain.licensed(g.state).includes(a))) throw httpError(422, "Escolha uma atividade incluída na assinatura.");
       const rules = getPlanRules(g);
-      const currentCount = (g.state.users || []).filter(u => u.active !== false && u.role === "contribuinte" && String(u.allowedFarmId || "") === targetFarmId).length;
-      if (currentCount >= rules.usersPerFarm) throw httpError(403, `Limite de ${rules.usersPerFarm} usuários operacionais por fazenda atingido neste plano.`);
+      const currentCount = EmployeeLimits.count(g.state);
+      const employeeLimit = EmployeeLimits.limit(g.state);
+      if (currentCount >= employeeLimit) throw httpError(403, `Limite de ${employeeLimit} funcionários atingido neste grupo. Peça ao Super Admin para ajustar a quantidade.`);
     };
     checkUserCanBeAdded(group, String(body.allowedFarmId || group.state.farms?.[0]?.id || ""));
     const passwordHash = await bcrypt.hash(password, 11);
@@ -1781,10 +1786,12 @@ app.post("/api/registrations/:id/approve", auth, requireRole("ceo"), async (req,
       const targetFarmId = String(req.body.allowedFarmId || g.state.farms?.[0]?.id || "");
       const allowedActivity = role === "contribuinte" && RuralDomain.PERMISSIONS.includes(req.body.allowedActivity) ? req.body.allowedActivity : "all";
       if (role === "contribuinte") {
+        if(!g.state.farms.some(f=>f.id===targetFarmId))throw httpError(422,"Escolha uma fazenda existente.");
         if (!RuralDomain.activitiesFor(allowedActivity).some(a => SubscriptionDomain.licensed(g.state).includes(a))) throw httpError(422, "Escolha uma atividade incluída na assinatura.");
         const rules = getPlanRules(g);
-        const currentCount = (g.state.users || []).filter(u => u.active !== false && u.role === "contribuinte" && String(u.allowedFarmId || "") === targetFarmId).length;
-        if (currentCount >= rules.usersPerFarm) throw httpError(403, `Limite de ${rules.usersPerFarm} usuários operacionais por fazenda atingido neste plano.`);
+        const currentCount = EmployeeLimits.count(g.state);
+        const employeeLimit = EmployeeLimits.limit(g.state);
+        if (currentCount >= employeeLimit) throw httpError(403, `Limite de ${employeeLimit} funcionários atingido neste grupo. Peça ao Super Admin para ajustar a quantidade.`);
       }
       const user = {
         id: uid(), name: reg.name, username: reg.username, email: normalizeEmail(reg.email), passwordHash: reg.passwordHash, role, active: true,
@@ -1959,6 +1966,7 @@ app.post("/api/platform/groups", platformAuth, async (req, res, next) => {
     const selectedPlan = PLAN_CATALOG[req.body.plan] ? req.body.plan : "pro";
     const initialState = makeDefaultState({ ceoName, ceoUser, ceoPasswordHash: hash, ceoEmail });
     initialState.farms = [makeFarm("Minha Fazenda")];
+    if(req.body.employeeTotalLimit!==undefined)initialState.employeeLimits=EmployeeLimits.validate(initialState,{totalLimit:req.body.employeeTotalLimit});
     initialState.subscriptionActivities = SubscriptionDomain.normalize(req.body.activities || ["coffee","cattle","grains"]);
     if (initialState.users?.[0]) initialState.users[0].mustChangePassword = true;
     const group = {
@@ -1984,7 +1992,7 @@ app.get("/api/platform/groups", platformAuth, async (req, res, next) => {
       const purchase = g.subscriptionId ? await store.getPurchaseBySubscription(g.subscriptionId).catch(() => null) : null;
       out.push({ id:g.id, slug:g.slug, code:g.code, name:g.name, status:g.status, plan:g.plan, cloudInitialized:g.cloudInitialized, subscriptionId:g.subscriptionId, payerEmail:g.payerEmail, createdAt:g.createdAt,
         activities: SubscriptionDomain.licensed(g.state),
-        usage: groupUsage(g), limits: { maxFarms: Number.isFinite(rules.maxFarms) ? rules.maxFarms : null, usersPerFarm: rules.usersPerFarm },
+        usage: groupUsage(g), limits: { maxFarms: Number.isFinite(rules.maxFarms) ? rules.maxFarms : null, usersPerGroup:EmployeeLimits.limit(g.state) }, employeeLimits: {scope:"group",totalLimit:EmployeeLimits.limit(g.state)},
         billingCycle: purchase?.billingCycle || null, amount: purchase?.amount ?? null, purchaseStatus: purchase?.status || null,
         commercial: commercial || (purchase ? { type: "paid", label: "Assinatura" } : { type: "internal", label: "Interno" }), archivedAt,
         lastLogin, planRequest, protected: g.slug === SEED_GROUP_SLUG || String(g.code) === String(SEED_GROUP_CODE) });
@@ -2055,11 +2063,7 @@ app.patch("/api/platform/groups/:id/plan", platformAuth, async (req, res, next) 
     if (Number.isFinite(rules.maxFarms) && usage.farms > rules.maxFarms) {
       return res.status(409).json({ error: `Downgrade bloqueado: este Grupo tem ${usage.farms} fazendas e o plano ${rules.name} permite ${rules.maxFarms}. Reduza o uso antes de mudar o plano.` });
     }
-    const activeContributors = (group.state.users || []).filter(u => u.active !== false && u.role === "contribuinte");
-    for (const farm of group.state.farms || []) {
-      const count = activeContributors.filter(u => String(u.allowedFarmId || "") === String(farm.id)).length;
-      if (count > rules.usersPerFarm) return res.status(409).json({ error: `Downgrade bloqueado: ${farm.name} tem ${count} usuários operacionais e o plano permite ${rules.usersPerFarm}.` });
-    }
+    if(EmployeeLimits.count(group.state)>EmployeeLimits.limit(group.state))return res.status(409).json({error:'O grupo está acima do total de funcionários liberados.'});
     const realSubscription = group.subscriptionId && !String(group.subscriptionId).startsWith("TEST-");
     if (realSubscription) {
       if (!MP_ACCESS_TOKEN) return res.status(503).json({ error: "Configure o Mercado Pago para validar a cobrança antes de alterar este plano." });
@@ -2647,9 +2651,10 @@ require("./equipamentos-server")({app,auth,requireRole,mutateGroup,statePayload,
 require("./prioridades-server")({app,auth,requireRole,mutateGroup,statePayload});
 require("./rotina-rural-server")({app,auth,mutateGroup,statePayload});
 require("./equipe-server")({app,auth,mutateGroup,statePayload,store,validateStatePlanLimits});
+require("./employee-access-server")({app,auth,requireRole,platformAuth,store,mutateGroup,statePayload,recordPlatformAudit,validateUsername,bcrypt,WEAK_PASSWORDS,rateBlocked,rateHit,tokenHash,SESSION_DAYS});
 require("./ia-server").register({app,auth,requireRole,stateForUser});
 
-const PUBLIC_FILES = new Set(["/equipe-domain.js","/equipe.js","/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+const PUBLIC_FILES = new Set(["/decisoes.css","/decisoes-domain.js","/decisoes.js","/equipment-insights.css","/equipment-insights-domain.js","/equipment-insights.js","/visual-painel.css","/visual-painel.js","/platform-employees.js","/employee-limits.js","/employee-access.js","/equipe-domain.js","/equipe.js","/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
 // Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
 // Sem cache no navegador, para o celular sempre conferir se há versão nova.
 let SERVICE_WORKER = "";
@@ -2721,6 +2726,7 @@ function validateProductionConfiguration() {
   await store.pruneSessions();
   await ensureSeedGroup();
   await ensureExistingGroupCodes();
+  for(const g of await store.listGroups())if(!EmployeeLimits.valid(g.state.employeeLimits?.totalLimit))await mutateGroup(g.id,fresh=>{EmployeeLimits.migrate(fresh.state,nowIso());});
   for (const g of await store.listGroups()) {
     try {
       const moved = await extractInlineFiles(g, g.state);
