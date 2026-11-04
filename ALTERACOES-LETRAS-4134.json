@@ -1,0 +1,39 @@
+{
+  "version": "4.13.4",
+  "base": "4.13.3",
+  "githubPublished": false,
+  "tests": {
+    "passed": 310,
+    "failed": 0
+  },
+  "syntaxFiles": 176,
+  "staticAssets": 94,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "campo-sw.js",
+      "sha256": "c13fd0bf33d02933580260c980c47f1cad08b1b9d58254aa83057d212c31c2fd"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "6bb8aca7f5fa1945493357a34a4ae6c7efde98972036265b9ef50e74de66fcb0"
+    },
+    {
+      "file": "package.json",
+      "sha256": "18e95faa57e7c39a1195678fa95c780cbaa07a2df605c75a8785aa7811795a4c"
+    },
+    {
+      "file": "rotina-rural.js",
+      "sha256": "8ce0068fd552d3be9993d29919de3c4cf891f9a01bc9bae4f95e5bcf77170c61"
+    },
+    {
+      "file": "SELETOR-DE-LETRAS-4.13.4.md",
+      "sha256": "8afd2a8ba4479f7bb4622aff68ee5a0e386bdea73da465d7e1306b50de510f03"
+    },
+    {
+      "file": "visual-painel.css",
+      "sha256": "9a361b71ed3c1e8c5e7f8f86f0db2e445b5c40fd1b8729edfe06cf02efee4c8c"
+    }
+  ]
+}

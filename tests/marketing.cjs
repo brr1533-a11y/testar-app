@@ -19,7 +19,7 @@ const screenshots=process.env.RURAL_SCREENSHOT_DIR||path.resolve('test-results')
   await page.locator('.buy-plan[data-plan=pro]').click();await page.locator('.mail-dlg').waitFor();assert.match(await page.locator('.mail-dlg h3').innerText(),/Profissional/);await page.locator('.mail-dlg .mail-cancel').click();
   await page.locator('#selectAllActivities').click();assert.match(await page.locator('#activitySelectionSummary').innerText(),/3 atividades/);
   await page.locator('.buy-plan[data-plan=group]').click();await page.locator('.mail-dlg').waitFor();assert.match(await page.locator('.mail-dlg h3').innerText(),/Grupo/);await page.locator('.mail-dlg .mail-cancel').click();
-  assert.equal(checkouts,0);assert.deepEqual((await page.locator('[data-price]').allTextContents()).map(v=>Number(v.replace(/\./g,'').replace(',','.'))),[397,997,1497]);
+  assert.equal(checkouts,0);assert.deepEqual((await page.locator('[data-price]').allTextContents()).map(v=>Number(v.replace(/\./g,'').replace(',','.'))),[99,199,350]);
   await page.locator('.activity-plan-picker').screenshot({path:path.join(screenshots,'planos-por-atividade.png')});
   for(const [url,allowed] of [['/cafe',['visao','producao','mercado','equip','talhoes','banho','estoque','financeiro','notas','pagamentos','fazendas','usuarios','log','perfil']],['/graos',['visao','graos','equip','talhoes','estoque','financeiro','notas','usuarios','perfil']]]){
    await page.goto(s.url+url);assert.deepEqual(await page.locator('.app [data-pv]').evaluateAll(els=>els.map(el=>el.dataset.pv)),allowed);

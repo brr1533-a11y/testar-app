@@ -16,8 +16,8 @@ const month=iso=>iso.slice(0,7);
 const PAGES=[
  {id:'resumo-dono',name:'Resumo do dono',group:'Início',finance:true},
  {id:'parcerias',name:'Parceria e meação',group:'Lavoura',activity:'coffee',finance:true},
- {id:'arrendamentos',name:'Arrendamentos',group:'Lavoura',finance:true},
- {id:'prestadores',name:'Prestadores terceirizados',group:'Lavoura',finance:true},
+ {id:'arrendamentos',name:'Arrendamentos',group:'Financeiro e fiscal',finance:true},
+ {id:'prestadores',name:'Prestadores terceirizados',group:'Financeiro e fiscal',finance:true},
  {id:'animais',name:'Animais individuais',group:'Pecuária',activity:'cattle'},
  {id:'funrural',name:'Funrural e Senar',group:'Financeiro e fiscal',finance:true},
  {id:'financiamentos',name:'Financiamentos e dívidas',group:'Financeiro e fiscal',finance:true},

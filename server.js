@@ -66,9 +66,9 @@ const SEED_CEO_EMAIL = String(process.env.SEED_CEO_EMAIL || "").trim().toLowerCa
 const PUBLIC_BASE_URL = (process.env.PUBLIC_BASE_URL || "").replace(/\/$/, "");
 const PLAN_CATALOG = {
   // monthlyPrice: valor das três atividades, usado só por compras antigas que não guardaram a escolha de atividades.
-  essential: { id: "essential", name: "Essencial", monthlyPrice: 397, maxFarms: 1, usersPerGroup: 50 },
-  pro: { id: "pro", name: "Profissional", monthlyPrice: 997, maxFarms: 5, usersPerGroup: 50 },
-  group: { id: "group", name: "Grupo", monthlyPrice: 1497, maxFarms: 15, usersPerGroup: 50 }
+  essential: { id: "essential", name: "Essencial", monthlyPrice: 99, maxFarms: 1, usersPerGroup: 50 },
+  pro: { id: "pro", name: "Profissional", monthlyPrice: 199, maxFarms: 5, usersPerGroup: 50 },
+  group: { id: "group", name: "Grupo", monthlyPrice: 350, maxFarms: 15, usersPerGroup: 50 }
 };
 const BILLING_CYCLES = {
   monthly: { id: "monthly", label: "Mensal", months: 1, discount: 0 },
@@ -1130,7 +1130,11 @@ function stateForUserBase(state, user, plan) {
     operations: {dryingGuidelines: activities.includes("coffee")?(f.operations?.dryingGuidelines||[]):[], dryingLogs: activities.includes("coffee")?(f.operations?.dryingLogs||[]):[]},
     stock: [], finances: [], notes: []
   }));
-  if (user.function === HarvestLabor.FISCAL) {
+  if (TeamRegistry.has(user, HarvestLabor.FISCAL) && activities.includes("coffee")) {
+    if (!TeamRegistry.onlyFiscal(user)) {
+      full.farms=full.farms.map(f=>({...f,labor:HarvestLabor.forFiscal((state.farms||[]).find(x=>x.id===f.id)?.labor)}));
+      return full;
+    }
     const source = (state.farms || []).find(f => String(f.id) === farmId);
     // Carência dos banhos vai pronta por talhão (o fiscal não recebe as ordens), para avisar também sem internet.
     const grace = source ? Carencia.forFiscalPlots(source) : {};
@@ -1146,6 +1150,7 @@ function statePayload(group, user) {
 }
 
 app.post('/api/provider-preferences',auth,requireRole('ceo'),async(req,res,next)=>{try{const rows=require('./provider-catalog').validate(req.body.rows);const {saved}=await mutateGroup(req.auth.group.id,g=>{if(req.body.baseRev!==Number(g.state._rev||0))throw httpError(409,'Atualize o painel antes de salvar.');g.state.providerPreferences={rows,updatedAt:nowIso(),updatedBy:req.auth.user.id};});res.json({ok:true,...statePayload(saved,saved.state.users.find(u=>u.id===req.auth.user.id))});}catch(e){next(e);}});
+require('./feedback-colheita-server').register({app,store,auth,requireRole,platformAuth,mutateGroup,recordPlatformAudit,publicBase:PUBLIC_BASE_URL,port:PORT});
 app.get("/api/coffee-studio/qr",auth,requireRole("ceo","adm"),async(req,res,next)=>{try{const group=req.auth.group,user=req.auth.user;if(!SubscriptionDomain.licensed(group.state).includes("coffee")||user.role==="adm"&&!AdmAccess.can(group.state,"safras"))return res.status(403).json({error:"Sem acesso ao café."});const f=group.state.farms.find(f=>f.id===req.query.farmId);if(!f||!CoffeeStudio.replay(f).lots.some(l=>l.id===req.query.lotId))return res.status(404).json({error:"Lote não encontrado."});const base=PUBLIC_BASE_URL||('http://127.0.0.1:'+PORT);const url=new URL('/app',base);url.searchParams.set('activity','coffee');url.searchParams.set('farmId',f.id);url.searchParams.set('coffeeLot',req.query.lotId);const svg=await require('qrcode').toString(url.href,{type:'svg',errorCorrectionLevel:'M',margin:3});res.setHeader('Cache-Control','no-store');res.json({svg,url:url.href,private:true});}catch(e){next(e);}});
 // ---------- Anexos guardados fora do pacote de dados ----------
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -1390,7 +1395,7 @@ function mergeStateByRole(existing, incoming, user) {
   if(current.providerPreferences)incoming.providerPreferences=clone(current.providerPreferences);else delete incoming.providerPreferences;
   const next = ["ceo","adm"].includes(user.role) ? GroupAccess.restore(current,incoming) : clone(incoming);
   if (current.workforce !== undefined) next.workforce = clone(current.workforce); else delete next.workforce;
-  for (const u of next.users || []) { const old = (current.users || []).find(x=>x.id===u.id); if(old?.cargoId && old.role===u.role && old.function===u.function) {u.cargoId=old.cargoId;u.cargoName=old.cargoName;} else {delete u.cargoId;delete u.cargoName;} }
+  TeamRegistry.preserve(current,next);
   if (current.subscriptionActivities !== undefined) next.subscriptionActivities = clone(current.subscriptionActivities);
   else delete next.subscriptionActivities;
   // O registro do aceite dos termos é do servidor: o navegador não cria nem altera.
@@ -1469,7 +1474,7 @@ function mergeStateByRole(existing, incoming, user) {
   const farmId = user.allowedFarmId;
   const oldFarm = (result.farms || []).find(f => String(f.id) === String(farmId));
   const proposedFarm = (next.farms || []).find(f => String(f.id) === String(farmId));
-  if (!oldFarm || !proposedFarm) return result;
+  if (!oldFarm || !proposedFarm || TeamRegistry.onlyFiscal(user)) return result;
 
   const keepOthers = (items, field = "user") => (items || []).filter(x => String(x[field] || "") !== String(user.username));
   const mine = (items, field = "user") => (items || []).filter(x => String(x[field] || "") === String(user.username));
@@ -1574,7 +1579,7 @@ async function saveStateRoute(req, res, next) {
     // As permissões também são reaplicadas no backend; a interface não é a única barreira de acesso.
     const before = clone(group.state);
     const allowedState = mergeStateByRole(group.state, incoming, user);
-    if (user.role === "contribuinte" && user.function === HarvestLabor.FISCAL) {
+    if (user.role === "contribuinte" && TeamRegistry.has(user, HarvestLabor.FISCAL) && RuralDomain.activitiesFor(user.allowedActivity).includes("coffee") && SubscriptionDomain.licensed(before).includes("coffee")) {
       const sent = (incoming.farms || []).find(f => String(f.id) === String(user.allowedFarmId)), mine = (allowedState.farms || []).find(f => String(f.id) === String(user.allowedFarmId));
       if (sent && mine) mine.labor = { ...(mine.labor || {}), entries: Array.isArray(sent.labor?.entries) ? sent.labor.entries : [], workers: Array.isArray(sent.labor?.workers) ? sent.labor.workers : (mine.labor?.workers || []) };
     }
@@ -1603,7 +1608,7 @@ async function saveStateRoute(req, res, next) {
     RuralRoutine.preserve(before,allowedState);
     FarmPriorities.prepare(before,allowedState,user,page=>page.startsWith('activity:')?SubscriptionDomain.licensed(before).includes(page.slice(9)):user.role==='ceo'||user.role==='adm'&&AdmAccess.can(before,page));
     // Mão de obra da colheita: valor congelado nos apontamentos, semana fechada travada e contas a pagar geradas no fechamento.
-    const laborRole = user.role === "ceo" || (user.role === "adm" && AdmAccess.can(before, "mao-de-obra")) ? "manager" : user.role === "contribuinte" && user.function === HarvestLabor.FISCAL ? "fiscal" : null;
+    const laborRole = user.role === "ceo" || (user.role === "adm" && AdmAccess.can(before, "mao-de-obra")) ? "manager" : user.role === "contribuinte" && TeamRegistry.has(user, HarvestLabor.FISCAL) && RuralDomain.activitiesFor(user.allowedActivity).includes("coffee") && SubscriptionDomain.licensed(before).includes("coffee") ? "fiscal" : null;
     HarvestLabor.prepare(before, allowedState, { ...user, labor: laborRole });
     // Carência de defensivo: alerta nas colheitas novas e decisão do CEO/ADM (vai para o histórico).
     Expansion.applyAnnualWork(before,allowedState);
@@ -1650,6 +1655,7 @@ app.post("/api/state/import-local", auth, requireRole("ceo"), async (req, res, n
     EmployeeLimits.preserve(group.state,incoming);
     if(group.state.providerPreferences)incoming.providerPreferences=clone(group.state.providerPreferences);else delete incoming.providerPreferences;
     if(group.state.workforce!==undefined)incoming.workforce=clone(group.state.workforce);else delete incoming.workforce;
+    TeamRegistry.preserve(group.state,incoming);
     RuralRoutine.preserve(group.state,incoming);
     EquipmentRegistry.prepare(group.state,incoming,currentCeo); FarmPriorities.prepare(group.state,incoming,currentCeo,page=>page.startsWith('activity:')?SubscriptionDomain.licensed(group.state).includes(page.slice(9)):true);
     if (group.state.subscriptionActivities !== undefined) incoming.subscriptionActivities = clone(group.state.subscriptionActivities);
@@ -2667,7 +2673,7 @@ require("./equipe-server")({app,auth,mutateGroup,statePayload,store,validateStat
 require("./employee-access-server")({app,auth,requireRole,platformAuth,store,mutateGroup,statePayload,recordPlatformAudit,validateUsername,bcrypt,WEAK_PASSWORDS,rateBlocked,rateHit,tokenHash,SESSION_DAYS});
 require("./ia-server").register({app,auth,requireRole,stateForUser});
 
-const PUBLIC_FILES = new Set(["/agricultural-flow.css","/agricultural-flow-domain.js","/agricultural-flow.js","/provider-catalog.js","/provider-preferences.js","/coffee-studio.css","/coffee-studio-domain.js","/coffee-studio.js","/decisoes.css","/decisoes-domain.js","/decisoes.js","/equipment-insights.css","/equipment-insights-domain.js","/equipment-insights.js","/visual-painel.css","/visual-painel.js","/platform-employees.js","/employee-limits.js","/employee-access.js","/equipe-domain.js","/equipe.js","/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
+const PUBLIC_FILES = new Set(["/safras-comparacao-domain.js","/safras-comparacao.js","/safras-comparacao.css","/navegacao-suave.js","/tratores-geral.js","/seletores.js","/controles.css","/agricultural-flow.css","/agricultural-flow-domain.js","/agricultural-flow.js","/provider-catalog.js","/provider-preferences.js","/coffee-studio.css","/coffee-studio-domain.js","/coffee-studio.js","/decisoes.css","/decisoes-domain.js","/decisoes.js","/equipment-insights.css","/equipment-insights-domain.js","/equipment-insights.js","/visual-painel.css","/visual-painel.js","/platform-employees.js","/employee-limits.js","/employee-access.js","/equipe-domain.js","/equipe.js","/leitura-ajustes.css","/rotina-rural-domain.js","/rotina-rural.js","/rotina-rural.css","/ia-assistente.js","/ia-ajuda.js","/ia.js","/ia.css","/assets/vendor/leaflet/leaflet.js","/assets/vendor/leaflet/leaflet.css","/rascunhos-domain.js","/prioridades-domain.js","/prioridades.js","/prioridades.css","/mapa-satelite.js","/equipamentos.js","/planilhas-domain.js","/planilhas.js","/planilhas.css","/platform-melhorias.js","/melhorias-domain.js","/melhorias.js","/melhorias.css","/termos.html","/privacidade.html","/expansao-domain.js","/implantacao-domain.js","/expansao.js","/expansao.css","/contador.js","/analise-solo-domain.js", "/analise-solo.js", "/analise-solo.css", "/assets/gestao-rural-previa.mp4", "/index.html", "/app.html", "/platform.html", "/style.css", "/theme.css", "/inicio.css", "/sales.css", "/platform.css", "/platform-theme.css", "/app.js", "/fx.js", "/inicio.js", "/sales.js", "/platform.js", "/rural-domain.js", "/rural-modules.js", "/rural-modules.css", "/graos.js", "/gado.html", "/graos.html", "/paginas-iniciais.css", "/cafe.html", "/subscription-domain.js", "/talhoes-domain.js", "/talhoes-historico.js", "/safras-domain.js", "/safras-historico.js", "/operacao-domain.js", "/operacao.js", "/operacao.css", "/graficos-rurais.js", "/demo.js", "/safra-painel.js", "/gado-config.js", "/app-minimal.css", "/culturas-quantidades.js", "/formularios-rurais.js", "/temas-atividades.css", "/gestao-domain.js", "/gestao.js", "/gestao.css", "/adm-access.js", "/adm-acesso.js", "/plan-features.js", "/menu.js", "/campo-domain.js", "/campo.js", "/lcdpr.js", "/manifest.webmanifest", "/evolucao-domain.js", "/evolucao.js", "/evolucao.css", "/campo-offline.js", "/cofre-pin.js", "/pix-brcode.js", "/carencia-domain.js", "/carencia.js", "/medicamentos-domain.js","/maodeobra-domain.js","/maodeobra.js", "/maodeobra.css", "/assets/app-icone-192.png", "/assets/app-icone-512.png"]);
 // Service worker do app de campo: gerado ao iniciar, com a versão calculada pelos arquivos (código novo = cache novo).
 // Sem cache no navegador, para o celular sempre conferir se há versão nova.
 let SERVICE_WORKER = "";

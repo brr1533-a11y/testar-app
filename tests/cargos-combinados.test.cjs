@@ -1,0 +1,38 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),T=require('../equipe-domain'),Routine=require('../rotina-rural-domain'),Expansion=require('../expansao-domain'),{startServer}=require('./support/server.cjs');
+test('Geral combina Campo e Tratorista; fiscal é optativo, sem promover para administrador',()=>{
+ const s={users:[{id:'c',role:'ceo',active:true},{id:'w',role:'contribuinte',function:'Campo',active:true}],farms:[{id:'f'}]},apply=i=>T.act(s,i,s.users[0],{id:'custom',at:new Date().toISOString()});
+ assert.equal(T.presets.length,5);apply({kind:'assign',roleId:'preset-geral',userId:'w',farmId:'f',activity:'coffee'});let u=s.users[1];
+ assert.deepEqual(T.routines(u),['Campo','Tratorista']);assert.equal(u.role,'contribuinte');assert.equal(T.has(u,'Fiscal de colheita'),false);assert.equal(Routine.can(s,u,'work'),true);assert.equal(Expansion.can(u,'campo-completo'),true);
+ apply({kind:'role',name:'Geral com panha',level:'contribuinte',operationalFunctions:['Fiscal de colheita','Tratorista','Campo']});apply({kind:'assign',roleId:'custom',userId:'w',farmId:'f',activity:'coffee'});
+ assert.equal(T.has(u,'Fiscal de colheita'),true);assert.equal(T.onlyFiscal(u),false);assert.equal(Expansion.can(u,'campo-completo'),true);assert.equal(Routine.can(s,u,'pay'),false);
+ assert.throws(()=>apply({kind:'role',name:'Vazio',level:'contribuinte',operationalFunctions:[]}),/rotina/);assert.throws(()=>apply({kind:'role',name:'Injetado',level:'contribuinte',operationalFunctions:['CEO']}),/rotina/);
+ assert.throws(()=>T.act(s,{kind:'assign',roleId:'preset-adm',userId:'w'},u,{id:'no',at:new Date().toISOString()}),/CEO/);
+ assert.throws(()=>apply({kind:'role',id:'custom',name:'Trocado',level:'contribuinte',operationalFunctions:['Campo']}),/outro cargo/);
+ apply({kind:'assign',roleId:'preset-2',userId:'w',farmId:'f',activity:'coffee'});assert.equal(T.onlyFiscal(u),true);assert.equal(Expansion.can(u,'campo-completo'),false);
+});
+test('API: atribuição combinada revoga sessão, preserva limites e protege cadastros/salários da panha',async t=>{
+ const s=await startServer({PRICE_WATCH_HOURS:'0'});t.after(()=>s.stop());
+ const call=async(p,tk,b,m)=>{const r=await fetch(s.url+p,{method:m||(b?'POST':'GET'),headers:{'Content-Type':'application/json',...(tk?{Authorization:'Bearer '+tk}:{})},...(b?{body:JSON.stringify(b)}:{})});return{status:r.status,json:await r.json()};};
+ const login=async(name,password=s.password)=>(await call('/api/auth/login','',{groupCode:'1001',username:name,password})).json.token;
+ const put=async(tk,fn)=>{const r=await call('/api/state',tk);fn(r.json.state);return call('/api/state',tk,{state:r.json.state,baseRev:r.json.rev},'PUT');};
+ const ceo=await login('testceo');let farmId;
+ let r=await put(ceo,st=>{const f=st.farms[0];farmId=f.id;f.talhoes=[{id:'plot',name:'Café',activity:'coffee'}];f.tractors=[{id:'tractor',name:'Trator',status:'Disponível'}];f.labor={workers:[{id:'worker',name:'Pessoa',role:'panhador',active:true,bagRate:12,pix:'privado'}],plotRates:[],entries:[],adjustments:[],closings:[],settings:{}};});assert.equal(r.status,200,r.json.error);
+ assert.equal((await call('/api/users',ceo,{username:'combinado',name:'Operador',email:'combo@example.invalid',password:s.password,role:'contribuinte',function:'Campo',allowedFarmId:farmId,allowedActivity:'coffee'})).status,200);
+ let token=await login('combinado');await call('/api/auth/change-password',token,{currentPassword:s.password,newPassword:s.password+'Z9'});token=await login('combinado',s.password+'Z9');
+ let st=(await call('/api/state',ceo)).json.state,uid=st.users.find(u=>u.username==='combinado').id;
+ const assign=async (roleId,activity='coffee')=>{const r=await call('/api/team',ceo,{kind:'assign',userId:uid,roleId,farmId,activity});assert.equal(r.status,200,r.json.error);};
+ await assign('preset-geral');assert.equal((await call('/api/state',token)).status,401);token=await login('combinado',s.password+'Z9');
+ st=(await call('/api/state',token)).json.state;assert.equal(st.farms.length,1);assert.equal(st.farms[0].labor,undefined);assert.deepEqual(T.routines(st.users[0]),['Campo','Tratorista']);
+ r=await put(ceo,st=>{st.users.find(u=>u.id===uid).operationalFunctions=['Fiscal de colheita'];});assert.equal(r.status,200,r.json.error);
+ st=(await call('/api/state',token)).json.state;assert.deepEqual(T.routines(st.users[0]),['Campo','Tratorista']);
+ r=await call('/api/team',ceo,{kind:'role',name:'Todas as rotinas',level:'contribuinte',operationalFunctions:T.functions});assert.equal(r.status,200,r.json.error);
+ const role=r.json.state.workforce.roles.find(r=>r.name==='Todas as rotinas');await assign(role.id);token=await login('combinado',s.password+'Z9');
+ st=(await call('/api/state',token)).json.state;assert.equal(st.farms[0].tractors.length,1);assert.equal(st.farms[0].labor.workers[0].pix,undefined);assert.equal(st.farms[0].labor.workers[0].bagRate,undefined);assert.deepEqual(st.farms[0].finances,[]);
+ const date=new Date().toISOString().slice(0,10);
+ r=await put(token,st=>{st.users[0].role='ceo';st.users[0].operationalFunctions=['CEO'];st.farms[0].labor.entries.push({id:'colhido',date,plotId:'plot',workerId:'worker',kind:'saco',bags:2});st.farms[0].labor.workers[0].bagRate=999;});assert.equal(r.status,200,r.json.error);
+ const full=(await call('/api/state',ceo)).json.state;assert.equal(full.users.find(u=>u.id===uid).role,'contribuinte');assert.deepEqual(T.routines(full.users.find(u=>u.id===uid)),T.functions);assert.equal(full.farms[0].labor.workers[0].bagRate,12);assert.equal(full.farms[0].labor.entries[0].rate,12);assert.equal(full.farms[0].labor.entries[0].bags,2);
+ assert.equal((await call('/api/team',token,{kind:'role',name:'Administrador',level:'adm'})).status,403);
+ await assign(role.id,'cattle');token=await login('combinado',s.password+'Z9');assert.equal((await call('/api/state',token)).json.state.farms[0].labor,undefined);
+ r=await put(token,st=>{st.farms[0].labor={workers:[],entries:[{id:'proibido',date,plotId:'plot',workerId:'worker',kind:'saco',bags:5}]};});assert.equal(r.status,200,r.json.error);assert.equal((await call('/api/state',ceo)).json.state.farms[0].labor.entries.length,1);
+ await assign('preset-geral');token=await login('combinado',s.password+'Z9');assert.equal((await call('/api/state',token)).json.state.farms[0].labor,undefined);
+});

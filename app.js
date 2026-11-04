@@ -1243,7 +1243,7 @@ function baseNavItems() {
     return [["gado-campo", "cattle", "Gado"], ["meus-comprovantes", "receipt", "Meus comprovantes"], ["perfil", "users", "Perfil"]];
   }
   const coffeeItems = [["meu-dia", "check", "Meu trabalho hoje"], ["safras", "bean", "Safras e colheitas"]];
-  if (selectedType() === "coffee" && currentUser.function === "Tratorista") coffeeItems.push(["banho", "receipt", "Banhos liberados"]);
+  if (selectedType() === "coffee" && RuralTeam.has(currentUser,"Tratorista")) coffeeItems.push(["banho", "receipt", "Banhos liberados"]);
   coffeeItems.push(["equipamentos-campo", "tractor", "Equipamentos disponíveis"], ["meus-comprovantes", "receipt", "Meus comprovantes"], ["perfil", "users", "Perfil"]);
   return coffeeItems;
 }
@@ -1692,7 +1692,7 @@ function renderEquipmentAdmin() {
     const tractors = contextEquipment("tractor");
     const implementsList = contextEquipment("implement");
     $("#pageContent").innerHTML = `
-      <div class="card soft"><span class="eyebrow dark">VISÃO GERAL DE EQUIPAMENTOS</span><h2>${tractors.length + implementsList.length} ativos</h2><p class="muted">Modo geral apenas para consulta. Para cadastrar ou editar, escolha uma fazenda específica.</p></div>
+      <div class="card soft"><span class="eyebrow dark">VISÃO GERAL DE EQUIPAMENTOS</span><h2>${tractors.length + implementsList.length} ativos</h2><p class="muted">Consulte os equipamentos do grupo. Para cadastrar ou editar, escolha uma fazenda; para transferir tratores, o CEO pode usar a aba Tratores.</p></div>
       <div class="section-head"><h2>Tratores</h2></div>
       ${tractors.length ? `<div class="table-wrap"><table><thead><tr><th>Fazenda</th><th>Nome</th><th>Modelo</th><th>Status</th></tr></thead><tbody>${tractors.map(t => `<tr><td>${escapeHTML(t.farmName)}</td><td><b>${escapeHTML(t.name)}</b></td><td>${escapeHTML(t.model || "—")} • ${escapeHTML(t.plate || "—")}</td><td><span class="badge ${t.status === "Disponível" ? "green" : "gold"}">${escapeHTML(t.status)}</span></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum trator cadastrado.</div>`}
       <div class="section-head"><h2>Implementos</h2></div>
@@ -1808,7 +1808,7 @@ function renderBanho() {
     return renderPage();
   }
 
-  if (currentUser.role === "contribuinte" && currentUser.function !== "Tratorista") {
+  if (currentUser.role === "contribuinte" && !RuralTeam.has(currentUser,"Tratorista")) {
     currentPage = "meu-dia";
     renderNav();
     return renderContributorDay();
@@ -2532,7 +2532,7 @@ function renderProfile() {
     ${contributors.length ? `<div class="table-wrap"><table><thead><tr><th>Contribuinte</th><th>Usuário</th><th>Função</th><th>Atividade</th><th>Fazenda liberada</th><th>Status</th></tr></thead><tbody>${contributors.map(u => `<tr><td><b>${escapeHTML(u.name)}</b></td><td>${escapeHTML(u.username)}</td><td><select class="profile-user-function" data-id="${u.id}" style="min-width:135px">${functionOptions(u.function)}</select></td><td><select class="profile-user-activity" data-id="${u.id}" style="min-width:135px">${activityOptions(u.allowedActivity || "both")}</select></td><td><select class="profile-user-farm" data-id="${u.id}" style="min-width:210px">${farmOptions(u.allowedFarmId)}</select></td><td><span class="badge ${u.active !== false ? "green" : "red"}">${u.active !== false ? "Ativo" : "Bloqueado"}</span></td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Nenhum contribuinte cadastrado.</div>`}` : "";
 
   const functionField = currentUser.role !== "ceo"
-    ? `<label>Função<input name="function" value="${escapeHTML(currentUser.function || "")}" disabled></label>`
+    ? `<label>Função<input name="function" value="${escapeHTML(currentUser.cargoName || currentUser.function || "")}" disabled></label>`
     : `<label>Função<input name="function" value="${escapeHTML(currentUser.function || "")}"></label>`;
 
   $("#pageContent").innerHTML = `
@@ -2954,7 +2954,7 @@ function renderContributorDay() {
   const busyI = new Set(busyToday.map(a => a.implementId).filter(Boolean));
   const tractors = farm.tractors.filter(t => t.status === "Disponível" && !busyT.has(t.id));
   const implementsList = farm.implements.filter(i => i.status === "Disponível" && !busyI.has(i.id));
-  const requiresEquipment = currentUser.function === "Tratorista";
+  const requiresEquipment = RuralTeam.has(currentUser,"Tratorista") && !RuralTeam.has(currentUser,"Campo");
   const selectedPlots = existing?.talhaoNames || [];
   $("#pageContent").innerHTML = `<div class="assignment-hero"><div><span class="eyebrow">RESPONSABILIDADE DO DIA • ${escapeHTML(currentUser.function || "Campo")}</span><h2>${existing ? "Trabalho do dia confirmado." : "Escolha seu trabalho do dia."}</h2><p>Selecione a atividade, um ou mais talhões e os equipamentos sob sua responsabilidade.</p></div><div class="assignment-status"><strong>${dateBR(todayISO())}</strong></div></div>${existing ? `<div class="grid two" style="margin-top:18px"><div class="card"><h3>Talhão(ões)</h3><h2 style="font-size:22px">${escapeHTML(selectedPlots.join(", ") || "—")}</h2></div><div class="card"><h3>Função</h3><h2 style="font-size:22px">${escapeHTML(existing.userFunction || currentUser.function || "Campo")}</h2></div><div class="card"><h3>Trator</h3><h2>${escapeHTML(existing.tractorName || "Não selecionado")}</h2></div><div class="card"><h3>Implemento</h3><h2>${escapeHTML(existing.implementName || "Não selecionado")}</h2></div></div><div class="card" style="margin-top:18px"><b>Atividade:</b> ${escapeHTML(existing.activity)}<div class="form-actions"><button id="changeAssignment" class="btn">Alterar</button></div></div>` : `<form id="assignmentForm"><div class="form-card"><label style="margin:0">Atividade<input name="activity" required placeholder="Ex.: roçada, aplicação, colheita, limpeza..."></label></div><div class="section-head"><div><h2>Talhão</h2><p>Escolha um ou mais talhões.</p></div></div><div class="grid three">${farm.talhoes.length ? farm.talhoes.map(t => `<label class="equipment-pick"><span><strong>${escapeHTML(t.name)}</strong><span>${t.reference ? `Ref.: ${escapeHTML(t.reference)}` : "Selecionar talhão"}</span></span><input type="checkbox" name="talhoes" value="${t.id}"></label>`).join("") : `<div class="card empty">Nenhum talhão cadastrado. Peça ao CEO para cadastrar os talhões desta fazenda.</div>`}</div><div class="section-head"><div><h2>Trator</h2><p>${requiresEquipment ? "Obrigatório para Tratorista." : "Opcional para função Campo."}</p></div></div><div class="grid two">${tractors.map(t => `<label class="equipment-pick"><span><strong>${escapeHTML(t.name)}</strong><span>${escapeHTML(t.model || "")}</span></span><input type="radio" name="tractor" value="${t.id}" ${requiresEquipment ? "required" : ""}></label>`).join("") || `<div class="card empty">Nenhum trator disponível.</div>`}</div><div class="section-head"><div><h2>Implemento</h2><p>${requiresEquipment ? "Obrigatório para Tratorista." : "Opcional para função Campo."}</p></div></div><div class="grid two">${implementsList.map(i => `<label class="equipment-pick"><span><strong>${escapeHTML(i.name)}</strong><span>${escapeHTML(i.category || "")}</span></span><input type="radio" name="implement" value="${i.id}" ${requiresEquipment ? "required" : ""}></label>`).join("") || `<div class="card empty">Nenhum implemento disponível.</div>`}</div><div class="form-actions"><button class="btn primary">Confirmar responsabilidade</button></div></form>`}`;
   if (existing) {

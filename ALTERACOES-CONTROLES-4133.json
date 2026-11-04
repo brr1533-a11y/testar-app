@@ -1,0 +1,87 @@
+{
+  "version": "4.13.3",
+  "base": "4.13.2",
+  "githubPublished": false,
+  "tests": {
+    "passed": 310,
+    "failed": 0
+  },
+  "syntaxFiles": 176,
+  "staticAssets": 94,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "app.html",
+      "sha256": "f4c3ed76d05d34edd7f0195c75c7a2def456e31c4217427b871f9c50179bab21"
+    },
+    {
+      "file": "cafe.html",
+      "sha256": "046f347bde4bac52b2db3d46ba499ad88b321aa6e946da73969a3eb0f976616d"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "44ac7c2c5aa6767b7ef8d161e1f8d3203de4c8fad25c15213e9de2028fc0b463"
+    },
+    {
+      "file": "contador.html",
+      "sha256": "bf1c5647b5490647655b98b689a4e0fb0fac9e9da1d4aa50616d077bab1b499f"
+    },
+    {
+      "file": "CONTROLES-SEM-BRILHO-4.13.3.md",
+      "sha256": "4e55cbeb09d5c326556da339f0ee12bf7dfb93d86b81a4c90379c757245f22cc"
+    },
+    {
+      "file": "controles.css",
+      "sha256": "a9fb921fd0d00e9967f00ab407d3690f744027d6e7452f8fd4a2f8f3564d5251"
+    },
+    {
+      "file": "demo.html",
+      "sha256": "801cb645397fe63c25e49e713f16c3eb73322d390dfefc7af8a9619e5f812d9b"
+    },
+    {
+      "file": "gado.html",
+      "sha256": "01164d1fe32e7135277d25c2ad9af6bdb119dcccb7e360d1faa7e9e709810296"
+    },
+    {
+      "file": "graos.html",
+      "sha256": "52fd41d74c90e9d6125157b1aa1512f213d6975092af64912490fca14da3049d"
+    },
+    {
+      "file": "index.html",
+      "sha256": "e36ff1d4dff7dfa204350bf4b57104a7f0662b8286f05a6c19102151317df170"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "26e76f096fa30dcb605874d19d950ee00449b45424fd8b8bb2956e306056c8de"
+    },
+    {
+      "file": "package.json",
+      "sha256": "58c978335fc8c87b39c04e093023639f7f284c6bb78b6115f24540e5fd6c28e4"
+    },
+    {
+      "file": "platform.html",
+      "sha256": "525c78165ac23cfcb329b1b700efa2365c4527749f76390bf0c576700af66208"
+    },
+    {
+      "file": "primeiro-acesso-template.html",
+      "sha256": "af75e5438077c66201ec1d9301d5e64dc3cf31b02722e3e39bb33352dd56c903"
+    },
+    {
+      "file": "privacidade.html",
+      "sha256": "118674166581269f0f40e541728b10dc684d3729f2b16da2cc75f77fe129aea6"
+    },
+    {
+      "file": "server.js",
+      "sha256": "a093418274d4052632f2138e6b795e83f9819ca5aa822f15a286813f77d51095"
+    },
+    {
+      "file": "termos.html",
+      "sha256": "0cc3501cf365c10f3f6604486bfbb5b0a5cd1fe4a01e28a17050822c283d24ad"
+    },
+    {
+      "file": "visual-painel.css",
+      "sha256": "4e44522be36984552925aa623ee09998a7cace50b21e8b2b5ac90fdbcd6f9f9d"
+    }
+  ]
+}

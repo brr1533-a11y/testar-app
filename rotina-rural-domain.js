@@ -1,4 +1,4 @@
-(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./adm-access'):root.AdmAccess,typeof module==='object'&&module.exports?require('./subscription-domain'):root.SubscriptionDomain);if(typeof module==='object'&&module.exports)module.exports=api;else root.RuralRoutine=api;})(globalThis,function(Adm,Sub){
+(function(root,factory){const api=factory(typeof module==='object'&&module.exports?require('./adm-access'):root.AdmAccess,typeof module==='object'&&module.exports?require('./subscription-domain'):root.SubscriptionDomain,typeof module==='object'&&module.exports?require('./equipe-domain'):root.RuralTeam);if(typeof module==='object'&&module.exports)module.exports=api;else root.RuralRoutine=api;})(globalThis,function(Adm,Sub,Team){
   'use strict';
   const clone=x=>JSON.parse(JSON.stringify(x)),fail=(m,s=422)=>{throw Object.assign(new Error(m),{statusCode:s});},check=(ok,m,s)=>{if(!ok)fail(m,s);},num=(v,min=0,max=1e10)=>typeof v==='number'&&Number.isFinite(v)&&v>=min&&v<=max,round=n=>Math.round((n+Number.EPSILON)*100)/100;
   const date=v=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)&&Number.isFinite(Date.parse(v+'T12:00:00Z'))&&new Date(v+'T12:00:00Z').toISOString().slice(0,10)===v;
@@ -9,7 +9,7 @@
     if(kind==='feedback'||kind==='help')return true;
     if(kind==='feedbackStatus'||kind==='policy')return u.role==='ceo';
     if(kind==='pay')return u.role==='ceo'||u.role==='adm'&&Adm.can(state,'financeiro')&&Adm.can(state,'manutencao');
-    if(kind==='work')return u.role==='ceo'||u.role==='adm'&&Adm.can(state,'manutencao')||u.role==='contribuinte'&&u.function==='Tratorista';
+    if(kind==='work')return u.role==='ceo'||u.role==='adm'&&Adm.can(state,'manutencao')||u.role==='contribuinte'&&Team.has(u,'Tratorista');
     if(kind==='approval'||kind==='void')return can(state,u,'work')&&u.role!=='contribuinte';
     if(kind==='ground')return Sub.licensed(state).includes('coffee')&&(u.role==='ceo'||u.role==='adm'&&Adm.can(state,'safras'));
     if(kind==='tips')return Sub.licensed(state).includes('coffee')&&(u.role!=='contribuinte'||Sub.activities.some(a=>a.id==='coffee')&&['coffee','both','all','coffee_cattle','coffee_grains'].includes(u.allowedActivity));

@@ -4,7 +4,7 @@
 const lbEsc = v => escapeHTML(v ?? '');
 const lbAuthor = e => (e.recordedBy || 'Salvando') + (e.recordedByUsername ? ' · @'+e.recordedByUsername : e.recordedByAmbiguous ? ' · autoria antiga a conferir' : '');
 const lbNum = (v, d = 2) => Number(v || 0).toLocaleString('pt-BR', { maximumFractionDigits: d });
-const isFiscal = () => currentUser?.role === 'contribuinte' && currentUser.function === HarvestLabor.FISCAL;
+const isFiscal = () => currentUser?.role === 'contribuinte' && RuralTeam.has(currentUser,HarvestLabor.FISCAL);
 const isLaborManager = () => currentUser?.role === 'ceo' || (currentUser?.role === 'adm' && typeof canSee === 'function' && canSee('mao-de-obra'));
 function laborFarm() {
   if (isFiscal()) { const f = data.farms.find(x => x.id === currentUser.allowedFarmId) || data.farms[0]; if (f) HarvestLabor.init(f); return f; }
@@ -26,7 +26,8 @@ function laborChange(farm, change) {
   navItems = function () {
     const items = navBefore();
     if (!currentUser) return items;
-    if (isFiscal()) return [['colheita-campo', 'check', 'Apontar colheita'], ['campo', 'check', 'Modo de campo'], ['perfil', 'users', 'Perfil']];
+    if (RuralTeam.onlyFiscal(currentUser)) return [['colheita-campo', 'check', 'Apontar colheita'], ['campo', 'check', 'Modo de campo'], ['perfil', 'users', 'Perfil']];
+    if (isFiscal() && selectedType() === 'coffee') items.push(['colheita-campo', 'check', 'Apontar colheita']);
     if (currentUser.role !== 'contribuinte' && selectedType() === 'coffee') {
       if (isLaborManager()) items.push(['mao-de-obra', 'users', 'Mão de obra da colheita']);
       items.push(['colheita-campo', 'check', 'Apontar colheita']);
@@ -36,7 +37,18 @@ function laborChange(farm, change) {
 }
 
 // ---------- Apontar colheita (fiscal, celular) ----------
-let hfPlot = '', hfDate = '', hfCounts = {}, hfSearch = '';
+let hfPlot = '', hfDate = '', hfCounts = {}, hfSearch = '', hfSelectedWorkerId = '';
+async function hfUseWorkerCard(farm){
+ const v=await askForm({title:'Código do cartão de colheita',text:'Cole o endereço lido do QR ou o código da pessoa. O código só seleciona a pessoa; sacos e diárias são confirmados por você.',fields:[{name:'code',label:'Endereço ou código do cartão',required:true}]});if(!v)return;
+ let id=v.code.trim();if(/^https?:/i.test(id)){try{const u=new URL(id);if(u.origin!==location.origin||u.searchParams.get('farmId')!==farm.id)throw Error();id=u.searchParams.get('harvestWorker');}catch{return toast('Cartão de outra fazenda ou endereço inválido.');}}
+ const w=farm.labor.workers.find(w=>w.id===id&&w.active!==false);if(!w)return toast('Pessoa ativa não encontrada nesta fazenda.');hfSelectedWorkerId=w.id;hfSearch='';renderHarvestField();
+}
+async function lbWorkerCard(farm,id){
+ try{const r=await api('/api/labor/worker-qr?'+new URLSearchParams({farmId:farm.id,workerId:id})),image='data:image/svg+xml;base64,'+btoa(r.svg);
+ const v=await openDialog(()=>`<form class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"><h3 id="dlgTitle">Cartão da colheita</h3><p><b>${lbEsc(r.worker.name)}</b></p><img src="${image}" alt="QR da pessoa da colheita" style="display:block;width:240px;max-width:100%;margin:16px auto;background:white"><p>Código: <code style="overflow-wrap:anywhere">${lbEsc(id)}</code></p><p>O fiscal lê pela câmera do celular e entra com o próprio login. O cartão seleciona a pessoa, sem registrar sacos ou diárias sozinho. Não contém CPF, Pix ou salário.</p><div class="dlg-actions"><button class="btn" type="button" data-dlg-cancel>Fechar</button><button class="btn primary" type="submit">Baixar cartão para imprimir</button></div></form>`);
+ if(v){const qr=r.svg.replace('<svg ','<svg x="20" y="65" width="260" height="260" '),badge=`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="410" viewBox="0 0 300 410"><rect width="300" height="410" fill="white"/><g fill="#111" font-family="sans-serif" text-anchor="middle"><text x="150" y="24" font-size="12">GESTÃO RURAL · COLHEITA</text><text x="150" y="48" font-size="14">${lbEsc(r.worker.name.slice(0,36))}</text></g>${qr}<g fill="#111" font-family="sans-serif" text-anchor="middle"><text x="150" y="350" font-size="9">${lbEsc(id)}</text><text x="150" y="375" font-size="10">Exige acesso autorizado do fiscal.</text><text x="150" y="392" font-size="10">Ler o cartão não registra produção.</text></g></svg>`;mgDownload('cartao-colheita-'+id+'.svg',badge,'image/svg+xml');}
+ }catch(e){toast(e.message);}
+}
 // Carência do banho no talhão escolhido: não entrar até… / colheita só a partir de… (funciona sem internet).
 function hfGraceNotice(farm) {
   const block = Carencia.harvestBlock(farm, hfPlot, hfDate), now = Carencia.plotStatus(farm).find(s => s.plotId === hfPlot);
@@ -49,9 +61,10 @@ function renderHarvestField() {
   setHeader('COLHEITA', 'Apontar colheita');
   const farm = laborFarm(); if (!farm) return;
   const L = farm.labor, plots = HarvestLabor.coffeePlots(farm);
+  if(hfSelectedWorkerId&&!L.workers.some(w=>w.id===hfSelectedWorkerId&&w.active!==false))hfSelectedWorkerId='';
   hfDate ||= todayISO(); if (!plots.some(p => p.id === hfPlot)) hfPlot = plots[0]?.id || '';
   const closed = HarvestLabor.closingFor(L, hfDate);
-  const workers = L.workers.filter(w => w.active !== false && (!hfSearch || w.name.toLocaleLowerCase('pt-BR').includes(hfSearch.toLocaleLowerCase('pt-BR')))).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const workers = L.workers.filter(w => w.active !== false && (!hfSelectedWorkerId || w.id===hfSelectedWorkerId) && (!hfSearch || w.name.toLocaleLowerCase('pt-BR').includes(hfSearch.toLocaleLowerCase('pt-BR')))).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const done = L.entries.filter(e => !e.voided && e.date === hfDate && e.plotId === hfPlot);
   const doneBy = id => done.filter(e => e.workerId === id);
   const pending = Object.entries(hfCounts).filter(([, c]) => c.bags > 0 || c.diaria);
@@ -68,7 +81,7 @@ function renderHarvestField() {
     ${hfPlot && typeof Carencia !== 'undefined' ? hfGraceNotice(farm) : ''}
     ${!closed && hfPlot && !plotRated ? `<div class="card hf-norate" role="status"><b>Este talhão ainda não tem valor do saco.</b> Pode apontar normalmente: os sacos ficam pendentes e o escritório define o valor antes de fechar a semana.</div>` : ''}
     ${!L.workers.length ? `<div class="card empty">Nenhuma pessoa cadastrada ainda. Toque em <b>+ Nova pessoa</b> para incluir quem está colhendo.</div>` : ''}
-    <div class="hf-tools">${L.workers.length > 12 ? `<input class="hf-search" id="hfSearch" type="search" placeholder="Procurar pessoa" value="${lbEsc(hfSearch)}">` : ''}<button type="button" class="btn hf-new" id="hfNewWorker">+ Nova pessoa</button></div>
+    <div class="hf-tools"><button class="btn" id="hfUseCard">Usar código do cartão</button>${hfSelectedWorkerId?'<button class="btn" id="hfAllWorkers">Mostrar todas as pessoas</button>':''}${L.workers.length > 12 ? `<input class="hf-search" id="hfSearch" type="search" placeholder="Procurar pessoa" value="${lbEsc(hfSearch)}">` : ''}<button type="button" class="btn hf-new" id="hfNewWorker">+ Nova pessoa</button></div>
     <div class="hf-list">${workers.map(w => { const c = hfCounts[w.id] || { bags: 0, diaria: false }, prev = doneBy(w.id), prevBags = prev.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0), prevDay = prev.some(e => e.kind === 'diaria');
       return `<div class="hf-row ${c.bags || c.diaria ? 'on' : ''}"><div class="hf-name"><b>${lbEsc(w.name)}</b><small>${lbEsc(HarvestLabor.ROLES[w.role] || '')}${w.pendingData ? ' · cadastro novo' : ''}${prevBags ? ` · já lançado: ${lbNum(prevBags, 1)} sc` : ''}${prevDay ? ' · diária lançada' : ''}${c.diaria && noDaily(w) ? ' · <span class="hf-warn">diária sem valor: fica pendente</span>' : ''}</small></div>
         <div class="hf-ctrl">${w.role === 'diarista' ? '' : `<button type="button" class="hf-btn" data-w="${lbEsc(w.id)}" data-d="-1" aria-label="Menos um saco">−</button><span class="hf-count" aria-live="polite">${lbNum(c.bags, 1)}</span><button type="button" class="hf-btn plus" data-w="${lbEsc(w.id)}" data-d="1" aria-label="Mais um saco">+</button>`}
@@ -77,6 +90,7 @@ function renderHarvestField() {
     ${done.length ? `<div class="card"><h3>Já lançado · ${lbEsc(plots.find(p => p.id === hfPlot)?.name)} · ${dateBR(hfDate)}</h3><p class="muted">${lbNum(done.filter(e => e.kind === 'saco').reduce((n, e) => n + e.bags, 0), 1)} sacos · ${done.filter(e => e.kind === 'diaria').length} diária(s)</p>
       <ul class="hf-done">${done.map(e => `<li><span>${lbEsc(L.workers.find(w => w.id === e.workerId)?.name || '—')} · ${e.kind === 'diaria' ? 'Diária' : lbNum(e.bags, 1) + ' sc'}</span>${!closed && (isLaborManager() || (e.recordedById ? String(e.recordedById)===String(currentUser.id||currentUser.username) : !e.recordedByAmbiguous&&e.recordedBy===me)) ? `<button class="btn small hf-fix" data-id="${lbEsc(e.id)}">Corrigir</button>` : ''}</li>`).join('')}</ul></div>` : ''}
   </div>`;
+  $('#hfUseCard').onclick=()=>hfUseWorkerCard(farm);if($('#hfAllWorkers'))$('#hfAllWorkers').onclick=()=>{hfSelectedWorkerId='';hfSearch='';renderHarvestField();};
   $('#hfPlot').onchange = e => { hfPlot = e.target.value; hfCounts = {}; renderHarvestField(); };
   $('#hfDate').onchange = e => { hfDate = e.target.value || todayISO(); hfCounts = {}; renderHarvestField(); };
   if ($('#hfSearch')) $('#hfSearch').oninput = e => { hfSearch = e.target.value; const pos = e.target.selectionStart; renderHarvestField(); const i = $('#hfSearch'); i.focus(); i.setSelectionRange(pos, pos); };
@@ -143,7 +157,7 @@ function renderHarvestLabor() {
   let body = '';
   if (lbTab === 'pessoas') {
     body = `<div class="section-head"><div><h2>Pessoas da colheita</h2><p>Panhadores, safristas e diaristas. CPF e Pix aparecem só aqui; o fiscal vê apenas o nome.</p></div><button class="btn primary" id="lbNewWorker">Nova pessoa</button></div>
-      ${L.workers.length ? `<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Função</th><th>CPF</th><th>Pix</th><th>WhatsApp</th><th>Diária</th><th>Saco (próprio)</th><th>Situação</th><th></th></tr></thead><tbody>${[...L.workers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(w => `<tr><td><b>${lbEsc(w.name)}</b>${w.pendingData ? '<br><span class="badge gold">Completar dados</span>' : ''}</td><td>${lbEsc(HarvestLabor.ROLES[w.role])}</td><td>${w.cpf ? lbEsc(w.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')) : '—'}</td><td>${lbEsc(w.pix || '—')}</td><td>${lbEsc(w.phone || '—')}</td><td>${w.dailyRate ? money(w.dailyRate) : '—'}</td><td>${w.bagRate ? money(w.bagRate) : 'do talhão'}</td><td><span class="badge ${w.active === false ? '' : 'green'}">${w.active === false ? 'Inativo' : 'Ativo'}</span></td><td><button class="btn small lb-edit" data-id="${lbEsc(w.id)}">Editar</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Cadastre a turma da colheita.</div>'}`;
+      ${L.workers.length ? `<div class="table-wrap"><table><thead><tr><th>Nome</th><th>Função</th><th>CPF</th><th>Pix</th><th>WhatsApp</th><th>Diária</th><th>Saco (próprio)</th><th>Situação</th><th></th></tr></thead><tbody>${[...L.workers].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(w => `<tr><td><b>${lbEsc(w.name)}</b>${w.pendingData ? '<br><span class="badge gold">Completar dados</span>' : ''}</td><td>${lbEsc(HarvestLabor.ROLES[w.role])}</td><td>${w.cpf ? lbEsc(w.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')) : '—'}</td><td>${lbEsc(w.pix || '—')}</td><td>${lbEsc(w.phone || '—')}</td><td>${w.dailyRate ? money(w.dailyRate) : '—'}</td><td>${w.bagRate ? money(w.bagRate) : 'do talhão'}</td><td><span class="badge ${w.active === false ? '' : 'green'}">${w.active === false ? 'Inativo' : 'Ativo'}</span></td><td><button class="btn small lb-edit" data-id="${lbEsc(w.id)}">Editar</button>${w.active!==false?` <button class="btn small lb-qr" data-id="${lbEsc(w.id)}">Cartão QR</button>`:''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Cadastre a turma da colheita.</div>'}`;
   } else if (lbTab === 'valores') {
     const plots = farm.talhoes || [];
     body = `<div class="section-head"><div><h2>Valor do saco por talhão</h2><p>Lavoura carregada paga diferente de lavoura fraca. Cada apontamento guarda o valor do dia em que foi lançado: mudar o valor não mexe no que já foi apontado.</p></div><div class="inline"><button class="btn" id="lbDefaultDaily">Diária padrão: ${L.settings.defaultDailyRate ? money(L.settings.defaultDailyRate) : 'não definida'}</button><button class="btn primary" id="lbNewRate" ${plots.length ? '' : 'disabled'}>Definir valor</button></div></div>
@@ -314,4 +328,19 @@ async function laborReceipts(farm, c) {
     $('#pageContent').insertAdjacentHTML('beforeend', `<div class="card lb-safra"><div class="section-head"><div><h3>Colheita manual · sacos da roça</h3><p class="muted">Apontados pelo fiscal desde ${dateBR(from)}. Não é café beneficiado: o rendimento por talhão vem numa próxima etapa.</p></div><button class="btn" id="lbGoLabor">Mão de obra</button></div><div class="table-wrap"><table><thead><tr><th>Talhão</th><th>Sacos da roça</th></tr></thead><tbody>${rows.map(([p, n]) => `<tr><td>${lbEsc((farm.talhoes || []).find(t => t.id === p)?.name || '—')}</td><td><b>${lbNum(n, 1)}</b></td></tr>`).join('')}</tbody></table></div></div>`);
     $('#lbGoLabor').onclick = () => goToPage('mao-de-obra');
   };
+}
+
+// QR identifica a pessoa; não autentica, não lança sacos nem altera pagamentos.
+let hfLastWorkerLink='';
+function applyHarvestWorkerLink(){
+ if(!currentUser||selectedType()!=='coffee')return;
+ const p=new URL(location.href).searchParams,id=p.get('harvestWorker'),farmId=p.get('farmId');if(!id||!farmId)return;
+ const key=JSON.stringify([currentGroup?.id,currentUser.id,farmId,id]);if(hfLastWorkerLink===key)return;hfLastWorkerLink=key;
+ const f=data.farms.find(f=>f.id===farmId),allowed=isFiscal()?f?.id===currentUser.allowedFarmId:isLaborManager();
+ if(!allowed||!f?.labor?.workers?.some(w=>w.id===id&&w.active!==false)){toast('Cartão não encontrado nas pessoas ativas do seu acesso.');return;}
+ hfSelectedWorkerId=id;hfSearch='';activeFarmId=f.id;currentPage='colheita-campo';
+}
+{
+ const prior=renderPage;renderPage=function(options){applyHarvestWorkerLink();return prior(options);};
+ const before=renderHarvestLabor;renderHarvestLabor=function(){before();if(!isLaborManager())return;const f=laborFarm();if(f)document.querySelectorAll('.lb-qr').forEach(b=>b.onclick=()=>lbWorkerCard(f,b.dataset.id));};
 }

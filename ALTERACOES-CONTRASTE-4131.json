@@ -1,0 +1,35 @@
+{
+  "version": "4.13.1",
+  "base": "4.13.0",
+  "githubPublished": false,
+  "tests": {
+    "passed": 310,
+    "failed": 0
+  },
+  "syntaxFiles": 176,
+  "staticAssets": 93,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "campo-sw.js",
+      "sha256": "b26299f6fc67bb122726417223c8418f70c29a2e2b210b63bce7d554bcf78e49"
+    },
+    {
+      "file": "CONTRASTE-PANHA-4.13.1.md",
+      "sha256": "31e201c72dd5f7a3bd45207d0b37e4b077b53c2262c5fc6c196fd923cef47cd4"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "1f961a71f08531596667b651a2a92372972a76d93b354ba3b5632e1f871b4ecd"
+    },
+    {
+      "file": "package.json",
+      "sha256": "e06da85b538b8e12b9ee37e9b09a266579fd22f680149b1f87f9867cb51dff04"
+    },
+    {
+      "file": "visual-painel.css",
+      "sha256": "b363a8531a8afa0d2a20dc6b3eb3321a7cb714faf55b8508d9803c64e03176ac"
+    }
+  ]
+}

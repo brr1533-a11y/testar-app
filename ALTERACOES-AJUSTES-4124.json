@@ -1,0 +1,71 @@
+{
+  "version": "4.12.4",
+  "base": "4.12.3",
+  "githubPublished": false,
+  "tests": {
+    "passed": 307,
+    "failed": 0
+  },
+  "syntaxFiles": 174,
+  "staticAssets": 93,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "adm-access.js",
+      "sha256": "b85ae53a762a2afaee4a715b3a15fffafd26d7edae96923b50ad5e9ef3f292e0"
+    },
+    {
+      "file": "AJUSTES-E-BUSCA-REGIONAL-4.12.4.md",
+      "sha256": "48644f95905ee271ed3f0413640cfcf702aad14cdc086d226def713abe1201c8"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "7abd40648d97178aa404279d0d762c6eb03559b054200a97272f68297d1248e1"
+    },
+    {
+      "file": "expansao-domain.js",
+      "sha256": "635395007a5b9e9cfe90c3d166f0ccaadecdec38d2b87fe63e8b2b821c494ddb"
+    },
+    {
+      "file": "expansao.js",
+      "sha256": "fe67fdb41e418967b62941569cdc85b2de4bc717a6cb321db4957bbee896ed97"
+    },
+    {
+      "file": "ia-server.js",
+      "sha256": "3f1118a4739327087b6c859f1b1f72407109d155619975be34b50eb23219756d"
+    },
+    {
+      "file": "melhorias-domain.js",
+      "sha256": "4b35321609b8bf2e75f124c7b0b84c8bd8466b1f99c2cc58b52a640f822afd19"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "b92fb11d09940292051840d61c7f28cf286a155e2db0356811919ab423548508"
+    },
+    {
+      "file": "package.json",
+      "sha256": "17b7211b544a5eb91ec646c25c93e5549cdb59fb6869c707a63fcc497ee98488"
+    },
+    {
+      "file": "platform.js",
+      "sha256": "c355dd45e5ac888b93725d086091fb0537c29113733742fc7c19ba937a4af03e"
+    },
+    {
+      "file": "tests/menu-activity.test.cjs",
+      "sha256": "92f0593fda35323e030063f3631dc12079e1c4462e4c9e0611edd852b2795fe4"
+    },
+    {
+      "file": "tests/platform-pricing.test.cjs",
+      "sha256": "121a002edf87c304f6679c51f32ded4823b412f9278c556b1d7711ce8359e556"
+    },
+    {
+      "file": "tests/regional-price.test.cjs",
+      "sha256": "6de7f00ffb3f80e38d85a0af47b0dda5a9834c5431c5f8c5babcd379c94da7c7"
+    },
+    {
+      "file": "visual-painel.css",
+      "sha256": "4a5250b60ba42f63ee3ad318c89068b28af885368d4d4a877be982dc106605f1"
+    }
+  ]
+}

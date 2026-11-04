@@ -1,0 +1,71 @@
+{
+  "version": "4.15.0",
+  "base": "4.14.0",
+  "githubPublished": false,
+  "tests": {
+    "passed": 317,
+    "failed": 0
+  },
+  "syntaxFiles": 183,
+  "staticAssets": 100,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "app.html",
+      "sha256": "db53f2814e64a40597f2289429c3d7c61e228c864431c31b1804c601f1f4e248"
+    },
+    {
+      "file": "app.js",
+      "sha256": "c2b6fe08068b51319e8a611f863b7125e486e94799c7788689da6df7cfffaaf3"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "d6c5c0383d34b8dd5715a969851575b6b13baec51cdb9702512a423fb0f4182c"
+    },
+    {
+      "file": "equipamentos.js",
+      "sha256": "e4468e1bc3fd77de76a6b86a697473a40d888d5cf9f3e7670b36aae18d9ea181"
+    },
+    {
+      "file": "NAVEGACAO-SAFRAS-TRATORES-4150.md",
+      "sha256": "58f9ede4bf02c5dee9c159f7d1e134c086db007e97ffcdaa0e05bf8f2b1d71ab"
+    },
+    {
+      "file": "navegacao-suave.js",
+      "sha256": "b28f43a7a78c05aaf073523642fe9e95013559d9dfdae46fd1d4da45305a8563"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "278b0660c753bd133e44fe98fc775a9bea0e48e2be1e8adc2798b33f662fc616"
+    },
+    {
+      "file": "package.json",
+      "sha256": "1b5a79617af41be5f44f296fe0f4ac75d5b07e50ecd734cafec4ca3202953750"
+    },
+    {
+      "file": "safras-comparacao-domain.js",
+      "sha256": "ec24f5d2132acbc570c7d72b1965ce546147d3aa8b3d0fc2629e798e3616ba90"
+    },
+    {
+      "file": "safras-comparacao.css",
+      "sha256": "bf1eab8cf74679deb9e6f19d63ab4ffcff83bde3e7d5737ea6f348c9d577a2ef"
+    },
+    {
+      "file": "safras-comparacao.js",
+      "sha256": "25e8bcc48e85e0d3910a88bd23ce67fc65db6149573826af371f5d459277a627"
+    },
+    {
+      "file": "server.js",
+      "sha256": "7245097057e75f92b7af61f38af1f8c73bb4ad963f2a043c0e0f59b079bd40a4"
+    },
+    {
+      "file": "tests/safras-comparacao.test.cjs",
+      "sha256": "f614d6172721973a351fdb3709b83328f573ae7538e29e1dc298ae6ff12d6da6"
+    },
+    {
+      "file": "tratores-geral.js",
+      "sha256": "ef939c92b261b3935144e2f426e821a213c8e260fc55ce13ee3949b7dbc2e5ec"
+    }
+  ]
+}

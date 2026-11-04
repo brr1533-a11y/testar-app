@@ -6,9 +6,10 @@ test('seleciona uma, duas ou três atividades em ordem estável',()=>{
 });
 test('preços ficam pendentes sem tabela; cobrança usa somente valores configurados',()=>{
  const table=D.parsePricing(require('fs').readFileSync(require('path').join(__dirname,'..','planos-atividades.json'),'utf8'));
- // Tabela oficial: valor por mês com desconto arredondado para baixo (Essencial só gado: 149 / 141 / 134 / 119).
- assert.deepEqual([[1,0],[3,.05],[6,.10],[12,.20]].map(([months,discount])=>D.quote('essential',{months,discount},['cattle'],table).perMonth),[149,141,134,119]);
- assert.equal(D.quote('group',{months:12,discount:.20},['coffee','cattle','grains'],table).amount,1197*12);
+ // Valor por mês com desconto arredondado para baixo, preservando a regra do período.
+ assert.deepEqual([[1,0],[3,.05],[6,.10],[12,.20]].map(([months,discount])=>D.quote('essential',{months,discount},['cattle'],table).perMonth),[99,94,89,79]);
+ for(const [plan,price]of Object.entries({essential:99,pro:199,group:350}))for(const combination of Object.keys(table[plan]))assert.equal(D.quote(plan,{months:1,discount:0},combination.split('+'),table).amount,price);
+ assert.equal(D.quote('group',{months:12,discount:.20},['coffee','cattle','grains'],table).amount,280*12);
  assert.equal(D.quote('essential',{months:1,discount:0},['coffee'],{}).ready,false);
  const prices=D.parsePricing('{"essential":{"coffee":100,"coffee+cattle":170,"coffee+cattle+grains":null}}');
  assert.equal(D.quote('essential',{months:12,discount:.15},['coffee'],prices).amount,1020);
