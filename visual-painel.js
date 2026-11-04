@@ -10,7 +10,7 @@
  function polishNav(){nav?.querySelectorAll('[data-page="safras"] svg:not(.crop-symbol)').forEach(el=>{el.outerHTML=crop;});}
  if(nav){new MutationObserver(polishNav).observe(nav,{childList:true,subtree:true});polishNav();}
  const content=document.querySelector('#pageContent');
- if(content){let previous='';const observer=new MutationObserver(records=>{if(!records.some(r=>r.type==='childList'&&r.target===content))return;const title=document.querySelector('#pageTitle')?.textContent||'';if(title!==previous&&!content.classList.contains('sync-refresh')){content.classList.remove('visual-enter');void content.offsetWidth;content.classList.add('visual-enter');}previous=title;});observer.observe(content,{childList:true});}
+ if(content){let previous='',entranceTimer;const observer=new MutationObserver(records=>{if(!records.some(r=>r.type==='childList'&&r.target===content))return;const title=document.querySelector('#pageTitle')?.textContent||'';clearTimeout(entranceTimer);content.classList.remove('visual-enter');if(title!==previous&&!content.classList.contains('sync-refresh')){void content.offsetWidth;content.classList.add('visual-enter');entranceTimer=setTimeout(()=>content.classList.remove('visual-enter'),460);}previous=title;});observer.observe(content,{childList:true});}
 })();
 
 function bindMoreMenuSearch(root){

@@ -16,7 +16,27 @@
  rail.className='sidebar-compact-rail';rail.setAttribute('aria-label','Categorias do menu');
  brand?.append(collapse);nav.after(rail);
  let compact=false;try{compact=localStorage.getItem(compactKey)==='true';}catch{}
+ const flyout=document.createElement('section');flyout.id='sidebarCategoryPanel';flyout.className='sidebar-category-panel';flyout.hidden=true;flyout.setAttribute('aria-label','Opções da categoria');document.body.append(flyout);
+ let flyoutTrigger=null;
+ function closeCategory(restoreFocus=false){flyout.hidden=true;if(flyoutTrigger){flyoutTrigger.setAttribute('aria-expanded','false');if(restoreFocus&&flyoutTrigger.isConnected)flyoutTrigger.focus();}flyoutTrigger=null;}
+ function openCategory(category,trigger){
+  if(flyoutTrigger===trigger&&!flyout.hidden){closeCategory(true);return;}
+  closeCategory();flyout.replaceChildren();flyoutTrigger=trigger;
+  const header=document.createElement('header'),title=document.createElement('h2'),close=document.createElement('button'),list=document.createElement('div');
+  title.textContent=category.dataset.menuCategory;close.type='button';close.className='btn';close.textContent='×';close.setAttribute('aria-label','Fechar opções');close.onclick=()=>closeCategory(true);header.append(title,close);list.className='sidebar-category-links';
+  for(const original of category.querySelectorAll('.nav-btn[data-page]')){
+   if(original.hidden||original.disabled)continue;
+   const item=document.createElement('button');item.type='button';item.className='sidebar-category-link';item.textContent=original.textContent.trim();
+   if(original.classList.contains('active'))item.setAttribute('aria-current','page');
+   item.onclick=()=>{closeCategory();original.click();document.querySelector('#pageTitle')?.setAttribute('tabindex','-1');document.querySelector('#pageTitle')?.focus({preventScroll:true});};list.append(item);
+  }
+  flyout.append(header,list);const edge=document.querySelector('.sidebar').getBoundingClientRect().right+12;flyout.style.left=edge+'px';flyout.style.width=Math.min(310,innerWidth-edge-20)+'px';flyout.hidden=false;trigger.setAttribute('aria-expanded','true');list.querySelector('button')?.focus();
+ }
+ document.addEventListener('click',event=>{if(!flyout.hidden&&!flyout.contains(event.target)&&!rail.contains(event.target))closeCategory();});
+ document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!flyout.hidden){event.preventDefault();closeCategory(true);}});
+ window.addEventListener('resize',()=>closeCategory());
  function paintCompact(){
+  closeCategory();
   document.body.dataset.sidebarCompact=String(compact);
   collapse.textContent=compact?'›':'‹';collapse.title=compact?'Expandir menu':'Recolher menu';
   collapse.setAttribute('aria-label',collapse.title);collapse.setAttribute('aria-expanded',String(!compact));
@@ -34,11 +54,13 @@
   for(const category of nav.querySelectorAll('details[data-menu-category]')){
    const name=category.dataset.menuCategory,button=document.createElement('button');button.type='button';
    button.className='compact-category';button.title=name;button.setAttribute('aria-label',name);
+   button.setAttribute('aria-controls',flyout.id);button.setAttribute('aria-expanded','false');
+   if(category.querySelector('.nav-btn.active'))button.setAttribute('aria-current','true');
    const lower=name.toLocaleLowerCase('pt-BR');
    const label=shortNames.find(s=>lower.includes(s.toLocaleLowerCase('pt-BR')))||(lower.includes('configura')?'Ajustes':name);
    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('fill','none');svg.setAttribute('stroke','currentColor');svg.setAttribute('stroke-width','1.6');svg.setAttribute('stroke-linecap','round');svg.setAttribute('stroke-linejoin','round');svg.setAttribute('aria-hidden','true');svg.innerHTML=icons[label]||icons.fallback;
    const caption=document.createElement('span');caption.textContent=label;button.append(svg,caption);
-   button.onclick=()=>{setCompact(false);category.open=true;category.querySelector('summary')?.focus();schedule();};rail.append(button);
+   button.onclick=()=>openCategory(category,button);rail.append(button);
   }
   schedule();
  }

@@ -1,0 +1,35 @@
+{
+  "version": "4.16.3",
+  "base": "4.16.2",
+  "githubPublished": false,
+  "tests": {
+    "passed": 318,
+    "failed": 0
+  },
+  "syntaxFiles": 183,
+  "staticAssets": 100,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "ALERTA-E-DEMONSTRACAO-4163.md",
+      "sha256": "281e1ea125b48cd82d4c2fd88b6eac3146ef4c3fc03e69008509f27885957b09"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "3fa8527430330dc3a0167622f03b463a4c689804a60c72d0753ca1f1beb936c9"
+    },
+    {
+      "file": "equipment-insights.css",
+      "sha256": "77c66360177c65000cd30f8f5d60d17d1d9da60e79db2b0dc4d6f83da0ff8d74"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "498445a781c7fda4c0ec8ef4e68d20e233ac7afbdd8edc6b47b91ef4c58de37c"
+    },
+    {
+      "file": "package.json",
+      "sha256": "8997a5ca1ec042de0ca350c90f4535cabec9f41a1b641e52af849f2f4f5d7191"
+    }
+  ]
+}

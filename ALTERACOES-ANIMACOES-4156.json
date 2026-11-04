@@ -1,0 +1,39 @@
+{
+  "version": "4.15.6",
+  "base": "4.15.5",
+  "githubPublished": false,
+  "tests": {
+    "passed": 317,
+    "failed": 0
+  },
+  "syntaxFiles": 183,
+  "staticAssets": 100,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "ANIMACOES-4156.md",
+      "sha256": "29c0d26c59011d7e4ff09a8b1a2167a2ccdcb5e0e594c5dc5baa15b780b2eec9"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "666e9ae205fa20f976d01563b59054e15b489f9644beb149062df32df1213906"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "f3830b3787fcafe686affa4076a2482a141826772f89f45d0ce4732b36f68116"
+    },
+    {
+      "file": "package.json",
+      "sha256": "e9da00ff307e9b7ce642f0364fbd1bef7376cfebecc2025630248c4feb0e7587"
+    },
+    {
+      "file": "safras-comparacao.css",
+      "sha256": "0537ca1a64a06879e522f5d69c37e06a97b4afcf2df7e3b7499cefb665b2d985"
+    },
+    {
+      "file": "visual-painel.js",
+      "sha256": "9bbfe630e4dcea0a93ba59b24fd44aa83c3f19c0ce3200f2935154a2932b151c"
+    }
+  ]
+}
