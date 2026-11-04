@@ -1,0 +1,39 @@
+{
+  "version": "4.15.1",
+  "base": "4.15.0",
+  "githubPublished": false,
+  "tests": {
+    "passed": 317,
+    "failed": 0
+  },
+  "syntaxFiles": 183,
+  "staticAssets": 100,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "campo-sw.js",
+      "sha256": "e45677c20cbc44eeefa2bf0b867d6ecb7c8b84e1d1631650e4f7be2053570eac"
+    },
+    {
+      "file": "CORRECAO-MENU-4151.md",
+      "sha256": "34f9c1fff98dc5a8772534f9c97dd1a6c50581287d1cfa3df474e8b8be9cc057"
+    },
+    {
+      "file": "navegacao-suave.js",
+      "sha256": "b9b0e13dab6dcb88eb473b59437146616bfd60eeb5b980646a13de843b1b10d7"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "9247f980f6699c6a9965056eb7450ac72aee10d502369acd46e80824cfd2f535"
+    },
+    {
+      "file": "package.json",
+      "sha256": "8b8f2fd49aa62dfadb7600f89780254e30a268fcf25002159259274072cf211c"
+    },
+    {
+      "file": "safras-comparacao.css",
+      "sha256": "113a485159371ad292f60774a8d9c504151a50cf556e8c56e3e9058000e2d219"
+    }
+  ]
+}
