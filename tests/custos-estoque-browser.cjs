@@ -52,12 +52,16 @@ const T = new Date().toISOString().slice(0, 10);
     await page.locator('[data-os-insumos="os1"]').click();
     await page.locator('.dlg-back:not(.closing) [name=q_s1]').fill('4'); await page.locator('.dlg-back:not(.closing) button[type=submit]').click();
     await page.waitForFunction(() => activeFarm().expansion.workOrders[0].inputs?.length === 1 && !hasLocalChanges());
+    // 4.19: a baixa abre com o previsto (o campo não informou) e grava o que foi realmente usado; a sobra fica no estoque.
     await page.locator('[data-os-baixa="os1"]').click();
-    await page.waitForFunction(() => activeFarm().stock[0].quantity === 36 && !hasLocalChanges());
-    assert.match(await page.locator('.os-insumos').textContent(), /Baixa feita/);
+    const q = page.locator('.dlg-back:not(.closing) [name=q_0_s1]'); await q.waitFor();
+    assert.equal(await q.inputValue(), '4'); assert.match(await page.locator('.dlg-back:not(.closing)').textContent(), /O campo não informou/);
+    await q.fill('3'); await page.locator('.dlg-back:not(.closing) button[type=submit]').click();
+    await page.waitForFunction(() => activeFarm().stock[0].quantity === 37 && !hasLocalChanges());
+    assert.match(await page.locator('.os-insumos').textContent(), /Baixa feita/); assert.match(await page.locator('.os-insumos').textContent(), /previsto 4 sc · usado 3 sc/);
     assert.equal(await page.locator('[data-os-baixa]').count(), 0, 'o botão de baixa some depois de usar');
     let farm = (await call('/api/state', ceo)).json.state.farms[0];
-    assert.equal(farm.stock[0].quantity, 36); assert.deepEqual(farm.operations.stockUses.map(u => [u.id, u.quantity, u.cycleId, u.cost]), [['os_os1_s1', 4, 'c1', 720]]);
+    assert.equal(farm.stock[0].quantity, 37); assert.deepEqual(farm.operations.stockUses.map(u => [u.id, u.quantity, u.plannedQuantity, u.cycleId, u.cost]), [['os_os1_s1', 3, 4, 'c1', 540]]);
 
     // 4. Mínimo sugerido só depois de conferir o saldo físico.
     await page.evaluate(() => goToPage('estoque'));
@@ -68,9 +72,9 @@ const T = new Date().toISOString().slice(0, 10);
     await page.locator('.dlg-back:not(.closing) button[type=submit]').click();
     await page.waitForFunction(() => activeFarm().stock[0].quantity === 35 && !hasLocalChanges());
     await page.locator('[data-usar-min="s1"]:not([disabled])').click();
-    await page.waitForFunction(() => activeFarm().stock[0].min === 1.34 && !hasLocalChanges());
+    await page.waitForFunction(() => activeFarm().stock[0].min === 1 && !hasLocalChanges());
     farm = (await call('/api/state', ceo)).json.state.farms[0];
-    assert.equal(farm.stock[0].quantity, 35); assert.equal(farm.stock[0].min, 1.34); assert.ok(farm.stock[0].countedAt); assert.equal(farm.stock[0].countNote, 'Um saco rasgado');
+    assert.equal(farm.stock[0].quantity, 35); assert.equal(farm.stock[0].min, 1); assert.ok(farm.stock[0].countedAt); assert.equal(farm.stock[0].countNote, 'Um saco rasgado');
     assert.deepEqual(errors, []);
     console.log('PASS: centro de custo obrigatório com sugestão pelo fornecedor, baixa única dos insumos da OS e mínimo pelo consumo depois de conferir o saldo.');
   } finally { await browser.close(); await s.stop(); }
