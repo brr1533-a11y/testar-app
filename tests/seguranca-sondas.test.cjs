@@ -42,6 +42,11 @@ test('sondas de segurança pela API', async () => {
     await put(tk, x => { x.farms[0].finances = [{ id: 'f2', activity: 'coffee', type: 'saida', value: 1, description: 'invasor', date: '2026-10-02' }]; (x.users || []).push({ id: 'hack', username: 'hacker', role: 'ceo', name: 'H' }); }).catch(() => null);
     const after = JSON.stringify((await call('/api/state', ceo)).json.state);
     ok('Funcionário não consegue gravar no Financeiro nem criar usuário', !/invasor|hacker/.test(after));
+    // Compressão: arquivos do site sim (abrem mais rápido no celular); respostas da API não (proteção contra BREACH).
+    const js = await raw('/app.js', { headers: { 'Accept-Encoding': 'gzip, br' } });
+    ok('Arquivos do site saem comprimidos', /gzip|br/.test(js.headers.get('content-encoding') || ''), js.headers.get('content-encoding') || 'sem compressão');
+    const apiState = await raw('/api/state', { headers: { 'Accept-Encoding': 'gzip, br', Authorization: 'Bearer ' + ceo } });
+    ok('Respostas da API não são comprimidas', !apiState.headers.get('content-encoding'), apiState.headers.get('content-encoding') || '');
     // 6. Sair invalida a sessão.
     const t2 = (await call('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password })).json.token;
     await call('/api/auth/logout', t2, {}); ok('Depois de sair, a sessão não vale mais', (await call('/api/state', t2)).status === 401);
