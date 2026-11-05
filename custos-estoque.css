@@ -11,3 +11,10 @@
 /* 4.18 · validade dos insumos */
 .stock-validade tr.validade-urgente td{background:color-mix(in srgb,var(--red,#c0392b) 9%,transparent)}
 
+
+/* 4.19 · situação do fechamento do mês */
+.fech-box{border:1px solid var(--line,#e6d9c5);border-radius:12px;padding:10px 14px;margin:8px 0 14px;display:grid;gap:8px}
+.fech-status{margin:0}
+.fech-status.fechado b{color:var(--green,#2e7d4f)}
+.fech-box ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px}
+.os-concluir td{vertical-align:top}

@@ -1,3 +1,5 @@
+> **Versão 4.19.0:** insumo realmente usado na ordem de serviço (o campo informa, o escritório escolhe o lote e a sobra fica no estoque) e fechamento do mês confirmado pelo CEO (versão guardada com código, mês travado, reabertura com motivo, contador vê a versão). Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).
+>
 > **Versão 4.18.1:** no Histórico de combustível o mês é escolhido tocando ou arrastando direto no gráfico (saiu o controle deslizante).
 >
 > **Versão 4.18.0:** fila do campo visível e modo campo, checklist do trator, centro de custo nas saídas, baixa de insumos nas ordens de serviço, mínimo pelo consumo real, alertas que abrem o pedido para o CEO decidir, fechamento do mês em PDF, margem por hectare, contas recorrentes, cenário "e se eu vender agora?" e validade dos insumos. Leia [MELHORIAS-4.18.md](MELHORIAS-4.18.md).

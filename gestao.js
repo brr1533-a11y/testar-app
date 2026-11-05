@@ -37,7 +37,8 @@ function gestaoChange(farm, change) {
 }
 // Telas de cadastro pedem uma fazenda específica (na visão geral só há consulta).
 function gestaoFarmOrNotice() {
-  if (!isGeneralView()) { const f = activeFarm(); if (f) FarmManagement.init(f); return f; }
+  // 4.19: o funcionário do campo não recebe a Gestão; criar a seção vazia aqui fazia a tela regravar sem parar.
+  if (!isGeneralView()) { const f = activeFarm(); if (f && (currentUser?.role !== 'contribuinte' || f.management)) FarmManagement.init(f); return f; }
   $('#pageContent').innerHTML = `<div class="card soft"><h2>Escolha uma fazenda</h2><p class="muted">Para registrar ou alterar, selecione uma fazenda específica no seletor "Fazenda ativa".</p></div>`;
   return null;
 }

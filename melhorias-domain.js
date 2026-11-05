@@ -251,12 +251,42 @@ function validateCosts(f){
   else if(kind==='lot')check(lots.has(id)&&r.lotId===id&&!r.cycleId&&(r.activity||'coffee')==='cattle','Lote do centro de custo inválido.');
   else check(false,'Centro de custo inválido.');
  }
- for(const o of f.expansion?.workOrders||[]){if(o.inputs==null)continue;check(Array.isArray(o.inputs)&&o.inputs.length<=30,'Insumos da ordem inválidos.');for(const i of o.inputs){const s=stock.get(i?.stockId);check(s&&(s.activity||'coffee')===o.activity&&num(i.quantity)&&i.quantity>0&&i.quantity<=1e7,'Insumo da ordem de serviço inválido.');}check(new Set(o.inputs.map(i=>i.stockId)).size===o.inputs.length,'Insumo repetido na ordem de serviço.');}
+ // 4.19: o funcionário do campo não recebe o estoque, e um item pode ter sido removido depois; só confere o item quando ele está na lista.
+ for(const o of f.expansion?.workOrders||[]){if(o.inputs==null)continue;check(Array.isArray(o.inputs)&&o.inputs.length<=30,'Insumos da ordem inválidos.');for(const i of o.inputs){const s=stock.get(i?.stockId);check(typeof i?.stockId==='string'&&i.stockId&&i.stockId.length<=100&&(!s||(s.activity||'coffee')===o.activity)&&(s||!stock.size||i.itemName)&&num(i.quantity)&&i.quantity>0&&i.quantity<=1e7&&(i.itemName==null||typeof i.itemName==='string'&&i.itemName.length<=120)&&(i.unit==null||typeof i.unit==='string'&&i.unit.length<=20)&&(i.skipped==null||typeof i.skipped==='boolean'),'Insumo da ordem de serviço inválido.');}check(new Set(o.inputs.map(i=>i.stockId)).size===o.inputs.length,'Insumo repetido na ordem de serviço.');}
  for(const s of f.stock||[])if(s.countedAt!=null)check(D.validDate(String(s.countedAt).slice(0,10)),'Data da conferência do estoque inválida.');
 }
 // Baixa dos insumos de uma ordem concluída: um consumo por item, com identificador fixo (não baixa duas vezes).
 const orderUseId=(orderId,stockId)=>('os_'+orderId+'_'+stockId).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,100);
-function orderStockUses(f,order,date){const used=new Set((f.operations?.stockUses||[]).map(u=>u.id));return (order.inputs||[]).map(i=>({id:orderUseId(order.id,i.stockId),activity:order.activity,date,stockId:i.stockId,quantity:i.quantity,reason:'Ordem de serviço: '+order.title,workOrderId:order.id,...(order.lotId&&order.activity==='cattle'?{lotId:order.lotId}:{}),...(order.cycleId?{cycleId:order.cycleId}:{})})).filter(u=>!used.has(u.id));}
+// 4.19: a baixa usa o que foi realmente gasto. Cada insumo previsto vira um consumo por lote (embalagem) de onde saiu;
+// a sobra fica no estoque. Insumo informado como não usado fica marcado na ordem (skipped) e sai das pendências.
+const sameProduct=(a,b)=>(a.activity||'coffee')===(b.activity||'coffee')&&normSupplier(a.item)===normSupplier(b.item)&&String(a.unit||'')===String(b.unit||'');
+function orderInputDone(f,order,input){return Boolean(input.skipped)||(f.operations?.stockUses||[]).some(u=>u.workOrderId===order.id&&(u.inputStockId||u.stockId)===input.stockId);}
+function orderPendingInputs(f,order){return (order.inputs||[]).filter(i=>!orderInputDone(f,order,i));}
+// Lotes do mesmo produto (mesmo nome e unidade): com saldo e dentro da validade primeiro, o que vence antes na frente.
+function orderLotOptions(f,stockId,on=today()){const base=(f.stock||[]).find(s=>s.id===stockId);if(!base)return [];return (f.stock||[]).filter(s=>s.id===stockId||sameProduct(s,base)).map(s=>({item:s,expired:Boolean(s.expires&&s.expires<on),daysLeft:s.expires?days(on,s.expires):null})).sort((a,b)=>(a.expired-b.expired)||((Number(b.item.quantity)>0)-(Number(a.item.quantity)>0))||String(a.item.expires||'9999').localeCompare(String(b.item.expires||'9999'))||(a.item.id===stockId?-1:b.item.id===stockId?1:0));}
+// O que o funcionário informou ao concluir a ordem no campo (o andamento "Concluída" mais recente com quantidades).
+function orderFieldUsage(f,order){const ev=(f.expansion?.workOrderEvents||[]).filter(e=>e.orderId===order.id&&e.status==='done'&&Array.isArray(e.used)).sort((a,b)=>a.date.localeCompare(b.date)||String(a.createdAt||'').localeCompare(String(b.createdAt||''))).at(-1);return ev?{date:ev.date,by:ev.recordedBy,used:new Map(ev.used.map(u=>[u.stockId,Number(u.quantity)]))}:null;}
+// usage: [{stockId (insumo previsto), lots:[{stockId (lote), quantity}]}] devolve {uses, skipped, warnings}.
+// Sem usage, baixa o previsto do próprio item, como na 4.18 (devolve só a lista de consumos).
+function orderStockUses(f,order,date,usage){
+ const stock=new Map((f.stock||[]).map(s=>[s.id,s])),target={...(order.lotId&&order.activity==='cattle'?{lotId:order.lotId}:{}),...(order.cycleId?{cycleId:order.cycleId}:{})};
+ const plan=orderPendingInputs(f,order).map(i=>({input:i,lots:usage?(usage.find(u=>u.stockId===i.stockId)?.lots||[]):[{stockId:i.stockId,quantity:i.quantity}]}));
+ const uses=[],skipped=[],warnings=[],taken=new Map();
+ for(const {input,lots} of plan){
+  const base=stock.get(input.stockId);let total=0;
+  for(const l of lots){
+   const q=Number(l.quantity);if(l.quantity==null||l.quantity===''||q===0)continue;check(Number.isFinite(q)&&q>0&&q<=1e7,'Informe quantidades válidas.');
+   const lot=stock.get(l.stockId);check(lot&&(lot.id===input.stockId||base&&sameProduct(lot,base)),'O lote escolhido não é do mesmo insumo.');
+   const sum=round((taken.get(lot.id)||0)+q,3);check(sum<=Number(lot.quantity||0)+1e-9,`Saldo insuficiente em ${lot.item}${lot.batch?' (lote '+lot.batch+')':''}: há ${lot.quantity} ${lot.unit}.`);taken.set(lot.id,sum);total=round(total+q,3);
+   if(lot.expires&&lot.expires<date)warnings.push(`${lot.item}${lot.batch?' lote '+lot.batch:''} venceu em ${lot.expires.split('-').reverse().join('/')}.`);
+   uses.push({id:orderUseId(order.id,lot.id===input.stockId?input.stockId:input.stockId+'_'+lot.id),activity:order.activity,date,stockId:lot.id,inputStockId:input.stockId,plannedQuantity:input.quantity,quantity:round(q,3),...(lot.batch?{batch:lot.batch}:{}),reason:'Ordem de serviço: '+order.title+(lot.batch?' · lote '+lot.batch:''),workOrderId:order.id,...target});
+  }
+  if(!total)skipped.push(input.stockId);
+  else if(total>input.quantity*1.2)warnings.push(`${base?.item||input.itemName||'Insumo'}: usado ${total} ${base?.unit||input.unit||''}, ${Math.round((total/input.quantity-1)*100)}% acima do previsto (${input.quantity}).`);
+ }
+ const used=new Set((f.operations?.stockUses||[]).map(u=>u.id)),fresh=uses.filter(u=>!used.has(u.id));
+ return usage?{uses:fresh,skipped,warnings}:fresh;
+}
 // Mínimo sugerido pelo consumo real: média diária dos últimos 90 dias × dias de cobertura (padrão 30). Só vale
 // usar depois de conferir o saldo físico nos últimos 30 dias.
 function suggestedMin(f,item,on=today(),coverDays=30){const from=addDays(on,-90),uses=(f.operations?.stockUses||[]).filter(u=>u.stockId===item.id&&u.date>=from&&u.date<=on),used=uses.reduce((n,u)=>n+(Number(u.quantity)||0),0),perDay=used/90;const counted=item.countedAt?String(item.countedAt).slice(0,10):null;return {used90:round(used,3),perMonth:round(perDay*30,3),suggested:used>0?Math.ceil(perDay*coverDays*100)/100:null,countedAt:counted,countedRecently:Boolean(counted&&days(counted,on)<=30&&counted<=on)};}
@@ -275,7 +305,7 @@ function monthClose(f,month,X,on=today()){
  const pend=[],add=(kind,text,amount)=>pend.push({kind,text,...(amount!=null?{amount:round(amount)}:{})});
  for(const p of f.management?.payables||[])if(p.status==='open'&&p.dueDate<=to)add(p.dueDate<on?'Conta vencida':'Conta do mês em aberto',p.supplier+' · '+p.description+' · vence '+p.dueDate.split('-').reverse().join('/'),p.amount);
  for(const s of f.agriculture?.sales||[])for(const i of s.installments||[]){const paid=(f.operations?.payments||[]).filter(r=>r.saleId===s.id&&r.installmentId===i.id).reduce((n,r)=>n+r.amount,0);if(i.amount-paid>0.009&&i.date<=to)add(i.date<on?'Recebimento atrasado':'Recebimento do mês',(s.buyer||'Venda')+' · '+i.date.split('-').reverse().join('/'),i.amount-paid);}
- const used=new Set((f.operations?.stockUses||[]).map(u=>u.id));for(const o of f.expansion?.workOrders||[]){if(o.archived||!(o.inputs||[]).length)continue;const st=X?X.orderStatus(f,o.id):'';const pending=o.inputs.filter(i=>!used.has(orderUseId(o.id,i.stockId)));if(st==='done'&&pending.length)add('Ordem concluída sem baixa',o.title+' · '+pending.length+' insumo(s)');}
+ for(const o of f.expansion?.workOrders||[]){if(o.archived||!(o.inputs||[]).length)continue;const st=X?X.orderStatus(f,o.id):'';const pending=orderPendingInputs(f,o);if(st==='done'&&pending.length)add('Ordem concluída sem baixa',o.title+' · '+pending.length+' insumo(s)');}
  const closed=new Set((f.labor?.closings||[]).map(c=>c.weekStart)),weeks=new Set((f.labor?.entries||[]).filter(e=>!e.voided&&inMonth(e.date)).map(e=>weekOf(e.date)));for(const w of [...weeks].sort())if(!closed.has(w)&&addDays(w,6)<on)add('Semana da colheita sem fechamento','Semana de '+w.split('-').reverse().join('/'));
  for(const s of f.stock||[])if(Number(s.min)>0&&Number(s.quantity||0)<=Number(s.min))add('Estoque no mínimo',s.item+' · '+s.quantity+' '+s.unit+' (mínimo '+s.min+')');
  for(const r of f.expansion?.fieldLogs||[])if(r.kind==='checklist'&&!r.archived&&inMonth(r.date)&&(r.checks||[]).some(c=>!c.ok))add('Checklist com problema',(r.checks||[]).filter(c=>!c.ok).map(c=>c.item).join(', ')+' · '+r.date.split('-').reverse().join('/'));
@@ -294,7 +324,7 @@ function marginReport(farms,X,{from,to,crop,general=false}){
  return out.sort((a,b)=>(b.marginHa??-Infinity)-(a.marginHa??-Infinity));
 }
 
-return {PAGES,META,recurringDue,recurringPending,expiringStock,monthClose,marginReport,monthEnd,cashGapAlerts,purchaseAlerts,alertLink,normSupplier,costCenterOf,costCenterOptions,suggestCostCenter,validateCosts,orderUseId,orderStockUses,suggestedMin,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
+return {PAGES,META,recurringDue,recurringPending,expiringStock,monthClose,marginReport,monthEnd,cashGapAlerts,purchaseAlerts,alertLink,normSupplier,costCenterOf,costCenterOptions,suggestCostCenter,validateCosts,orderUseId,orderStockUses,orderInputDone,orderPendingInputs,orderLotOptions,orderFieldUsage,suggestedMin,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
  validate,partnershipReport,plotsArea,taxSetting,rates,funrural,funruralReport,loanSchedule,loansReport,leaseYearValue,leaseDueDates,leaseCostRows,contractorAmount,contractorCostRows,contractorComparison,
  animalHistory,animalWeight,milkIndicators,sisbovRows,csv,parseScale,cashFlow,alerts,hiddenPages,benchmark,farmIndicators,quantile,addMonths};
 });
