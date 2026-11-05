@@ -54,7 +54,7 @@ const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
     // Vale lançado à mão no Financeiro: o app avisa antes; cancelando, nada é gravado.
     await page.evaluate(() => goToPage('financeiro'));
     const form = page.locator('#financeForm'); await form.waitFor();
-    await form.locator('[name=type]').selectOption('saida'); await form.locator('[name=description]').fill('Vale para a Ana'); await form.locator('[name=value]').fill('75');
+    await form.locator('[name=type]').selectOption('saida'); await form.locator('[name=description]').fill('Vale para a Ana'); await form.locator('[name=value]').fill('75'); await form.locator('[name=costCenter]').selectOption('geral'); // 4.18: saída pede o centro de custo
     await form.locator('button.btn.primary').click();
     await dialog().getByText('Vale da colheita?').waitFor();
     await dialog().locator('[data-dlg-cancel], button[type=button]').first().click();
