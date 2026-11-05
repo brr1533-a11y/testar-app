@@ -1,3 +1,5 @@
+> **Versão 4.18.1:** no Histórico de combustível o mês é escolhido tocando ou arrastando direto no gráfico (saiu o controle deslizante).
+>
 > **Versão 4.18.0:** fila do campo visível e modo campo, checklist do trator, centro de custo nas saídas, baixa de insumos nas ordens de serviço, mínimo pelo consumo real, alertas que abrem o pedido para o CEO decidir, fechamento do mês em PDF, margem por hectare, contas recorrentes, cenário "e se eu vender agora?" e validade dos insumos. Leia [MELHORIAS-4.18.md](MELHORIAS-4.18.md).
 >
 > **Versão 4.17.2:** revisão de segurança, testes novos e correção do cursor que pulava nas janelas (`npm run test:security`, `npm run test:security:browser`). Leia [REVISAO-SEGURANCA-4.17.1.md](REVISAO-SEGURANCA-4.17.1.md).

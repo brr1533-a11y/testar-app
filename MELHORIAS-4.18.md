@@ -85,3 +85,7 @@ Esta versão segue o plano em quatro frentes: fila e modo campo, custos e estoqu
   - fechamento,
   - recorrentes, cenário e validade.
 - `tests/ajustes-browser.cjs` agora escolhe o centro de custo na saída lançada à mão.
+
+## 4.18.1
+
+- Histórico de combustível: o controle deslizante "Consultar mês" saiu. O mês é escolhido tocando ou arrastando o dedo direto no gráfico (no computador, passando o mouse). O ponto do mês fica marcado e o valor aparece acima do gráfico. Sem caixa de foco nem destaque azul ao tocar; no teclado, as setas mudam o mês. Teste: `tests/combustivel-grafico-browser.cjs`.
