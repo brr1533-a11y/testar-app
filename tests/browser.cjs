@@ -33,7 +33,7 @@ fs.mkdirSync(screenshotDir,{recursive:true});
   const numbers=await page.evaluate(()=>RuralDomain.cycleStats(activeFarm(),activeFarm().agriculture.cycles[0]));assert.equal(numbers.availableKg,48000);assert.equal(numbers.revenue,26400);
   await newCycle('Milho 2026/27 · Safrinha','Milho');await newCycle('Trigo 2027 · Inverno','Trigo');
   assert.equal(await page.locator('.rural-cycle').count(),3);
-  await page.locator('#ruralFilters select[name=crop]').selectOption('Soja');await page.locator('#ruralFilters button').click();assert.equal(await page.locator('.rural-cycle').count(),1);
+  await page.locator('#ruralFilters select[name=crop]').selectOption('Soja');await page.locator('#ruralFilters button:not([type=button])').click();assert.equal(await page.locator('.rural-cycle').count(),1);
   const download=page.waitForEvent('download');await page.locator('#ruralExport').click();const downloaded=await download;assert.ok(downloaded.suggestedFilename().endsWith('.csv'));
   await page.screenshot({path:path.join(screenshotDir,'previa-graos-desktop.png'),fullPage:true});
   await page.reload();await page.locator('#modeSwitchBtn').waitFor();assert.equal(await page.evaluate(()=>selectedType()),'grains');await go('safras');assert.equal(await page.locator('.rural-cycle').count(),3);

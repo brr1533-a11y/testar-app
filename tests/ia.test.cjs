@@ -10,7 +10,7 @@ test('IA desligada não chama o provedor, mesmo com chave; exige modelo e grupo 
   let calls = 0; const fetchImpl = async () => { calls++; throw Error('Não deveria chamar'); };
   for (const config of [{}, { ...env, AI_ENABLED: 'false' }, { ...env, OPENAI_MODEL: '' }, { ...env, AI_ALLOWED_GROUP_IDS: 'outro' }]) {
     const a = createAssistant({ env: config, fetchImpl });
-    assert.equal(a.status('grupo').enabled, false);
+    assert.equal((await a.status('grupo')).enabled, false);
     await assert.rejects(a.ask('grupo', q), e => e.statusCode === 503);
   }
   assert.equal(calls, 0);
@@ -24,7 +24,7 @@ test('IA envia só pergunta autorizada, não estado/token do usuário; busca obr
   assert.equal(sent.data.tool_choice, 'required'); assert.equal(sent.data.max_tool_calls, 1);
   assert.equal(sent.data.tools[0].type, 'web_search'); assert.ok(sent.signal);
   assert.ok(!sent.body.includes('nao-enviar')); assert.equal(r.segments[0].citations[0].url, 'https://example.com/cafe');
-  assert.equal(JSON.stringify(a.status('g')).includes(env.OPENAI_API_KEY), false);
+  assert.equal(JSON.stringify(await a.status('g')).includes(env.OPENAI_API_KEY), false);
 });
 test('IA valida consentimento/modo/tamanho e só aceita fonte segura nos preços', () => {
   for (const input of [{ ...q, consent: false }, { ...q, mode: 'execute' }, { ...q, question: '' }, { ...q, question: 'a'.repeat(2501) }]) assert.throws(() => requestBody(input, { model: 'test' }));
@@ -38,11 +38,13 @@ test('IA limita chamadas simultâneas e totais diários; erros não vazam segred
   const a = createAssistant({ env, clock: () => now, fetchImpl: () => new Promise(r => { resolve = r; }) });
   const first = a.ask('g', q);
   await assert.rejects(a.ask('g', q), e => e.statusCode === 429);
-  resolve({ ok: true, json: async () => payload }); await first;
-  const second = a.ask('other', q); resolve({ ok: false, status: 429 });
+  // O contador é lido antes da chamada: espera a chamada ao provedor existir antes de responder.
+  const settle = () => new Promise(r => setImmediate(r));
+  await settle(); resolve({ ok: true, json: async () => payload }); await first;
+  const second = a.ask('other', q); await settle(); resolve({ ok: false, status: 429 });
   await assert.rejects(second, e => e.statusCode === 429 && /créditos/.test(e.message));
   await assert.rejects(a.ask('g', q), /Limite diário/);
-  now = new Date('2026-11-03T01:00:00Z'); assert.equal(a.status('g').usedToday, 0);
+  now = new Date('2026-11-03T01:00:00Z'); assert.equal((await a.status('g')).usedToday, 0);
   const broken = createAssistant({ env, fetchImpl: async () => { throw Error('secret-value'); } });
   await assert.rejects(broken.ask('g', q), e => e.statusCode === 502 && !e.message.includes('secret-value'));
 });
@@ -65,4 +67,26 @@ test('API IA: autenticação, acesso autenticado, padrão desligado e arquivos p
   assert.equal((await fetch(s.url + '/ia.js')).status, 200);
   assert.equal((await fetch(s.url + '/ia-server.js')).status, 404);
   const sw = await (await fetch(s.url + '/campo-sw.js')).text(); assert.ok(sw.includes('/ia-assistente.js') && sw.includes('/ia.css'));
+});
+
+test('IA guarda o contador no banco (não zera ao reiniciar o servidor) e limita cada grupo', async () => {
+  const saved = {}, store = { getConfig: async k => saved[k] ?? null, setConfig: async (k, v) => { saved[k] = JSON.parse(JSON.stringify(v)); } };
+  let calls = 0; const fetchImpl = async () => { calls++; return { ok: true, json: async () => payload }; }, clock = () => new Date('2026-11-04T12:00:00Z');
+  const cfg = { ...env, AI_DAILY_REQUEST_LIMIT: '5', AI_DAILY_GROUP_LIMIT: '2' };
+  let a = createAssistant({ env: cfg, fetchImpl, clock, store });
+  await a.ask('g1', q); await a.ask('g1', q);
+  await assert.rejects(a.ask('g1', q), e => e.statusCode === 429 && /deste grupo/.test(e.message));
+  // Reinício do servidor: um assistente novo lê o mesmo contador guardado.
+  a = createAssistant({ env: cfg, fetchImpl, clock, store });
+  assert.deepEqual(await a.status('g1'), { enabled: true, configured: true, dailyLimit: 5, groupLimit: 2, usedToday: 2 });
+  await assert.rejects(a.ask('g1', q), /deste grupo/);
+  // Outros grupos continuam com a própria cota até o limite geral do servidor.
+  await a.ask('g2', q); await a.ask('g2', q); await a.ask('g3', q);
+  await assert.rejects(a.ask('g4', q), /do servidor/);
+  assert.equal(calls, 5); assert.equal(saved['ai-usage'].total, 5);
+  // Dia seguinte: contador novo.
+  const next = createAssistant({ env: cfg, fetchImpl, clock: () => new Date('2026-11-05T09:00:00Z'), store });
+  assert.equal((await next.status('g1')).usedToday, 0);
+  // O limite do grupo nunca passa do geral.
+  assert.equal((await createAssistant({ env: { ...env, AI_DAILY_REQUEST_LIMIT: '3', AI_DAILY_GROUP_LIMIT: '50' } }).status('x')).groupLimit, 3);
 });
