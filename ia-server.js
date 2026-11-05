@@ -11,6 +11,8 @@ function config(env = process.env) {
     key: String(env.OPENAI_API_KEY || '').trim(),
     model: String(env.OPENAI_MODEL || '').trim(),
     dailyLimit: integer(env.AI_DAILY_REQUEST_LIMIT, 10, 1000),
+    // Teto por grupo: um cliente não esgota a cota diária dos outros. Nunca passa do limite geral.
+    groupLimit: Math.min(integer(env.AI_DAILY_GROUP_LIMIT, 5, 1000), integer(env.AI_DAILY_REQUEST_LIMIT, 10, 1000)),
     groups: String(env.AI_ALLOWED_GROUP_IDS || '').split(',').map(s => s.trim()).filter(Boolean)
   };
 }
@@ -83,24 +85,31 @@ function answer(payload, mode) {
   return { segments, consultedAt: new Date().toISOString(), mode };
 }
 
-function createAssistant({ env = process.env, fetchImpl = globalThis.fetch, clock = () => new Date() } = {}) {
-  const c = config(env), quotas = new Map();
-  let busy = false, day = '';
-  function counter() { const next = clock().toISOString().slice(0, 10); if (next !== day) { day = next; quotas.clear(); } }
-  function status(groupId) {
-    counter();
-    return { enabled: ready(c) && groupAllowed(c, groupId), configured: Boolean(c.key && c.model), dailyLimit: c.dailyLimit, usedToday: quotas.get(String(groupId)) || 0 };
+// O contador do dia fica na configuração do banco (store), quando informada: não zera ao reiniciar o servidor e é o
+// mesmo para todas as cópias do servidor. Sem store (testes), fica em memória.
+function createAssistant({ env = process.env, fetchImpl = globalThis.fetch, clock = () => new Date(), store = null } = {}) {
+  const c = config(env), KEY = 'ai-usage';
+  let busy = false, memory = null;
+  async function usage() {
+    const today = clock().toISOString().slice(0, 10), u = store ? await store.getConfig(KEY) : memory;
+    return u && u.day === today && u.groups && typeof u.groups === 'object' && Number.isInteger(u.total) ? u : { day: today, total: 0, groups: {} };
+  }
+  async function save(u) { if (store) await store.setConfig(KEY, u); else memory = u; }
+  async function status(groupId) {
+    const u = await usage();
+    return { enabled: ready(c) && groupAllowed(c, groupId), configured: Boolean(c.key && c.model), dailyLimit: c.dailyLimit, groupLimit: c.groupLimit, usedToday: u.groups[String(groupId)] || 0 };
   }
   async function ask(groupId, body, context = null, profile = '') {
     if (!ready(c) || !groupAllowed(c, groupId)) throw fail('A IA está desligada ou não foi configurada para este grupo.', 503);
     const input = requestBody(body, c, clock(), context, profile);
-    counter();
     if (busy) throw fail('Há uma consulta de IA em andamento. Aguarde.', 429);
-    const used = quotas.get(String(groupId)) || 0, total = quotas.get('*') || 0;
-    if (used >= c.dailyLimit || total >= c.dailyLimit) throw fail('Limite diário de consultas do servidor atingido.', 429);
-    // Conta tentativas, inclusive erros: não repete automaticamente chamadas pagas.
-    quotas.set(String(groupId), used + 1); quotas.set('*', total + 1); busy = true;
+    busy = true;
     try {
+      const u = await usage(), used = u.groups[String(groupId)] || 0;
+      if (used >= c.groupLimit) throw fail('Limite diário de consultas deste grupo atingido. Tente amanhã.', 429);
+      if (u.total >= c.dailyLimit) throw fail('Limite diário de consultas do servidor atingido.', 429);
+      // Conta tentativas, inclusive erros, e grava antes de chamar: não repete automaticamente chamadas pagas.
+      u.groups[String(groupId)] = used + 1; u.total += 1; await save(u);
       const response = await fetchImpl(ENDPOINT, {
         method: 'POST', headers: { Authorization: 'Bearer ' + c.key, 'Content-Type': 'application/json' },
         body: JSON.stringify(input), signal: AbortSignal.timeout(45000)
@@ -118,9 +127,9 @@ function createAssistant({ env = process.env, fetchImpl = globalThis.fetch, cloc
   }
   return { status, ask };
 }
-function register({ app, auth, requireRole, stateForUser, assistant = createAssistant() }) {
-  app.get('/api/ai/status', auth, (req, res) => {
-    res.set('Cache-Control', 'no-store'); res.json(assistant.status(req.auth.group.id));
+function register({ app, auth, requireRole, stateForUser, store = null, assistant = createAssistant({ store }) }) {
+  app.get('/api/ai/status', auth, async (req, res, next) => {
+    try { res.set('Cache-Control', 'no-store'); res.json(await assistant.status(req.auth.group.id)); } catch (e) { next(e); }
   });
   function contextFor(req) {
     return FarmContext.build({ group: req.auth.group, user: req.auth.user, projected: stateForUser(req.auth.group.state, req.auth.user, req.auth.group.plan) }, req.body);

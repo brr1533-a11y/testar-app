@@ -11,7 +11,7 @@ function renderRuralAssistant() {
   const refresh = async () => {
     try { const s = await api('/api/ai/status'); if (!active()) return;
       enabled = s.enabled;
-      status.textContent = s.enabled ? `IA disponível · ${s.usedToday} tentativa(s) deste grupo hoje. Limite do servidor: ${s.dailyLimit}/dia.` : 'IA desligada. O responsável pode configurar a chave e o modelo no servidor quando quiser ativar.';
+      status.textContent = s.enabled ? `IA disponível · ${s.usedToday} de ${s.groupLimit} tentativa(s) deste grupo hoje (limite geral do servidor: ${s.dailyLimit}/dia).` : 'IA desligada. O responsável pode configurar a chave e o modelo no servidor quando quiser ativar.';
       button.disabled = !enabled || !navigator.onLine;
     } catch (e) { if (active()) { enabled = false; button.disabled = true; status.textContent = e.message; } }
   };

@@ -1,6 +1,6 @@
 {
   "name": "gestao-rural-saas",
-  "version": "4.16.3",
+  "version": "4.16.4",
   "private": true,
   "description": "Gestão Rural SaaS v22 — produção, segurança, Super Admin e administração comercial",
   "main": "server.js",
