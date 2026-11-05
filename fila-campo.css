@@ -1,0 +1,37 @@
+/* Fila de lançamentos (chip no topo, janela e resumo) e modo campo (botões e letras grandes, alto contraste). */
+.fila-chip{display:inline-flex;align-items:center;min-height:34px;padding:0 12px;border-radius:999px;border:1px solid transparent;font:600 12px/1 inherit;cursor:pointer;white-space:nowrap;background:#e4ecd9;color:#3d5a2c}
+.fila-chip[hidden]{display:none}
+.fila-chip[data-kind="guardado"]{background:#f3e8cc;color:#6e5319}
+.fila-chip[data-kind="enviando"]{background:#dfe9f5;color:#24476e}
+.fila-chip[data-kind="corrigir"]{background:#f7dcd6;color:#8a2a1c;border-color:#c9715f}
+.fila-dlg{max-width:620px}
+.fila-topo{display:grid;gap:10px;margin-bottom:8px}
+.fila-erro{padding:10px 12px;border-radius:10px;background:#f7dcd6;color:#5c1d12}
+.fila-grupo{margin:14px 0}
+.fila-grupo h4{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:14px}
+.fila-grupo h4 span{min-width:22px;padding:2px 7px;border-radius:999px;background:var(--line,#e6d9c5);font-size:12px;text-align:center}
+.fila-grupo ul{list-style:none;margin:0;padding:0;display:grid;gap:6px;max-height:260px;overflow:auto}
+.fila-item{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;border:1px solid var(--line,#e6d9c5);font-size:14px}
+.fila-item[data-status="guardado"]{border-left:4px solid #c99a2e}
+.fila-item[data-status="enviando"]{border-left:4px solid #3d6fa8}
+.fila-item[data-status="corrigir"]{border-left:4px solid #b4432f}
+.fila-item[data-status="ok"]{border-left:4px solid #4f7a46;opacity:.85}
+.fila-resumo{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.fila-resumo>div:first-child{display:grid;gap:2px}
+.fila-modo{display:inline-flex;align-items:center;gap:8px;min-height:40px}
+.checklist-cta{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px}
+.checklist-cta>div{display:grid;gap:2px}
+
+/* Modo campo: alvos de toque de 56 px, letra maior e contraste alto para usar no sol e com pressa. */
+body.modo-campo{font-size:18px}
+body.modo-campo .btn,body.modo-campo button.hf-day,body.modo-campo .fila-chip{min-height:56px;font-size:17px;padding-inline:18px}
+body.modo-campo input:not([type=checkbox]):not([type=radio]),body.modo-campo select,body.modo-campo textarea{min-height:52px;font-size:18px}
+body.modo-campo input[type=checkbox],body.modo-campo input[type=radio]{width:26px;height:26px}
+body.modo-campo .hf-btn{min-width:64px;min-height:64px;font-size:30px}
+body.modo-campo .hf-count{min-width:52px;font-size:26px;font-weight:700}
+body.modo-campo .hf-name b{font-size:19px}
+body.modo-campo .hf-row{padding:14px 12px}
+body.modo-campo .hf-save-btn{width:100%;min-height:64px;font-size:20px}
+body.modo-campo .card,body.modo-campo .fila-item{border-width:2px}
+body.modo-campo .muted{color:inherit;opacity:.85}
+@media (prefers-reduced-motion:reduce){.fila-chip{transition:none}}

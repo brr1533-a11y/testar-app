@@ -25,7 +25,9 @@ const PAGES=[
  {id:'relatorio-credito',name:'Relatório para crédito',group:'Financeiro e fiscal',finance:true},
  {id:'comparacao-fazendas',name:'Comparar com fazendas parecidas',group:'Financeiro e fiscal',finance:true},
  {id:'modulos',name:'Módulos e modelo da fazenda',group:'Configurações',ceo:true},
- {id:'meus-dados',name:'Meus dados e privacidade',group:'Configurações',ceo:true}
+ {id:'meus-dados',name:'Meus dados e privacidade',group:'Configurações',ceo:true},
+ {id:'fechamento-mes',name:'Fechamento do mês',group:'Financeiro e fiscal',finance:true},
+ {id:'margem-hectare',name:'Margem por hectare',group:'Financeiro e fiscal',finance:true}
 ];
 const META={
  partnerships:{page:'parcerias',name:'Parceria / meação',fields:{partner:'text',partnerDoc:'text',pix:'text',plotIds:'array',areaHa:'number',cycleId:'text',productionShare:'number',costShare:'number',shareFarmCosts:'boolean',start:'text',end:'text'}},
@@ -37,9 +39,10 @@ const META={
  contractors:{page:'prestadores',name:'Serviço terceirizado',fields:{provider:'text',service:'text',unit:'text',quantity:'number',price:'number',cycleId:'text',plotId:'text',paid:'boolean'}},
  animals:{page:'animais',name:'Animal',fields:{tag:'text',sisbov:'text',name:'text',sex:'text',breed:'text',birth:'text',lotId:'text',motherTag:'text',origin:'text',status:'text',exitDate:'text'}},
  animalEvents:{page:'animais',name:'Evento do animal',immutable:true,fields:{animalId:'text',kind:'text',weightKg:'number',description:'text'}},
- moduleSettings:{page:'modulos',name:'Módulos da fazenda',fields:{hidden:'array',template:'text'}}
+ moduleSettings:{page:'modulos',name:'Módulos da fazenda',fields:{hidden:'array',template:'text'}},
+ recurringBills:{page:'fluxo-caixa',name:'Conta recorrente',fields:{supplier:'text',description:'text',amount:'number',dayOfMonth:'number',costCenter:'text',start:'text',end:'text',active:'boolean'}}
 };
-const GLOBAL_KEYS=['taxSettings','loans','loanPayments','leases','moduleSettings'];
+const GLOBAL_KEYS=['taxSettings','loans','loanPayments','leases','moduleSettings','recurringBills'];
 const ENTRY_KINDS=['custo','adiantamento','entrega','venda','pagamento'];
 const LOAN_KINDS=['custeio','pronaf','investimento','cpr','outro'];
 const LOAN_SYSTEMS=['price','sac','unica'];
@@ -57,6 +60,7 @@ const REGIMES={
 
 // ---------- Validação ----------
 function validate(f){
+ validateCosts(f);
  const plots=new Map((f.talhoes||[]).map(p=>[p.id,p])),cycles=new Map((f.agriculture?.cycles||[]).map(c=>[c.id,c])),dateOk=v=>D.validDate(v);
  const parts=active(f,'partnerships');
  for(const p of parts){check(p.activity==='coffee'&&p.partner?.trim()&&Array.isArray(p.plotIds)&&p.plotIds.length>0&&p.plotIds.every(id=>typeof id==='string'&&plots.has(id)),'Parceria: informe o parceiro e ao menos um talhão da fazenda.');check(num(p.productionShare)&&p.productionShare>0&&p.productionShare<=100&&(p.costShare==null||num(p.costShare)&&p.costShare<=100),'Parceria: percentuais entre 0 e 100.');check(dateOk(p.start)&&(!p.end||dateOk(p.end)&&p.end>=p.start),'Parceria: confira o início e o fim.');if(p.partnerDoc)check(/^(\d{11}|\d{14})$/.test(p.partnerDoc),'Parceria: CPF/CNPJ só com números.');}
@@ -166,16 +170,19 @@ function csv(rows){return rows.map(r=>r.map(v=>{const s=String(v??'');return /[;
 function parseScale(text,animals){const byTag=new Map(animals.map(a=>[a.tag.trim().toUpperCase(),a])),ok=[],errors=[];String(text||'').split(/\r?\n/).forEach((line,i)=>{const t=line.trim();if(!t)return;const parts=(/[;\t]/.test(t)?t.split(/[;\t]/):t.split(/,(?=\s*\d+(?:\.\d+)?\s*$)/)).map(s=>s.trim());if(parts.length<2){errors.push(`Linha ${i+1}: use brinco;peso`);return;}const kg=Number(parts[1].replace(/\s/g,'').replace(',','.'));if(!Number.isFinite(kg)||kg<=0||kg>2000){if(i>0||!/peso|kg/i.test(t))errors.push(`Linha ${i+1}: peso inválido`);return;}const a=byTag.get(parts[0].toUpperCase());if(!a){errors.push(`Linha ${i+1}: brinco ${parts[0]} não cadastrado`);return;}ok.push({animalId:a.id,tag:a.tag,weightKg:round(kg,1)});});return {ok,errors};}
 
 // ---------- Fluxo de caixa projetado ----------
-function cashFlow(f,{months=12,on=today(),bagPrice=null}={}){
- const start=month(on)+'-01',end=addMonths(start,months),list=[],add=(date,amount,label,kind)=>{if(!amount)return;const d=date<on?on:date;if(d>=end)return;list.push({date:d,amount:round(amount),label,kind,overdue:date<on});};
+function cashFlow(f,{months=12,on=today(),bagPrice=null,extra=[]}={}){
+ const start=month(on)+'-01',end=addMonths(start,months),list=[],add=(date,amount,label,kind,ref)=>{if(!amount)return;const d=date<on?on:date;if(d>=end)return;list.push({date:d,amount:round(amount),label,kind,overdue:date<on,...(ref?{ref}:{})});};
  const opening=round((f.finances||[]).filter(r=>r.date<=on&&!r.archived).reduce((n,r)=>n+(r.type==='entrada'?1:r.type==='saida'?-1:0)*(Number(r.value)||0),0));
  for(const p of f.management?.payables||[])if(p.status==='open')add(p.dueDate,-p.amount,'Conta: '+p.supplier+' · '+p.description,'conta');
  for(const s of f.agriculture?.sales||[])for(const i of s.installments||[]){const paid=(f.operations?.payments||[]).filter(r=>r.saleId===s.id&&r.installmentId===i.id).reduce((n,r)=>n+r.amount,0);add(i.date,i.amount-paid,'Recebimento: '+(s.buyer||'venda'),'receber');}
  const tax=rates(taxSetting(f));
  for(const c of f.management?.salesContracts||[]){if(c.status!=='open')continue;const left=Math.max(0,c.quantityKg-(c.deliveries||[]).reduce((n,d)=>n+(d.kg||0),0));if(left>0)add(c.deliveryEnd,funrural(left*c.pricePerKg,tax).net,'Contrato: '+c.buyer,'contrato');}
- for(const r of loansReport(f,on))for(const x of r.rows)if(x.status!=='paga')add(x.date,-x.open,(r.loan.kind==='cpr'?'CPR: ':'Parcela: ')+r.loan.name+' ('+x.n+')','parcela');
+ for(const r of loansReport(f,on))for(const x of r.rows)if(x.status!=='paga')add(x.date,-x.open,(r.loan.kind==='cpr'?'CPR: ':'Parcela: ')+r.loan.name+' ('+x.n+')','parcela',{loanId:r.loan.id,n:x.n,name:r.loan.name,due:x.date});
  for(const l of active(f,'leases')){const v=leaseYearValue(l,bagPrice);if(!v)continue;for(const d of leaseDueDates(l,on,addDays(end,-1)))add(d,l.direction==='tomado'?-v:v,'Arrendamento '+(l.direction==='tomado'?'a pagar':'a receber')+': '+l.party,'arrendamento');}
  for(const c of active(f,'contractors'))if(c.paid===false)add(c.date,-contractorAmount(c),'Prestador: '+c.provider,'prestador');
+ // Contas recorrentes ainda não lançadas (as lançadas já entram como conta a pagar) e cenários do tipo "e se eu vender agora".
+ for(const r of recurringDue(f,on,addDays(end,-1)))if(!(f.management?.payables||[]).some(p=>p.id===r.id))add(r.dueDate,-r.amount,'Recorrente: '+r.supplier+' · '+r.description,'recorrente');
+ for(const x of extra||[])add(x.date||on,Number(x.amount)||0,x.label||'Cenário','cenario');
  const fixed=active(f,'yearWorkers').filter(w=>w.active!==false&&w.kind==='fixo'&&w.monthlyRate>0);for(let k=0;k<months;k++){const d=addMonths(start,k).slice(0,8)+'05';for(const w of fixed)if(d>=on)add(d,-w.monthlyRate,'Salário: '+w.name,'salario');}
  const rows=[];let balance=opening;for(let k=0;k<months;k++){const m=month(addMonths(start,k)),items=list.filter(x=>month(x.date)===m),inflow=round(items.filter(x=>x.amount>0).reduce((n,x)=>n+x.amount,0)),outflow=round(-items.filter(x=>x.amount<0).reduce((n,x)=>n+x.amount,0));balance=round(balance+inflow-outflow);rows.push({month:m,inflow,outflow,net:round(inflow-outflow),balance,items});}
  const lowest=rows.reduce((m,r)=>!m||r.balance<m.balance?r:m,null);
@@ -183,7 +190,19 @@ function cashFlow(f,{months=12,on=today(),bagPrice=null}={}){
 }
 
 // ---------- Avisos ----------
-function alerts(f,on=today()){const out=[];for(const r of loansReport(f,on))for(const x of r.rows){if(x.status==='paga')continue;const left=days(on,x.date);if(left<=30)out.push({id:'loan:'+r.loan.id+':'+x.n+':'+(left<0?'late':left<=7?7:30),page:'financiamentos',title:(r.loan.kind==='cpr'?'CPR ':'Parcela ')+r.loan.name+(left<0?' atrasada':left===0?' vence hoje':' vence em '+left+' dias'),severity:left<=7?'high':'attention'});}
+// Parcela que vence em até 30 dias e o caixa previsto (saldo de hoje + o que entra e sai até lá) não cobre.
+function cashGapAlerts(f,on=today()){const flow=cashFlow(f,{months:3,on}),items=flow.rows.flatMap(r=>r.items).sort((a,b)=>a.date.localeCompare(b.date)||b.amount-a.amount);let run=flow.opening;const out=[];for(const it of items){run=round(run+it.amount);if(it.kind!=='parcela'||!it.ref||days(on,it.date)>30||run>=0)continue;const missing=round(Math.min(-run,-it.amount));out.push({id:'loan-cash:'+it.ref.loanId+':'+it.ref.n+':'+it.ref.due,page:'fluxo-caixa',role:'ceo',severity:'high',open:{page:'fluxo-caixa'},push:'Parcela de financiamento sem caixa previsto. Abra para conferir.',title:'Parcela '+it.ref.name+' ('+it.ref.n+') de R$ '+brl(-it.amount)+(it.overdue?' está atrasada':' vence em '+it.date.split('-').reverse().join('/'))+' e o caixa previsto não cobre: faltam R$ '+brl(missing)});}return out;}
+// Pedido de compra esperando a decisão do CEO.
+function purchaseAlerts(f){return (f.management?.purchaseOrders||[]).filter(o=>o.status==='pending').map(o=>{const total=round((o.items||[]).reduce((n,i)=>n+(Number(i.quantity)||0)*(Number(i.unitPrice)||0),0));return {id:'po:'+o.id,page:'pedidos-compra',role:'ceo',severity:'attention',open:{page:'pedidos-compra',item:o.id},push:'Pedido de compra aguardando sua aprovação.',title:'Pedido de compra aguardando aprovação: '+(o.items||[]).map(i=>i.name).slice(0,3).join(', ')+(o.supplier?' · '+o.supplier:'')+(total?' · R$ '+brl(total):'')};});}
+// Endereço que a notificação abre: a tela do aviso e, quando houver, o item para conferir e decidir.
+function alertLink(a){const p=new URLSearchParams();p.set('abrir',a.open?.page||a.page||'alertas');if(a.open?.item)p.set('item',String(a.open.item));return '/app?'+p.toString();}
+function alerts(f,on=today()){const out=[...cashGapAlerts(f,on),...purchaseAlerts(f)];
+ const rp=recurringPending(f,on).filter(r=>r.dueDate<=addDays(on,5));if(rp.length)out.push({id:'recurring:'+on.slice(0,7)+':'+rp.map(r=>r.id).join(',').length,page:'fluxo-caixa',role:'ceo',severity:'attention',open:{page:'fluxo-caixa'},push:'Contas recorrentes do mês para lançar.',title:rp.length+' conta(s) recorrente(s) do mês ainda não lançada(s): '+rp.map(r=>r.supplier).slice(0,3).join(', ')});
+ for(const x of expiringStock(f,on))out.push({id:'expires:'+x.item.id+':'+x.item.expires+':'+(x.left<0?'vencido':x.left<=7?7:30),page:'estoque',severity:x.left<=7?'high':'attention',title:x.item.item+(x.item.batch?' (lote '+x.item.batch+')':'')+(x.left<0?' está vencido':' vence em '+x.left+' dia(s)')+' · '+x.item.quantity+' '+x.item.unit+' em estoque'});
+ // Checklist do trator: o último de cada equipamento, dos últimos 14 dias, com algum item com problema.
+ const lastCheck=new Map();for(const r of (f.expansion?.fieldLogs||[]))if(r.kind==='checklist'&&!r.archived&&days(r.date,on)<=14){const p=lastCheck.get(r.equipmentId);if(!p||r.date>p.date||r.date===p.date&&String(r.createdAt||'')>String(p.createdAt||''))lastCheck.set(r.equipmentId,r);}
+ for(const r of lastCheck.values()){const bad=(r.checks||[]).filter(c=>!c.ok);if(!bad.length)continue;const eq=[...(f.tractors||[]),...(f.implements||[])].find(x=>x.id===r.equipmentId);out.push({id:'checklist:'+r.id,page:'campo-completo',title:'Checklist '+(eq?.name||'do equipamento')+': '+bad.map(c=>c.item).join(', '),severity:'high'});}
+for(const r of loansReport(f,on))for(const x of r.rows){if(x.status==='paga')continue;const left=days(on,x.date);if(left<=30)out.push({id:'loan:'+r.loan.id+':'+x.n+':'+(left<0?'late':left<=7?7:30),page:'financiamentos',title:(r.loan.kind==='cpr'?'CPR ':'Parcela ')+r.loan.name+(left<0?' atrasada':left===0?' vence hoje':' vence em '+left+' dias'),severity:left<=7?'high':'attention'});}
  for(const m of milkIndicators(f,on))if(m.dryOffIn!=null&&m.dryOffIn<=7)out.push({id:'dry:'+m.animalId+':'+m.dryOff,page:'animais',title:'Secar a vaca '+m.tag+(m.dryOffIn<0?' (atrasado)':' até '+m.dryOff.split('-').reverse().join('/')),severity:'attention'});
  return out;}
 
@@ -205,7 +224,77 @@ function quantile(v,q){if(!v.length)return null;const s=[...v].sort((a,b)=>a-b),
 function benchmark(rows,{activity,uf}){const m=rows.filter(r=>r.activity===activity&&(!uf||r.uf===uf)&&(num(r.bagsHa)||num(r.costBag)));const farms=new Set(m.map(r=>r.farmKey)),groups=new Set(m.map(r=>r.groupKey));if(farms.size<3||groups.size<3)return {available:false,reason:'Ainda não há fazendas parecidas suficientes (mínimo de três fazendas de três grupos que aceitaram participar).'};const stat=k=>{const v=m.map(r=>r[k]).filter(v=>num(v)&&v>0);return v.length>=3?{p25:quantile(v,.25),median:quantile(v,.5),p75:quantile(v,.75),n:v.length}:null;};return {available:true,farms:farms.size,bagsHa:stat('bagsHa'),costBag:stat('costBag'),areaHa:stat('areaHa')};}
 function farmIndicators(f,X,activity){const cycles=(f.agriculture?.cycles||[]).filter(c=>c.activity===activity&&!c.archived);const lastYear=String(Number(today().slice(0,4))-2);const recent=cycles.filter(c=>(c.startDate||'')>=lastYear+'-01-01');const use=recent.length?recent:cycles;let bags=0,area=0,cost=0;const units=X?X.unitCosts(f,activity):[];for(const c of use){const s=D.cycleStats(f,c);bags+=s.harvestedKg/(c.bagKg||60);area+=c.areaHa||0;cost+=units.find(u=>u.id===c.id)?.cost||0;}return {bagsHa:area>0&&bags>0?round(bags/area,2):null,costBag:bags>0&&cost>0?round(cost/bags,2):null,areaHa:area>0?round(area,2):null};}
 
-return {PAGES,META,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
+// ---------- 4.18: centro de custo, insumos da ordem de serviço e mínimo de estoque ----------
+const normSupplier=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
+// Centro de custo de uma saída: 'geral' (fazenda toda), 'cycle:<id>' (safra) ou 'lot:<id>' (lote). Grava também cycleId/lotId para o custo cair no destino.
+function costCenterOf(r){return r.costCenter||(r.cycleId?'cycle:'+r.cycleId:r.lotId?'lot:'+r.lotId:'');}
+function costCenterOptions(f,activity){const out=[['geral','Geral (fazenda toda)']];for(const c of (f.agriculture?.cycles||[]).filter(c=>c.activity===activity&&!c.archived))out.push(['cycle:'+c.id,'Safra · '+c.name]);if(activity==='cattle')for(const l of (f.cattle?.lots||[]).filter(l=>!l.archived))out.push(['lot:'+l.id,'Lote · '+l.name]);return out;}
+// Sugestão pelo fornecedor: o centro de custo da última saída (ou conta a pagar) do mesmo fornecedor nesta atividade.
+function suggestCostCenter(f,supplier,activity){const s=normSupplier(supplier);if(!s)return null;const rows=[...(f.finances||[]).filter(r=>r.type==='saida').map(r=>({who:r.supplier,cc:costCenterOf(r),date:r.date,activity:r.activity})),...(f.management?.payables||[]).map(r=>({who:r.supplier,cc:costCenterOf(r),date:r.dueDate,activity:r.activity}))].filter(r=>r.cc&&r.activity===activity&&normSupplier(r.who)===s).sort((a,b)=>String(b.date).localeCompare(String(a.date)));const valid=new Set(costCenterOptions(f,activity).map(o=>o[0]));const hit=rows.find(r=>valid.has(r.cc));return hit?{costCenter:hit.cc,date:hit.date}:null;}
+// Contas recorrentes: uma conta a pagar por mês, no dia escolhido (ou no último dia do mês), com id fixo por mês.
+function recurringDue(f,from,to){const out=[];for(const b of active(f,'recurringBills')){if(b.active===false)continue;let m=(b.start>from?b.start:from).slice(0,7)+'-01';const stop=(b.end&&b.end<to?b.end:to);for(let k=0;k<36&&m<=stop;k++,m=addMonths(m,1)){const last=Number(monthEnd(m.slice(0,7)).slice(8)),due=m.slice(0,8)+String(Math.min(b.dayOfMonth||1,last)).padStart(2,'0');if(due<b.start||due>stop||due<from)continue;const cc=b.costCenter||'geral';out.push({id:('rec_'+b.id+'_'+due.slice(0,7).replace('-','')).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,100),activity:b.activity,supplier:b.supplier,description:b.description,amount:b.amount,dueDate:due,status:'open',costCenter:cc,...(cc.startsWith('cycle:')?{cycleId:cc.slice(6)}:cc.startsWith('lot:')?{lotId:cc.slice(4)}:{}),recurringId:b.id});}}return out;}
+// Contas recorrentes deste mês (até hoje) que ainda não viraram conta a pagar.
+function recurringPending(f,on=today()){const have=new Set((f.management?.payables||[]).map(p=>p.id));return recurringDue(f,on.slice(0,8)+'01',monthEnd(on.slice(0,7))).filter(r=>!have.has(r.id));}
+// Validade dos insumos: vencido ou vencendo em até 30 dias, com saldo.
+function expiringStock(f,on=today()){return (f.stock||[]).filter(s=>s.expires&&Number(s.quantity||0)>0).map(s=>({item:s,left:days(on,s.expires)})).filter(x=>x.left<=30).sort((a,b)=>a.left-b.left);}
+function validateCosts(f){
+ for(const b of active(f,'recurringBills')){check(b.supplier?.trim()&&b.description?.trim()&&num(b.amount)&&b.amount>0&&Number.isInteger(b.dayOfMonth)&&b.dayOfMonth>=1&&b.dayOfMonth<=31&&D.validDate(b.start)&&(!b.end||D.validDate(b.end)&&b.end>=b.start),'Conta recorrente: informe fornecedor, descrição, valor, dia do mês (1 a 31) e início.');const cc=b.costCenter||'geral';check(cc==='geral'||cc.startsWith('cycle:')&&(f.agriculture?.cycles||[]).some(c=>c.id===cc.slice(6)&&c.activity===b.activity)||cc.startsWith('lot:')&&b.activity==='cattle'&&(f.cattle?.lots||[]).some(l=>l.id===cc.slice(4)),'Centro de custo da conta recorrente inválido.');}
+ for(const s of f.stock||[]){if(s.expires!=null&&s.expires!=='')check(D.validDate(s.expires),'Validade do insumo inválida.');if(s.batch!=null)check(typeof s.batch==='string'&&s.batch.length<=40,'Lote do insumo longo demais.');}
+ const cycles=new Map((f.agriculture?.cycles||[]).map(c=>[c.id,c])),lots=new Set((f.cattle?.lots||[]).map(l=>l.id)),stock=new Map((f.stock||[]).map(s=>[s.id,s]));
+ for(const r of f.finances||[]){
+  if(r.supplier!=null)check(typeof r.supplier==='string'&&r.supplier.length<=120,'Fornecedor longo demais.');
+  if(r.costCenter==null)continue;
+  check(r.type==='saida','Centro de custo só vale para saídas.');
+  if(r.costCenter==='geral'){check(!r.cycleId&&!r.lotId,'Saída geral não pode ter safra ou lote.');continue;}
+  const [kind,id]=String(r.costCenter).split(':');
+  if(kind==='cycle')check(cycles.get(id)?.activity===(r.activity||'coffee')&&r.cycleId===id&&!r.lotId,'Safra do centro de custo inválida.');
+  else if(kind==='lot')check(lots.has(id)&&r.lotId===id&&!r.cycleId&&(r.activity||'coffee')==='cattle','Lote do centro de custo inválido.');
+  else check(false,'Centro de custo inválido.');
+ }
+ for(const o of f.expansion?.workOrders||[]){if(o.inputs==null)continue;check(Array.isArray(o.inputs)&&o.inputs.length<=30,'Insumos da ordem inválidos.');for(const i of o.inputs){const s=stock.get(i?.stockId);check(s&&(s.activity||'coffee')===o.activity&&num(i.quantity)&&i.quantity>0&&i.quantity<=1e7,'Insumo da ordem de serviço inválido.');}check(new Set(o.inputs.map(i=>i.stockId)).size===o.inputs.length,'Insumo repetido na ordem de serviço.');}
+ for(const s of f.stock||[])if(s.countedAt!=null)check(D.validDate(String(s.countedAt).slice(0,10)),'Data da conferência do estoque inválida.');
+}
+// Baixa dos insumos de uma ordem concluída: um consumo por item, com identificador fixo (não baixa duas vezes).
+const orderUseId=(orderId,stockId)=>('os_'+orderId+'_'+stockId).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,100);
+function orderStockUses(f,order,date){const used=new Set((f.operations?.stockUses||[]).map(u=>u.id));return (order.inputs||[]).map(i=>({id:orderUseId(order.id,i.stockId),activity:order.activity,date,stockId:i.stockId,quantity:i.quantity,reason:'Ordem de serviço: '+order.title,workOrderId:order.id,...(order.lotId&&order.activity==='cattle'?{lotId:order.lotId}:{}),...(order.cycleId?{cycleId:order.cycleId}:{})})).filter(u=>!used.has(u.id));}
+// Mínimo sugerido pelo consumo real: média diária dos últimos 90 dias × dias de cobertura (padrão 30). Só vale
+// usar depois de conferir o saldo físico nos últimos 30 dias.
+function suggestedMin(f,item,on=today(),coverDays=30){const from=addDays(on,-90),uses=(f.operations?.stockUses||[]).filter(u=>u.stockId===item.id&&u.date>=from&&u.date<=on),used=uses.reduce((n,u)=>n+(Number(u.quantity)||0),0),perDay=used/90;const counted=item.countedAt?String(item.countedAt).slice(0,10):null;return {used90:round(used,3),perMonth:round(perDay*30,3),suggested:used>0?Math.ceil(perDay*coverDays*100)/100:null,countedAt:counted,countedRecently:Boolean(counted&&days(counted,on)<=30&&counted<=on)};}
+
+// ---------- 4.18: fechamento do mês e margem por hectare ----------
+const monthEnd=m=>{const [y,mm]=m.split('-').map(Number);return new Date(Date.UTC(y,mm,0)).toISOString().slice(0,10);};
+const weekOf=date=>{const d=new Date(date+'T12:00:00Z'),dow=(d.getUTCDay()+6)%7;d.setUTCDate(d.getUTCDate()-dow);return d.toISOString().slice(0,10);};
+// Custo de uma fonte que caiu "sem destino": separa o Geral escolhido de propósito do que ninguém definiu.
+function isChosenGeneral(f,key){if(!key.startsWith('finance:'))return false;const r=(f.finances||[]).find(x=>'finance:'+x.id===key);return r?.costCenter==='geral';}
+function monthClose(f,month,X,on=today()){
+ const from=month+'-01',to=monthEnd(month),inMonth=d=>d>=from&&d<=to,fin=(f.finances||[]).filter(r=>!r.archived&&inMonth(r.date||''));
+ const income=round(fin.filter(r=>r.type==='entrada').reduce((n,r)=>n+(Number(r.value)||0),0)),spend=round(fin.filter(r=>r.type==='saida').reduce((n,r)=>n+(Number(r.value)||0),0));
+ const lines=X?X.costLines(f,{from,to}):[],byTarget=new Map(),cycles=new Map((f.agriculture?.cycles||[]).map(c=>[c.id,c])),lots=new Map((f.cattle?.lots||[]).map(l=>[l.id,l]));
+ let general=0;const noTarget=[];
+ for(const l of lines){if(l.type==='unallocated'){if(isChosenGeneral(f,l.key))general+=l.amount;else noTarget.push({label:l.label,date:l.date,amount:round(l.amount),category:l.category});continue;}const name=l.type==='cycle'?'Safra · '+(cycles.get(l.id)?.name||'removida'):l.type==='lot'?'Lote · '+(lots.get(l.id)?.name||'removido'):l.type==='dairy'?'Leite':l.type;byTarget.set(name,round((byTarget.get(name)||0)+l.amount));}
+ const pend=[],add=(kind,text,amount)=>pend.push({kind,text,...(amount!=null?{amount:round(amount)}:{})});
+ for(const p of f.management?.payables||[])if(p.status==='open'&&p.dueDate<=to)add(p.dueDate<on?'Conta vencida':'Conta do mês em aberto',p.supplier+' · '+p.description+' · vence '+p.dueDate.split('-').reverse().join('/'),p.amount);
+ for(const s of f.agriculture?.sales||[])for(const i of s.installments||[]){const paid=(f.operations?.payments||[]).filter(r=>r.saleId===s.id&&r.installmentId===i.id).reduce((n,r)=>n+r.amount,0);if(i.amount-paid>0.009&&i.date<=to)add(i.date<on?'Recebimento atrasado':'Recebimento do mês',(s.buyer||'Venda')+' · '+i.date.split('-').reverse().join('/'),i.amount-paid);}
+ const used=new Set((f.operations?.stockUses||[]).map(u=>u.id));for(const o of f.expansion?.workOrders||[]){if(o.archived||!(o.inputs||[]).length)continue;const st=X?X.orderStatus(f,o.id):'';const pending=o.inputs.filter(i=>!used.has(orderUseId(o.id,i.stockId)));if(st==='done'&&pending.length)add('Ordem concluída sem baixa',o.title+' · '+pending.length+' insumo(s)');}
+ const closed=new Set((f.labor?.closings||[]).map(c=>c.weekStart)),weeks=new Set((f.labor?.entries||[]).filter(e=>!e.voided&&inMonth(e.date)).map(e=>weekOf(e.date)));for(const w of [...weeks].sort())if(!closed.has(w)&&addDays(w,6)<on)add('Semana da colheita sem fechamento','Semana de '+w.split('-').reverse().join('/'));
+ for(const s of f.stock||[])if(Number(s.min)>0&&Number(s.quantity||0)<=Number(s.min))add('Estoque no mínimo',s.item+' · '+s.quantity+' '+s.unit+' (mínimo '+s.min+')');
+ for(const r of f.expansion?.fieldLogs||[])if(r.kind==='checklist'&&!r.archived&&inMonth(r.date)&&(r.checks||[]).some(c=>!c.ok))add('Checklist com problema',(r.checks||[]).filter(c=>!c.ok).map(c=>c.item).join(', ')+' · '+r.date.split('-').reverse().join('/'));
+ const noCenter=fin.filter(r=>r.type==='saida'&&!r.costCenter&&!r.cycleId&&!r.lotId&&!r.sourcePayableId&&!r.noteId&&!r.sourceLaborAdjustmentId&&!r.toStock);if(noCenter.length)add('Saídas sem centro de custo',noCenter.length+' lançamento(s) · R$ '+brl(noCenter.reduce((n,r)=>n+(Number(r.value)||0),0)));
+ return {month,from,to,income,spend,result:round(income-spend),costs:[...byTarget].map(([name,amount])=>({name,amount})).sort((a,b)=>b.amount-a.amount),general:round(general),noTarget,noTargetTotal:round(noTarget.reduce((n,r)=>n+r.amount,0)),pendencies:pend};
+}
+// Margem por hectare com o mesmo período, cultura e critério de custo para todas as fazendas. Receita: vendas do período.
+// Custo direto: o que foi lançado na safra. Com "general", o custo Geral do período da atividade é dividido entre as safras pela área.
+function marginReport(farms,X,{from,to,crop,general=false}){
+ const out=[];for(const f of farms){const cycles=(f.agriculture?.cycles||[]).filter(c=>!c.archived&&c.crop===crop);if(!cycles.length)continue;const activity=cycles[0].activity,inP=d=>d>=from&&d<=to;
+  const rows=cycles.map(c=>{const revenue=round((f.agriculture.sales||[]).filter(s=>s.cycleId===c.id&&inP(s.date)).reduce((n,s)=>n+s.kg*(Number(s.pricePerKg)||0),0)),direct=X?round(X.costLines(f,{activity,from,to,targetType:'cycle',targetId:c.id}).reduce((n,l)=>n+l.amount,0)):0,kg=(f.agriculture.harvests||[]).filter(h=>h.cycleId===c.id&&inP(h.date)).reduce((n,h)=>n+h.netKg,0);return {cycleId:c.id,name:c.name,areaHa:Number(c.areaHa)||0,revenue,direct,bags:round(kg/(c.bagKg||60),2)};}).filter(r=>r.revenue||r.direct||r.bags);
+  if(!rows.length)continue;const area=rows.reduce((n,r)=>n+r.areaHa,0);
+  const gen=general&&X?round(X.costLines(f,{activity,from,to,targetType:'unallocated'}).filter(l=>isChosenGeneral(f,l.key)).reduce((n,l)=>n+l.amount,0)):0;
+  for(const r of rows){r.general=area>0?round(gen*r.areaHa/area):0;r.cost=round(r.direct+r.general);r.margin=round(r.revenue-r.cost);r.marginHa=r.areaHa>0?round(r.margin/r.areaHa):null;}
+  const t=k=>round(rows.reduce((n,r)=>n+r[k],0));out.push({farmId:f.id,farm:f.name,areaHa:round(area,2),revenue:t('revenue'),direct:t('direct'),general:t('general'),cost:t('cost'),margin:t('margin'),bags:t('bags'),marginHa:area>0?round(t('margin')/area):null,rows});}
+ return out.sort((a,b)=>(b.marginHa??-Infinity)-(a.marginHa??-Infinity));
+}
+
+return {PAGES,META,recurringDue,recurringPending,expiringStock,monthClose,marginReport,monthEnd,cashGapAlerts,purchaseAlerts,alertLink,normSupplier,costCenterOf,costCenterOptions,suggestCostCenter,validateCosts,orderUseId,orderStockUses,suggestedMin,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
  validate,partnershipReport,plotsArea,taxSetting,rates,funrural,funruralReport,loanSchedule,loansReport,leaseYearValue,leaseDueDates,leaseCostRows,contractorAmount,contractorCostRows,contractorComparison,
  animalHistory,animalWeight,milkIndicators,sisbovRows,csv,parseScale,cashFlow,alerts,hiddenPages,benchmark,farmIndicators,quantile,addMonths};
 });
