@@ -1480,7 +1480,8 @@ async function refreshQuote() {
     quote = await r.json();
     $("#quoteMini").classList.remove("is-loading");
     $("#quoteMiniValue").textContent = money(quote.brlPerSaca);
-    if (["dashboard", "financeiro", "lancamentos"].includes(currentPage)) renderPage();
+    // A cotação chega depois da tela: redesenha só se ninguém estiver preenchendo um formulário; senão, espera sair do campo.
+    if (["dashboard", "financeiro", "lancamentos"].includes(currentPage)) { if (isUserEditing()) pendingRerender = true; else rerenderAfterSync(); }
   } catch (_) {
     quote = null;
     $("#quoteMini").classList.remove("is-loading");

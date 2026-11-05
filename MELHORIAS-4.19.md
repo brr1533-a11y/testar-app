@@ -62,3 +62,9 @@
   - `tests/fechamento-mes-browser.cjs`: fechar, PDF da versão, recusa no mês fechado, reabrir com motivo e versão 2.
 - `tests/custos-estoque-browser.cjs` foi atualizado para a nova janela de baixa.
 - Os dois roteiros novos entraram em `npm run test:campo418:browser`.
+
+## 4.19.1
+
+- **Formulário apagado pela cotação.** A cotação do café chega alguns instantes depois de a tela abrir e redesenhava a página inteira. Quem já estava preenchendo uma saída no Financeiro perdia o que tinha digitado, principalmente com internet lenta. A cotação do mercado fazia o mesmo nas telas de gestão (por exemplo, no cenário do fluxo de caixa). Agora, se houver um formulário sendo preenchido, a tela só se atualiza depois que ele for salvo ou deixado de lado (`app.js`, `refreshQuote`; `expansao.js`, `xLoadMarket`).
+- Esse defeito era a causa das falhas de vez em quando do teste `tests/custos-estoque-browser.cjs`: depois da correção, passou 15 vezes seguidas.
+- Teste novo: `tests/cotacao-formulario-browser.cjs` segura a cotação, preenche o formulário e só então solta a cotação. Ele falha sem a correção e passa com ela.
