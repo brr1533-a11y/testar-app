@@ -1,3 +1,7 @@
+> **Versão 4.17.1:** revisão de segurança e testes novos (
+pm run test:security, 
+pm run test:security:browser). Leia [REVISAO-SEGURANCA-4.17.1.md](REVISAO-SEGURANCA-4.17.1.md).
+>
 > **Entrega local das melhorias 2027** (meação, Funrural, financiamentos, fluxo de caixa, arrendamentos, prestadores, animais e leite, módulos, resumo do dono, crédito, privacidade, backup; push, clima e comparador ligados): leia [MELHORIAS-2027.md](MELHORIAS-2027.md). Não houve publicação automática.
 >
 > Entrega anterior (cinco correções da revisão): [CORRECOES-5-PONTOS.md](CORRECOES-5-PONTOS.md).

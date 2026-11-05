@@ -1,0 +1,63 @@
+{
+  "version": "4.17.0",
+  "base": "4.16.4",
+  "githubPublished": false,
+  "tests": {
+    "passed": 319,
+    "failed": 0
+  },
+  "syntaxFiles": 185,
+  "staticAssets": 102,
+  "aiEnabled": false,
+  "paidApiCalls": 0,
+  "changes": [
+    {
+      "file": "app.html",
+      "sha256": "72bad5a8e19ea245cc29d3bf826f156a0daf95762b7b5d2af3c23d37c8be5171"
+    },
+    {
+      "file": "app.js",
+      "sha256": "a1fb517f140a65c34e0e5bb4adb4bb75835c0da18f720ae2a70374ff5619e73a"
+    },
+    {
+      "file": "campo-sw.js",
+      "sha256": "cf702137984bc50adc4ce1ba76a368c6d9a586634c0c88ca575fa787429edfa0"
+    },
+    {
+      "file": "COLABORACAO-DUO-4170.md",
+      "sha256": "16a1ee3d8a067139175ef7feb49cf8d41ea66b2dc836338d95185bde59c011d9"
+    },
+    {
+      "file": "equipment-insights.js",
+      "sha256": "01b298f9df5458704b134452492e26952567440e1b5e1bd2af12efef49f86425"
+    },
+    {
+      "file": "ia-assistente.js",
+      "sha256": "314eba2c35cd072725848016a59fe0dd43864bba36f4aa076d47c1bccc8ce433"
+    },
+    {
+      "file": "package-lock.json",
+      "sha256": "4602e82b8488c5af4e8d5fd717ab45076a370531df0d1aa4e31aba24fd8d740c"
+    },
+    {
+      "file": "package.json",
+      "sha256": "0bd49f8ffc7abd1289421235dce45bd9ed1c6601972f44c815982b709508b1c3"
+    },
+    {
+      "file": "server.js",
+      "sha256": "c5494872675c26877c633c503370dae8c536babb97b649dba5fcaadba22bf9f9"
+    },
+    {
+      "file": "tests/talhoes-atividade.test.cjs",
+      "sha256": "40ef0c9d172d6e2d474abec3c6f9b9b24fef1be8d659caca12a8574e4225f475"
+    },
+    {
+      "file": "ux-conforto.css",
+      "sha256": "4abaafb35371313493ebfe8ac5dd4890a238bf5a914ec27af3df1281640fed6c"
+    },
+    {
+      "file": "ux-conforto.js",
+      "sha256": "41acab8f20697232d80535c63c16ea733c77f7ce57d05c03a383b824cc8e7a87"
+    }
+  ]
+}

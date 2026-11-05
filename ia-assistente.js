@@ -47,7 +47,9 @@ function renderRuralAssistant(options={}){
 }
 function aiContextualHelp(){
   let b=document.getElementById('aiOpenHelp');if(!b){b=document.createElement('button');b.id='aiOpenHelp';b.type='button';b.className='btn ai-open-help';b.textContent='IA';b.setAttribute('aria-label','Abrir conversa com a IA');document.body.append(b);}
-  b.hidden=!currentUser||document.getElementById('appView')?.classList.contains('hidden');b.onclick=()=>openAiCorner();;
+  const host=matchMedia('(max-width:720px)').matches?document.querySelector('.topbar-actions'):document.body;
+  if(host&&b.parentNode!==host)host.append(b);
+  b.hidden=!currentUser||document.getElementById('appView')?.classList.contains('hidden');b.onclick=()=>openAiCorner();
 }
 {
   const before=renderPage;renderPage=function(options){before(options);if(currentUser)aiSafeConversation();aiContextualHelp();};

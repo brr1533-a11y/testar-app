@@ -57,3 +57,17 @@
 .hf-tools{display:flex;gap:10px;align-items:center}
 .hf-tools .hf-search{flex:1}
 .hf-new{min-height:52px;font-size:16px;font-weight:700;white-space:nowrap;margin-left:auto}
+
+/* Telas estreitas: preservar os controles da colheita sem alargar a página. */
+.hf-top,.hf-top>label,.hf-list,.hf-row,.hf-save{min-width:0;max-width:100%;box-sizing:border-box}
+.hf-top{grid-template-columns:repeat(2,minmax(0,1fr))}
+.hf-top :is(input,select,.rural-select){min-width:0;max-width:100%;box-sizing:border-box}
+.hf-tools{flex-wrap:wrap;min-width:0}
+.hf-tools>.btn{flex:1 1 120px;min-width:0;white-space:normal;margin-left:0}
+@media(max-width:420px){.hf-top{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:360px){
+ .hf-ctrl{display:grid;grid-template-columns:44px minmax(28px,1fr) 44px minmax(64px,1fr);gap:6px;min-width:0}
+ .hf-ctrl .hf-btn{width:44px;height:48px}
+ .hf-ctrl .hf-count{min-width:0;font-size:22px}
+ .hf-ctrl .hf-day{height:48px;padding:0 6px;font-size:14px;min-width:0}
+}

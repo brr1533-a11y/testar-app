@@ -1,6 +1,6 @@
 {
   "name": "gestao-rural-saas",
-  "version": "4.16.4",
+  "version": "4.17.1",
   "private": true,
   "description": "Gestão Rural SaaS v22 — produção, segurança, Super Admin e administração comercial",
   "main": "server.js",
@@ -27,7 +27,9 @@
     "test:melhorias:browser": "node tests/melhorias-browser.cjs",
     "demo:ficticio": "node tests/support/site-ficticio.cjs",
     "test:spreadsheets": "node --test tests/planilhas*.test.cjs",
-    "test:equipment": "node --test tests/equipamentos*.test.cjs"
+    "test:equipment": "node --test tests/equipamentos*.test.cjs",
+    "test:security": "node --test tests/seguranca*.test.cjs",
+    "test:security:browser": "node tests/xss-browser.cjs"
   },
   "engines": {
     "node": ">=18"

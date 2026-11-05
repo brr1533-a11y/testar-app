@@ -29,7 +29,7 @@ Após cadastrar uma chave de projeto e escolher um modelo compatível com Respon
 
 A cobrança é da conta de API configurada, incluindo busca externa e tokens do modelo. Não mede nem promete saldo no painel; uma resposta 429 do provedor pode indicar limite ou créditos indisponíveis. Confira Billing/Usage no provedor.
 
-Limite inicial de **10 tentativas/dia UTC** no servidor e **5 por grupo** (`AI_DAILY_GROUP_LIMIT`), contando erros. Desde a 4.16.4 o contador fica guardado no banco: não zera ao reiniciar e vale para todas as cópias do servidor. Há uma consulta simultânea por processo, até 1 chamada de ferramenta e até 1.200 tokens de saída por consulta. Perguntas até 1.500 caracteres. Timeout de 45 segundos sem repetição automática.
+Limite inicial de **10 tentativas/dia UTC** no servidor e **5 por grupo** (`AI_DAILY_GROUP_LIMIT`), contando erros. Desde a 4.16.4 (e na 4.17.1) o contador fica guardado no banco: não zera ao reiniciar e vale para todas as cópias do servidor. Há uma consulta simultânea por processo, até 1 chamada de ferramenta e até 1.200 tokens de saída por consulta. Perguntas até 1.500 caracteres. Timeout de 45 segundos sem repetição automática.
 
 O contador fica na configuração do banco e é o mesmo depois de reiniciar o servidor. Duas cópias do servidor gravando no mesmo instante podem, raramente, contar uma tentativa a menos. É uma proteção operacional, **não um teto financeiro**. Configure controles adicionais no provedor e mantenha a IA desligada até decidir o orçamento. `store=false` não equivale a zero retenção no provedor. Os tratamentos do provedor continuam aplicáveis.
 
