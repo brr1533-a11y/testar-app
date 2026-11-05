@@ -10,3 +10,6 @@ Thumbs.db
 
 test-results/
 .backups/
+
+# foto de tela gerada pelos testes
+validacao-campo-mobile.png
