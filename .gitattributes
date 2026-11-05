@@ -1,0 +1,13 @@
+# Mesmo fim de linha (LF) no Windows, no GitHub Actions e no Render.
+# Sem isso, o Git do Windows troca para CRLF ao baixar, os arquivos ficam diferentes do servidor
+# e o campo-sw.js calculado aqui não bate com o do site.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.woff binary
+*.woff2 binary
