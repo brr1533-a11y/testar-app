@@ -67,7 +67,9 @@ function openDialog(build) {
       form.querySelectorAll("input[type=checkbox][name]:not([data-choice])").forEach(c => { out[c.name] = c.checked; });
       close(out);
     };
-    setTimeout(() => (form.querySelector("[autofocus]") || form.querySelector("input,select,textarea,button[type=submit]"))?.focus(), 30);
+    // Cursor no primeiro campo só se a pessoa ainda não estiver em um campo da janela: com a tela ocupada o
+    // atraso cresce, e puxar o cursor no meio da digitação fazia o texto ir para a data e o campo ficar vazio.
+    setTimeout(() => { if (!closed && !form.contains(document.activeElement)) (form.querySelector("[autofocus]") || form.querySelector("input,select,textarea,button[type=submit]"))?.focus(); }, 30);
   });
 }
 async function ask(message, { title = "Confirmar", okText = "Confirmar", danger = false } = {}) {

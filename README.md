@@ -1,4 +1,4 @@
-> **Versão 4.17.1:** revisão de segurança e testes novos (
+> **Versão 4.17.2:** revisão de segurança, testes novos e correção do cursor que pulava nas janelas (
 pm run test:security, 
 pm run test:security:browser). Leia [REVISAO-SEGURANCA-4.17.1.md](REVISAO-SEGURANCA-4.17.1.md).
 >

@@ -1,4 +1,4 @@
-# Revisão de segurança — 4.17.1
+# Revisão de segurança — 4.17.1 e 4.17.2
 
 Feita sobre a 4.17.0 (`gestao-rural-completo-duo-4.17.0.zip`), de 4 para 5/11/2026. Nenhuma tela, regra, permissão ou dado de cliente mudou.
 
@@ -45,16 +45,36 @@ Detalhes em `REVISAO-4.16.4.md`.
 - **Injeção (XSS):** 45 textos com isca e 196 telas abertas; **nenhuma isca virou código**.
 - **Sondas da API:** todas passaram.
 
-## 4. Achado para investigar
+## 4. Corrigido na 4.17.2: o cursor pulava para a data no meio da digitação
 
-**A quantidade do item da nota fiscal às vezes fica vazia.** Em Emissão e busca de NF-e › novo rascunho, o roteiro preenche nome, NCM, quantidade, unidade e preço do item. Em cerca de 1 de cada 3 rodadas, só a **quantidade** aparece vazia logo depois de digitada, e o rascunho é recusado com "Item fiscal incompleto". A janela é a única aberta, e os outros campos ficam certos.
+**Sintoma:** na nota fiscal (e em qualquer janela de cadastro), às vezes um campo recém-digitado ficava vazio, como a quantidade ou o preço do item. O rascunho era recusado com "Item fiscal incompleto".
 
-Não foi achado nenhum código que limpe esse campo, então a causa ainda não está provada.
+**Causa** (achada com um vigia de eventos dentro do roteiro completo):
+- quando uma janela abre, o sistema põe o cursor no primeiro campo depois de 30 ms (`app.js`, `openDialog`);
+- com a tela ocupada (sincronização, modo de campo), essa espera atrasa;
+- se a pessoa já estava digitando em outro campo, o cursor era puxado para a data e o resto do texto se perdia.
 
-- **Isolado, não acontece:** com o campo vigiado (quem muda o valor, os eventos e a pilha da chamada), o formulário aberto e preenchido 25 vezes seguidas, numa sessão limpa, não falhou nenhuma vez.
-- **Na sequência completa do `expansao-browser`, acontece:** antes disso o roteiro liga o modo de campo com PIN, sincroniza e abre outros formulários, inclusive o orçamento, que usa a mesma lista de itens.
+Pode acontecer com gente de verdade em celular lento.
 
-A suspeita fica entre o modo de campo, a sincronização e a recuperação de rascunho da 4.2. O próximo passo é rodar a mesma vigilância dentro do `expansao-browser`. Pode afetar quem preenche a nota logo depois de usar o modo de campo.
+**Correção:** o cursor só vai para o primeiro campo se a pessoa ainda não estiver em um campo da janela, e se a janela não tiver sido fechada.
+
+**Prova:**
+- `expansao-browser`: falhava em cerca de 1 de cada 3 rodadas e passou em **12 de 12** depois da correção;
+- teste novo `tests/foco-janela-browser.cjs` (`npm run test:focus:browser`): passa com a correção e **falha sem ela**.
+
+## 4.1 Também na 4.17.2: o painel abre na metade do tempo no celular
+
+**Antes:** a entrada do painel baixava 102 arquivos de script e estilo, com 1,5 MB, sem compressão.
+
+**Agora:** o servidor comprime páginas, scripts, estilos, SVG e JSON com a biblioteca `compression`, da equipe do Express. Fica em cerca de 0,5 MB.
+
+**Medido no "celular fraco"** (CPU 4 vezes mais lenta e 3G de 1,6 Mbps): a tela de entrada caiu de **9,1 s para 4,5 s**.
+
+**Respostas da API:** ficam **sem** compressão de propósito. Comprimir respostas que misturam a sessão com texto digitado pela pessoa abre brecha para o ataque BREACH.
+
+**Conferido nas sondas de segurança:** os arquivos do site saem comprimidos, e a API não.
+
+**Biblioteca nova:** `compression` ^1.8.2. No `package-lock.json` entram só ela e 3 dependências dela, sem mudar nenhuma outra.
 
 ## 5. O que não foi feito
 

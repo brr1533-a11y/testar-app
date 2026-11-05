@@ -22,6 +22,7 @@ const FarmPriorities = require('./prioridades-domain');
 const RuralRoutine = require('./rotina-rural-domain');
 const EquipmentRegistry = require("./equipamentos-domain.js");
 const express = require("express");
+const compression = require("compression");
 const path = require("path");
 const fs = require("fs");
 const ACTIVITY_PRICING = SubscriptionDomain.parsePricing(process.env.ACTIVITY_PRICES_JSON || fs.readFileSync(path.join(__dirname, 'planos-atividades.json'), 'utf8'));
@@ -2683,6 +2684,10 @@ app.get("/campo-sw.js", (req, res) => {
   if (!SERVICE_WORKER) return res.status(404).end();
   res.setHeader("Content-Type", "application/javascript; charset=utf-8"); res.setHeader("Cache-Control", "no-cache"); res.send(SERVICE_WORKER);
 });
+// Comprime os arquivos do site (páginas, scripts, estilos, SVG e JSON): a entrada do painel cai de ~1,5 MB para ~0,5 MB.
+// As respostas da API ficam sem compressão: misturar segredo (sessão) e texto digitado numa resposta comprimida
+// abre brecha para o ataque BREACH. Vídeo e imagens já comprimidas são ignorados pela própria biblioteca.
+app.use(compression({ filter: (req, res) => !req.path.startsWith("/api/") && compression.filter(req, res) }));
 const staticFiles = express.static(PUBLIC_DIR, { index: false, dotfiles: "deny", maxAge: "1h" });
 app.use((req, res, next) => {
   if (req.method !== "GET" && req.method !== "HEAD") return next();
