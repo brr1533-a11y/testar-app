@@ -1,0 +1,21 @@
+# Roda os testes automáticos a cada envio ao GitHub e em cada pedido de revisão (PR).
+# Linux, como o Render: mostra também o que só quebraria no servidor.
+name: Testes
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Testes automáticos (inclui as sondas de segurança)
+        run: npm test
