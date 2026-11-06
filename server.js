@@ -748,6 +748,35 @@ app.post("/api/auth/login", async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// 4.22 · "Esqueci o código do Grupo": manda para o e-mail os grupos em que ele tem conta (código e usuário).
+// A resposta é sempre a mesma, para ninguém descobrir quais e-mails estão cadastrados.
+async function sendGroupCodesEmail({ to, rows }) {
+  if (!RESEND_API_KEY) return false;
+  const lista = rows.map(r => `<li><b>${escapeEmailHtml(r.group)}</b> · código <b>${escapeEmailHtml(r.code)}</b> · usuário <b>${escapeEmailHtml(r.username)}</b></li>`).join("");
+  const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${RESEND_API_KEY}` },
+    body: JSON.stringify({ from: PASSWORD_RESET_FROM, to: [to], subject: "Seu código do Grupo — Gestão Rural", html: `<div style="font-family:Arial,sans-serif;color:#171815;line-height:1.5"><h2>Seu acesso ao Gestão Rural</h2><p>Use estes dados para entrar:</p><ul>${lista}</ul><p>Se você não pediu, ignore este e-mail.</p></div>` }) });
+  return response.ok;
+}
+app.post("/api/auth/group-code-reminder", limitRequests("group-code-reminder", 5, 15 * 60_000), async (req, res, next) => {
+  try {
+    const email = normalizeEmail(req.body.email);
+    const resposta = { ok: true, message: "Se este e-mail estiver cadastrado, enviamos o código do Grupo para ele." };
+    if (!validateEmail(email)) return res.status(400).json({ error: "Informe um e-mail válido." });
+    if (!rateHit("group-code-email:" + email, 3, 60 * 60_000)) return res.json(resposta);
+    const rows = [];
+    for (const g of await store.listGroups()) {
+      if (g.status !== "active") continue;
+      for (const u of g.state?.users || []) if (u.active !== false && normalizeEmail(u.email) === email) rows.push({ group: g.name, code: g.code, username: u.username });
+    }
+    if (rows.length) {
+      let sent = false;
+      if (RESEND_API_KEY) { try { sent = await sendGroupCodesEmail({ to: email, rows: rows.slice(0, 10) }); } catch (mailError) { console.error("Falha no e-mail do código do Grupo:", mailError.message); } }
+      if (!sent && !IS_PRODUCTION) console.log(`[desenvolvimento] Código do Grupo para ${email}: ${rows.map(r => r.code + "/" + r.username).join(", ")}`);
+    }
+    res.json(resposta);
+  } catch (error) { next(error); }
+});
+
 app.post("/api/auth/password-reset/request", limitRequests("reset-request", 10, 15 * 60_000), async (req, res, next) => {
   try {
     const groupCode = cleanGroupCode(req.body.groupCode || req.body.group || "");
@@ -2409,7 +2438,7 @@ app.post("/api/public/trial", limitRequests("trial", 3, 24 * 3600_000, "Muitos t
     const code = await allocateGroupCode();
     let slug = slugify(name); if (!slug || await store.getGroupBySlug(slug)) slug = `${slug || "grupo"}-${code}`;
     const state = makeDefaultState({ ceoName, ceoUser, ceoPasswordHash: await bcrypt.hash(ceoPassword, 11), ceoEmail: email });
-    state.farms = [makeFarm("Minha Fazenda")];
+    state.farms = [makeFarm(name.slice(0, 80) || "Minha Fazenda")];   // 4.22: o campo pede "Nome do Grupo ou da fazenda"
     state.subscriptionActivities = activities;
     state.termsAcceptance = termsRecord(req);
     const startedAt = nowIso();
@@ -2722,6 +2751,9 @@ app.use((err, req, res, next) => {
   console.error(`[${requestId}]`, err);
   const status = err.statusCode || 500;
   if (IS_PRODUCTION && status >= 500) return res.status(status).json({ error: "Erro interno. Tente novamente.", requestId });
+  // Erros do leitor de JSON não mostram a mensagem técnica do body-parser.
+  if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Dados enviados em formato inválido.", requestId });
+  if (err.type === "entity.too.large") return res.status(413).json({ error: "Os dados enviados são grandes demais.", requestId });
   res.status(status).json({ error: err.message || "Erro interno", requestId });
 });
 

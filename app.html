@@ -65,12 +65,13 @@
           <span class="eyebrow dark">ACESSO DO GRUPO</span>
           <h2>Bem-vindo</h2>
           <p class="muted">Informe o Código do Grupo, seu usuário e senha.</p>
-          <label>Código do Grupo<input id="loginGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="Ex.: 1001" required /></label>
+          <label>Código do Grupo<input id="loginGroup" inputmode="numeric" pattern="[0-9]{4,8}" maxlength="8" placeholder="4 a 8 números, recebido no cadastro" required /></label>
           <label>Usuário<input id="loginUser" autocomplete="username" required /></label>
           <label>Senha<input id="loginPassword" type="password" autocomplete="current-password" required /></label>
           <div class="remember-login"><input id="rememberLogin" type="checkbox" aria-label="Manter conectado neste aparelho" /><span aria-hidden="true">Manter conectado neste aparelho</span></div>
           <button class="btn primary full" type="submit">Entrar no sistema</button>
           <button class="auth-link" id="forgotPasswordBtn" type="button">Esqueci minha senha</button>
+          <button class="auth-link" id="forgotGroupBtn" type="button">Esqueci o código do Grupo</button>
           <p class="security-note" id="cloudStatusNote">Os dados deste grupo são sincronizados pelo servidor.</p>
         </form>
 

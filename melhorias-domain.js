@@ -183,7 +183,10 @@ function cashFlow(f,{months=12,on=today(),bagPrice=null,extra=[]}={}){
  // Contas recorrentes ainda não lançadas (as lançadas já entram como conta a pagar) e cenários do tipo "e se eu vender agora".
  for(const r of recurringDue(f,on,addDays(end,-1)))if(!(f.management?.payables||[]).some(p=>p.id===r.id))add(r.dueDate,-r.amount,'Recorrente: '+r.supplier+' · '+r.description,'recorrente');
  for(const x of extra||[])add(x.date||on,Number(x.amount)||0,x.label||'Cenário','cenario');
- const fixed=active(f,'yearWorkers').filter(w=>w.active!==false&&w.kind==='fixo'&&w.monthlyRate>0);for(let k=0;k<months;k++){const d=addMonths(start,k).slice(0,8)+'05';for(const w of fixed)if(d>=on)add(d,-w.monthlyRate,'Salário: '+w.name,'salario');}
+ const fixed=active(f,'yearWorkers').filter(w=>w.active!==false&&w.kind==='fixo'&&w.monthlyRate>0);
+ // Salário do mês já lançado (vira conta a pagar ou saída no Financeiro) não é projetado de novo: antes contava em dobro.
+ const lancado=new Set(active(f,'yearWork').filter(r=>r.kind==='mensal').map(r=>r.workerId+'|'+month(r.date)));
+ for(let k=0;k<months;k++){const d=addMonths(start,k).slice(0,8)+'05';for(const w of fixed)if(d>=on&&!lancado.has(w.id+'|'+month(d)))add(d,-w.monthlyRate,'Salário: '+w.name,'salario');}
  const rows=[];let balance=opening;for(let k=0;k<months;k++){const m=month(addMonths(start,k)),items=list.filter(x=>month(x.date)===m),inflow=round(items.filter(x=>x.amount>0).reduce((n,x)=>n+x.amount,0)),outflow=round(-items.filter(x=>x.amount<0).reduce((n,x)=>n+x.amount,0));balance=round(balance+inflow-outflow);rows.push({month:m,inflow,outflow,net:round(inflow-outflow),balance,items});}
  const lowest=rows.reduce((m,r)=>!m||r.balance<m.balance?r:m,null);
  return {opening,rows,lowest,firstNegative:rows.find(r=>r.balance<0)||null,missingBagPrice:active(f,'leases').some(l=>l.unit==='sacas'&&!(l.bagPrice>0)&&!(bagPrice>0))};

@@ -1021,7 +1021,7 @@ async function changeOwnPassword() {
 async function restoreSession() {
   cloudToken = tabSessionToken() || savedDeviceSession()?.token || "";
   const urlGroup = new URLSearchParams(location.search).get("grupo");
-  const lastGroup = urlGroup || localStorage.getItem("lastGroupCode") || "1001";
+  const lastGroup = urlGroup || localStorage.getItem("lastGroupCode") || "";
   if ($("#loginGroup")) $("#loginGroup").value = lastGroup;
   if ($("#registerGroup")) $("#registerGroup").value = lastGroup;
   if ($("#rememberLogin")) $("#rememberLogin").checked = keepSignedIn;
@@ -1097,7 +1097,7 @@ function showAuthMode(mode) {
   $("#showLoginBtn").classList.toggle("active", loginVisible);
   $("#showRegisterBtn").classList.toggle("active", !loginVisible);
   const urlGroup = new URLSearchParams(location.search).get("grupo");
-  const lastGroup = urlGroup || localStorage.getItem("lastGroupCode") || "1001";
+  const lastGroup = urlGroup || localStorage.getItem("lastGroupCode") || "";
   if ($("#loginGroup") && !$("#loginGroup").value) $("#loginGroup").value = lastGroup;
   if ($("#registerGroup") && !$("#registerGroup").value) $("#registerGroup").value = lastGroup;
 }
@@ -1108,7 +1108,7 @@ function showPasswordRecovery(stage = "request") {
   $("#forgotForm").classList.toggle("hidden", stage !== "request");
   $("#resetForm").classList.toggle("hidden", stage !== "confirm");
   if (stage === "request") {
-    $("#forgotGroup").value = $("#loginGroup").value || localStorage.getItem("lastGroupCode") || "1001";
+    $("#forgotGroup").value = $("#loginGroup").value || localStorage.getItem("lastGroupCode") || "";
     $("#forgotUser").value = $("#loginUser").value || "";
   }
 }
@@ -1587,6 +1587,9 @@ function renderCeoBalanceDonut(finances) {
 function heroSemana() {
   if (isGeneralView() || !canSee("financeiro") || typeof RuralMelhorias === "undefined" || !RuralMelhorias.weeklySummary) return "";
   const f = activeFarm(); if (!f) return "";
+  // 4.22: fazenda sem nenhum dado não mostra "caixa positivo" (soava falso na conta nova); mostra por onde começar.
+  const semDados = !(f.finances || []).length && !(f.management?.payables || []).length && !(f.agriculture?.harvests || []).length && !(f.talhoes || []).length && !(f.cattle?.lots || []).length;
+  if (semDados) return `<p class="hero-semana" data-go="resumo-dono"><b>Comece por aqui:</b> cadastre os talhões ou lotes e a primeira safra. Os números da semana aparecem depois dos primeiros lançamentos.</p>`;
   try {
     const w = RuralMelhorias.weeklySummary(f, todayISO());
     const partes = [w.dueCount ? `${w.dueCount} conta(s) vencem em 7 dias (${money(w.dueAmount)})` : "Nenhuma conta vence em 7 dias", w.bags ? `${ruralNum(w.bags, 1)} sc colhidas na semana` : null, w.firstNegative ? `caixa fica negativo em ${w.firstNegative.split("-").reverse().join("/")}` : "caixa positivo nos próximos 6 meses", w.lowStock ? `${w.lowStock} item(ns) no estoque mínimo` : null].filter(Boolean);
@@ -3027,6 +3030,16 @@ $("#registerForm").onsubmit = async e => {
 };
 
 $("#forgotPasswordBtn").onclick = () => showPasswordRecovery("request");
+// 4.22 · Esqueci o código do Grupo: o código vai para o e-mail cadastrado (resposta igual para todo e-mail).
+if ($("#forgotGroupBtn")) $("#forgotGroupBtn").onclick = async () => {
+  const v = await askForm({ title: "Esqueci o código do Grupo", text: "Informe o e-mail cadastrado na sua conta. Enviaremos o código do Grupo e o seu usuário.", okText: "Enviar código", fields: [{ name: "email", label: "E-mail", type: "email", required: true, autofocus: true }] });
+  if (!v) return;
+  try {
+    const r = await fetch("/api/auth/group-code-reminder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: String(v.email).trim() }) });
+    const j = await r.json().catch(() => ({}));
+    toast(r.ok ? j.message : (j.error || "Não foi possível enviar agora. Tente de novo em alguns minutos."));
+  } catch (_) { toast("Sem conexão. Tente de novo quando tiver internet."); }
+};
 $$('.back-login').forEach(btn => btn.onclick = () => { passwordResetContext = null; showAuthMode("login"); });
 $("#forgotForm").onsubmit = async e => {
   e.preventDefault();

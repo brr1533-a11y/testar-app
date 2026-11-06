@@ -1,6 +1,6 @@
 {
   "name": "gestao-rural-saas",
-  "version": "4.21.1",
+  "version": "4.22.0",
   "private": true,
   "description": "Gestão Rural SaaS v22 — produção, segurança, Super Admin e administração comercial",
   "main": "server.js",
@@ -28,7 +28,7 @@
     "test:adjustments:browser": "node tests/ajustes-browser.cjs",
     "test:melhorias": "node --test tests/melhorias*.test.cjs",
     "test:melhorias:browser": "node tests/melhorias-browser.cjs",
-    "test:campo418:browser": "node tests/fila-campo-browser.cjs && node tests/checklist-trator-browser.cjs && node tests/custos-estoque-browser.cjs && node tests/alertas-acao-browser.cjs && node tests/fechamento-browser.cjs && node tests/minhas-browser.cjs && node tests/combustivel-grafico-browser.cjs && node tests/cotacao-formulario-browser.cjs && node tests/insumo-usado-browser.cjs && node tests/fechamento-mes-browser.cjs && node tests/visual-420-browser.cjs",
+    "test:campo418:browser": "node tests/fila-campo-browser.cjs && node tests/checklist-trator-browser.cjs && node tests/custos-estoque-browser.cjs && node tests/alertas-acao-browser.cjs && node tests/fechamento-browser.cjs && node tests/minhas-browser.cjs && node tests/combustivel-grafico-browser.cjs && node tests/cotacao-formulario-browser.cjs && node tests/insumo-usado-browser.cjs && node tests/fechamento-mes-browser.cjs && node tests/visual-420-browser.cjs && node tests/conta-nova-browser.cjs",
     "demo:ficticio": "node tests/support/site-ficticio.cjs",
     "test:spreadsheets": "node --test tests/planilhas*.test.cjs",
     "test:equipment": "node --test tests/equipamentos*.test.cjs",

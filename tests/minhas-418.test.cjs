@@ -68,3 +68,13 @@ test('aviso de recorrentes muda de código quando muda a conta pendente (antes u
   a.ok(a1 && a2); a.notEqual(a1, a2, 'luz e gas têm o mesmo tamanho, mas são contas diferentes');
   a.equal(pend(['b1', 'a1']), pend(['a1', 'b1']), 'a ordem do cadastro não muda o código');
 });
+
+test('fluxo de caixa: salário do fixo já lançado no mês não é projetado de novo (contava em dobro)', () => {
+  const f = farm(), prox = M.addMonths(T.slice(0, 7) + '-01', 1).slice(0, 7);
+  f.expansion.yearWorkers = [{ id: 'w', activity: 'coffee', date: T, notes: '', archived: false, name: 'Zé', kind: 'fixo', monthlyRate: 3000, active: true }];
+  const mes = () => M.cashFlow(f, { months: 3, on: T }).rows.find(r => r.month === prox);
+  a.equal(mes().outflow, 3000, 'só a projeção');
+  f.expansion.yearWork = [{ id: 'y1', activity: 'coffee', date: prox + '-01', notes: '', archived: false, workerId: 'w', kind: 'mensal', units: 1, amount: 3000 }];
+  f.management.payables.push({ id: 'yearwork_y1', activity: 'coffee', supplier: 'Zé', description: 'Trabalho da equipe', amount: 3000, dueDate: prox + '-01', status: 'open', annualWorkId: 'y1', workerId: 'w' });
+  a.equal(mes().outflow, 3000, 'conta lançada substitui a projeção');
+});

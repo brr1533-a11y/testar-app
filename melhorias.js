@@ -241,3 +241,20 @@ async function mhHelpButton(){
   const links=[s.videoBase?`<a class="btn" href="${xEsc(s.videoBase+'/'+page)}" target="_blank" rel="noopener">Ver vídeo desta tela</a>`:'',s.whatsapp?`<a class="btn primary" href="https://wa.me/${xEsc(s.whatsapp)}?text=${encodeURIComponent('Olá! Preciso de ajuda na tela "'+title+'" do Gestão Rural.')}" target="_blank" rel="noopener">Falar com o suporte no WhatsApp</a>`:''].join('');
   await openDialog(()=>`<form class="dlg" role="dialog" aria-modal="true" aria-labelledby="mhHelpTitle"><h3 id="mhHelpTitle">Ajuda · ${xEsc(title)}</h3><p>${xEsc(text)}</p>${links?`<div class="exp-actions">${links}</div>`:'<p class="exp-muted">O contato do suporte ainda não foi configurado neste servidor.</p>'}<div class="dlg-actions"><button type="submit" class="btn primary">Fechar</button></div></form>`);};
 }
+
+// 4.22 · Conta nova: na primeira vez que o CEO abre uma fazenda vazia, pergunta "Como é a sua fazenda?" e aplica o modelo.
+// Antes o menu abria com ~70 itens e os modelos ficavam escondidos na tela Módulos. Pergunta uma vez por fazenda e aparelho.
+{const prior=renderPage;renderPage=function(o){prior(o);
+ try{
+  // Só em conta nova do teste grátis: grupos que já existem não são interrompidos.
+  if(currentUser?.role!=='ceo'||isGeneralView()||!currentGroup?.trial)return;const f=activeFarm();if(!f||document.querySelector('.dlg-back'))return;
+  const vazia=!(f.talhoes||[]).length&&!(f.agriculture?.cycles||[]).length&&!(f.finances||[]).length&&!(f.cattle?.lots||[]).length;
+  const temModelo=(f.expansion?.moduleSettings||[]).some(r=>!r.archived);const chave='modeloPerguntado:'+f.id;
+  let jaPerguntou=true;try{jaPerguntou=localStorage.getItem(chave)==='1';}catch(_){}
+  if(!vazia||temModelo||jaPerguntou)return;try{localStorage.setItem(chave,'1');}catch(_){}
+  const act=xActivity(f),porAtividade={coffee:['cafe-familiar','cafe-meacao','cafe-empresa'],cattle:['leite','corte'],grains:['graos']}[act]||[];
+  const opcoes=[...porAtividade,'completo'].filter(k=>MH.TEMPLATES[k]).map(k=>[k,MH.TEMPLATES[k].name]);
+  setTimeout(async()=>{const v=await askForm({title:'Como é a sua fazenda?',text:'Escolha o jeito mais parecido. O menu mostra só o que você vai usar. Dá para mudar quando quiser em Configurações › Módulos, e nenhum dado é apagado.',okText:'Usar este modelo',fields:[{name:'modelo',label:'Modelo',type:'select',options:opcoes,value:opcoes[0]?.[0],required:true}]});
+   if(!v||!MH.TEMPLATES[v.modelo])return;const valid=new Set(mhToggleable().map(i=>i[0]));mhSaveModules(activeFarm(),MH.TEMPLATES[v.modelo].hidden.filter(id=>valid.has(id)),v.modelo,false);},300);
+ }catch(_){}
+};}
