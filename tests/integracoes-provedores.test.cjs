@@ -75,3 +75,18 @@ test('API do Open Finance: só o CEO; sem chave diz "não configurado"; conta in
     }
   } finally { await s.stop(); }
 });
+
+test('aviso que falhou: recusa de vez não repete; erro passageiro espera 1 hora (antes repetia a cada minuto)', async () => {
+  const t0 = Date.parse('2026-11-06T10:00:00Z'), at = new Date(t0).toISOString();
+  a.equal(P.podeTentar(undefined, t0), true);
+  a.equal(P.podeTentar({ status: 'sent', at }, t0 + 9e9), false);
+  a.equal(P.podeTentar({ status: 'refused', at }, t0 + 9e9), false, 'telefone ou modelo errado não insiste');
+  a.equal(P.podeTentar({ status: 'error', at }, t0 + 60000), false, 'um minuto depois ainda não');
+  a.equal(P.podeTentar({ status: 'error', at }, t0 + 3600000), true, 'uma hora depois tenta de novo');
+  a.equal(P.podeTentar({ status: 'not-configured', at }, t0 + 3600000), true);
+  // A Meta recusando (400) vira 422 = recusa de vez; "muitas mensagens" (429) continua passageiro (502).
+  for (const [status, esperado] of [[400, 422], [429, 502], [500, 502]]) {
+    const I = fresh(); P.configure(I, { WHATSAPP_TOKEN: 't', WHATSAPP_PHONE_ID: '1' }, async () => resp(status, { error: { message: 'x' } }));
+    await a.rejects(I.get('whatsapp').send({ phone: '5535999990000', parameters: {} }), e => e.statusCode === esperado);
+  }
+});

@@ -59,3 +59,14 @@ Estes são os itens que faltavam da crítica de design e da comparação com os 
 - **Baixa, corrigido:** o Open Finance aceita no máximo 10 buscas por hora por grupo e exige a Conciliação no plano.
 - **Baixa, corrigido:** a leitura do Bluetooth respeita a posição dos dados no pacote.
 - **Falta:** um teste com dois grupos para a trava da conta.
+
+## 4.21.1 (auditoria do repositório)
+
+- **WhatsApp e push sem insistir a cada minuto** (`integracoes-provedores.js`, `podeTentar`):
+  - recusa de vez, como telefone ou modelo errado (a Meta responde 4xx, menos o 429), não é tentada de novo;
+  - erro passageiro e "não configurado" esperam 1 hora.
+  - Antes, um telefone errado gerava uma chamada por minuto à Meta, para sempre.
+- **Caixa de saída dos avisos gravada só quando muda.** Antes era uma gravação por pessoa por minuto. A lista de aparelhos do push também só é regravada quando um aparelho sai.
+- **Código do aviso de contas recorrentes** usa os próprios ids das contas pendentes. Antes usava o tamanho do texto, e "luz" e "gas" davam o mesmo código, então o push da conta nova não saía.
+- **Teste de segurança com dois grupos** (`tests/seguranca-openfinance.test.cjs`): outro grupo não registra a conta do banco de um grupo. Ele falha se a trava for retirada.
+- **Testes:** 361 de unidade; 33 roteiros de navegador antes desta correção, e os 4 ligados a avisos depois dela.

@@ -61,3 +61,10 @@ test('validade dos insumos: vencido e vencendo avisam; sem saldo ou longe do ven
   a.match(al[0].title, /Fungicida \(lote L2291\) está vencido/); a.equal(al[0].severity, 'high'); a.equal(al[2].severity, 'attention');
   const g = farm(); g.stock = [{ id: 's1', item: 'X', unit: 'L', quantity: 1, expires: '31/12/2026' }]; a.throws(() => R.validateFarm(g), /Validade/);
 });
+
+test('aviso de recorrentes muda de código quando muda a conta pendente (antes usava só o tamanho do texto)', () => {
+  const pend = ids => { const f = farm(); for (const id of ids) f.expansion.recurringBills.push(bill({ id, dayOfMonth: Number(T.slice(8)), start: '2020-01-01' })); return M.alerts(f, T).find(x => x.id.startsWith('recurring:'))?.id; };
+  const a1 = pend(['luz']), a2 = pend(['gas']);
+  a.ok(a1 && a2); a.notEqual(a1, a2, 'luz e gas têm o mesmo tamanho, mas são contas diferentes');
+  a.equal(pend(['b1', 'a1']), pend(['a1', 'b1']), 'a ordem do cadastro não muda o código');
+});

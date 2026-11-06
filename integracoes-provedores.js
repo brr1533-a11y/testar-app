@@ -27,7 +27,8 @@ function whatsapp(env, fetchImpl) {
         components: [{ type: 'body', parameters: [{ type: 'text', text: String(parameters.farm || 'Fazenda').slice(0, 60) }, { type: 'text', text: String(parameters.message || '').slice(0, 900) }] }] } };
       const r = await fetchImpl(url, { method: 'POST', headers: { Authorization: 'Bearer ' + env.WHATSAPP_TOKEN, 'Content-Type': 'application/json', ...(idempotencyKey ? { 'X-Idempotency-Key': String(idempotencyKey).slice(0, 64) } : {}) }, body: JSON.stringify(body), signal: AbortSignal.timeout(10000) });
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) throw Object.assign(new Error('WhatsApp recusou o envio' + (j?.error?.message ? ': ' + String(j.error.message).slice(0, 160) : '.')), { statusCode: 502 });
+      // 4xx (fora o 429 de "muitas mensagens") é recusa de vez: modelo ou número errado. Vira 422 e não é tentado de novo.
+      if (!r.ok) throw Object.assign(new Error('WhatsApp recusou o envio' + (j?.error?.message ? ': ' + String(j.error.message).slice(0, 160) : '.')), { statusCode: r.status >= 400 && r.status < 500 && r.status !== 429 ? 422 : 502 });
       return { id: j?.messages?.[0]?.id || null };
     }
   };
@@ -77,4 +78,12 @@ function configure(Integrations, env = process.env, fetchImpl = globalThis.fetch
   return ligados;
 }
 
-module.exports = { configure, whatsapp, pluggy };
+// Aviso já tentado: enviado ou recusado de vez (telefone/modelo errado) não tenta de novo; erro passageiro e
+// "não configurado" esperam 1 hora (antes repetia a cada minuto, para sempre).
+function podeTentar(prev, agora = Date.now()) {
+  if (!prev) return true;
+  if (prev.status === 'sent' || prev.status === 'refused') return false;
+  return !(agora - Date.parse(prev.at) < 3600000);
+}
+
+module.exports = { configure, whatsapp, pluggy, podeTentar };

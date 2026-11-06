@@ -1,3 +1,5 @@
+> **Versão 4.21.1:** correções da auditoria: aviso que falha no WhatsApp não é mais tentado a cada minuto, a caixa de saída dos avisos só é gravada quando muda, e o aviso de contas recorrentes não se confunde com outro. Teste de segurança do Open Finance com dois grupos.
+>
 > **Versão 4.21.0:** resumo da semana no celular, Centro de comando com a semana, Sair e tema no menu Mais, balança por Bluetooth, Open Finance e WhatsApp prontos para receber as chaves. Leia [MELHORIAS-4.21.md](MELHORIAS-4.21.md).
 >
 > **Versão 4.20.0:** telas mais claras no celular (título uma vez só, cabeçalho mais baixo, barra de baixo com ícones e nomes curtos), Visão geral começando pelo dinheiro, Financeiro abrindo num mês com movimento, cotação legível e planos "Sob consulta". Leia [MELHORIAS-4.20.md](MELHORIAS-4.20.md).
