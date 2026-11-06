@@ -43,7 +43,7 @@ function renderRuralAssistant(options={}){
   refresh();
 }
 {
-  const before=navItems;navItems=function(){const rows=before();if(currentUser)rows.push(['ajuda','grid','Ajuda','Configurações','',1000]);return rows;};
+  // O item "Ajuda" do menu é posto pelo rotina-rural.js (carregado depois, que também o reposiciona).
 }
 function aiContextualHelp(){
   let b=document.getElementById('aiOpenHelp');if(!b){b=document.createElement('button');b.id='aiOpenHelp';b.type='button';b.className='btn ai-open-help';b.textContent='IA';b.setAttribute('aria-label','Abrir conversa com a IA');document.body.append(b);}

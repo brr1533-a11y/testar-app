@@ -388,3 +388,6 @@ body{margin:0}
   .plan-card .popular-ribbon{font-size:9px}
 }
 
+
+/* 4.20 · preço ainda não definido ("Sob consulta"); antes estava no sales.css, que nenhuma página carregava */
+.price-consult{font-size:.62em;letter-spacing:0}

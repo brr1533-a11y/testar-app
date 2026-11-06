@@ -30,3 +30,14 @@ Quatro agentes revisaram o sistema: segurança, pico de acesso, revisor sênior 
 - **Módulos que não escondem algumas telas** (achado 7 do revisor). Precisa mexer na ordem de todos os embrulhos de telas; é uma mudança grande, para uma versão própria.
 - **Histórico limitado a 1.500 registros** e embrulhos que não fazem nada (achados 13 e 14). São melhorias de organização, não defeitos.
 - **Rodada de alertas a cada 60 segundos** (achado 12). Com o número de clientes de hoje, não pesa.
+
+## 4.23.1
+
+- **Arquivos sem uso apagados:** `ia.js` (substituído pelo `ia-assistente.js`), `demo.js` e `sales.css`. Nenhuma página os carregava. A regra do "Sob consulta" estava no `sales.css` e nunca funcionou; foi para o `inicio.css`.
+- **Embrulhos que não faziam nada, removidos:**
+  - o repasse do `mgDialog`;
+  - o "Ajuda" posto no menu pelo `ia-assistente.js`, que o `rotina-rural.js` tirava e punha de novo logo depois;
+  - um laço repetido na validação do funcionário do campo.
+- **Rodada de avisos:** a cada 5 minutos (era 1) e só para quem ligou push ou WhatsApp.
+- **Emissão de NF-e sem emissor contratado:** o botão "Buscar compras na SEFAZ" fica desativado e diz por quê. Importar XML e os rascunhos continuam funcionando.
+- **Testes:** 370 de unidade e 34 roteiros de navegador.

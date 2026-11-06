@@ -1,3 +1,5 @@
+> **Versão 4.23.1:** limpeza dos achados restantes: 3 arquivos sem uso apagados (ia.js, demo.js, sales.css), embrulhos que não faziam nada removidos, rodada de avisos a cada 5 min só para quem ligou push/WhatsApp, botão da SEFAZ desativado sem emissor contratado.
+>
 > **Versão 4.23.0:** correções dos relatórios dos agentes (segurança, carga e revisor sênior): limite de tentativas de login que vazava em rajada, login que travava o servidor, mês fechado travando todas as fontes de custo, preços da região sem revelar fazendas, banho baixando o lote certo, prestador pago sem custo em dobro, notificação abrindo na fazenda certa, service worker sem misturar versões, e roteiros de navegador no GitHub Actions. Leia [MELHORIAS-4.23.md](MELHORIAS-4.23.md).
 >
 > **Versão 4.22.0:** primeira impressão da conta nova: login sem o Grupo de outro cliente e com "Esqueci o código do Grupo", fazenda com o nome digitado, pergunta "Como é a sua fazenda?" (menu enxuto) e tela vazia sem alertas falsos; fluxo de caixa não conta mais o salário em dobro. Leia [MELHORIAS-4.22.md](MELHORIAS-4.22.md).

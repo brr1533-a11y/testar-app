@@ -64,7 +64,7 @@ test('API IA: autenticação, acesso autenticado, padrão desligado e arquivos p
   const adm = (await api('/api/auth/login', '', { groupCode: '1001', username: 'admaitest', password: s.password + 'X1' })).json.token;
   assert.equal((await api('/api/ai/status', adm)).status, 200);
   assert.equal((await api('/api/ai/ask', adm, q)).status, 503);
-  assert.equal((await fetch(s.url + '/ia.js')).status, 200);
+  assert.equal((await fetch(s.url + '/ia-assistente.js')).status, 200); // ia.js antigo foi apagado na 4.23.1 (não era carregado)
   assert.equal((await fetch(s.url + '/ia-server.js')).status, 404);
   const sw = await (await fetch(s.url + '/campo-sw.js')).text(); assert.ok(sw.includes('/ia-assistente.js') && sw.includes('/ia.css'));
 });

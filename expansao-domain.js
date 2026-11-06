@@ -97,7 +97,6 @@ function prepare(before,after,incoming,user,allowed,now=new Date().toISOString()
     if(key==='yearWork'){const worker=(e.yearWorkers||[]).find(w=>w.id===r.workerId);const rate=r.kind==='mensal'?worker?.monthlyRate:worker?.dailyRate;check(worker?.active!==false&&num(rate)&&rate>0,'Defina o valor da pessoa antes de registrar o trabalho.');r.rate=rate;r.amount=round(rate*r.units);}
     return r;});
    for(const was of prior)if(!e[key].some(r=>r.id===was.id)){if(user.role==='contribuinte'||!licensed.includes(was.activity)||m.self&&was.recordedBy!==user.username){e[key].push(clone(was));continue;}check(!m.immutable,'Arquive o registro para preservar o histórico.');}
-   if(user.role==='contribuinte')for(const was of prior)if(!e[key].some(r=>r.id===was.id))e[key].push(clone(was));
   }
   const logs=e.fieldLogs.filter(r=>r.kind==='fuel'),seenFuel=new Set();for(const r of f.management?.fuel||[])if(r.sourceFieldLogId){const origin=logs.find(l=>l.id===r.sourceFieldLogId);check(origin&&origin.activity===r.activity&&origin.equipmentId===r.equipmentId&&origin.date===r.date&&origin.liters===r.litres&&origin.meter===r.meter&&!seenFuel.has(origin.id),'Abastecimento de campo inválido ou conferido mais de uma vez.');seenFuel.add(origin.id);}
   const prefUsers=e.preferences.map(r=>r.recordedBy);check(new Set(prefUsers).size===prefUsers.length,'Mantenha uma preferência por usuário e fazenda.');
