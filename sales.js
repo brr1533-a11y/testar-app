@@ -38,10 +38,11 @@ function updatePricing(){
     const included=card.querySelector('.included-activity-features');
     if(included)included.textContent=selectedActivities.length?selectedActivities.map(a=>features[a]).join(' · '):'Selecione as atividades acima.';
     const result=selectedActivities.length?SubscriptionDomain.quote(card.dataset.plan,cycle,selectedActivities,activityPricing):{ready:false};
-    card.querySelector('[data-price]').textContent=result.ready?moneyBR(result.amount):'—';
+    // 4.20: com atividades escolhidas e preço ainda não definido, "Sob consulta" em vez de um traço (parecia site inacabado).
+    card.querySelector('[data-price]').textContent=result.ready?moneyBR(result.amount):(selectedActivities.length?'Sob consulta':'—');card.querySelector('[data-price]').classList.toggle('price-consult',!result.ready&&selectedActivities.length>0);
     const currency=card.querySelector('[data-currency]');if(currency)currency.hidden=!result.ready;
     card.querySelector('[data-period]').textContent=result.ready?(cycle.months===1?'/mês':cycle.months===3?'/trimestre':cycle.months===6?'/semestre':'/ano'):'';
-    card.querySelector('[data-saving]').textContent=result.ready?(cycle.months>1?'Equivale a R$ '+moneyBR(result.perMonth)+'/mês · ':'')+labels.join(' + '):'Escolha as atividades para ver o preço.';
+    card.querySelector('[data-saving]').textContent=result.ready?(cycle.months>1?'Equivale a R$ '+moneyBR(result.perMonth)+'/mês · ':'')+labels.join(' + '):(selectedActivities.length?'Fale com a gente pelo WhatsApp para saber o valor.':'Escolha as atividades para ver o preço.');
     card.querySelector('.buy-plan').textContent=result.ready?'Continuar com '+planCatalog[card.dataset.plan].name:'Selecionar este porte';
   });
 }

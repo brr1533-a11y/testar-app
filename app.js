@@ -28,8 +28,17 @@ const ICONS = {
   up: `<path d="M7 17 17 7M8 7h9v9"/>`,
   down: `<path d="m7 7 10 10M17 8v9H8"/>`,
   bean: `<ellipse cx="12" cy="12" rx="6" ry="8.5" transform="rotate(35 12 12)"/><path d="M9 8.5c2.5 1 3.5 2.5 3 4.5s.5 3 3 3.5"/>`,
-  logout: `<path d="M14 4h4.5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H14M10 8l-4 4 4 4M6 12h10"/>`
+  logout: `<path d="M14 4h4.5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H14M10 8l-4 4 4 4M6 12h10"/>`,
+  summary: `<rect x="4.5" y="3.5" width="15" height="17" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>`,
+  help: `<circle cx="12" cy="12" r="8.5"/><path d="M9.6 9.3a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2.2-2.4 3.7M12 17h.01"/>`,
+  sprout: `<path d="M12 20v-8M12 12c0-4 3-6.5 7-6.5 0 4-3 6.5-7 6.5zM12 14c0-3-2.3-5-5.5-5 0 3 2.3 5 5.5 5z"/>`,
+  dots: `<circle cx="6" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18" cy="12" r="1.3"/>`,
+  sun: `<circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M18.7 5.3l-1.4 1.4M6.7 17.3l-1.4 1.4"/>`
 };
+// 4.20 · Barra de baixo do celular: um ícone e um nome curto por tela (antes vários iguais e nomes cortados).
+const NAV_ICON = { dashboard: 'home', 'resumo-dono': 'summary', ajuda: 'help', mercado: 'chart', financeiro: 'wallet', 'financeiro-gestao': 'wallet', lancamentos: 'swap', estoque: 'box', safras: 'bean', gado: 'cattle', 'campo-completo': 'sprout', campo: 'sprout', 'colheita-campo': 'bean', 'meu-dia': 'sun', 'fluxo-caixa': 'chart', equipamentos: 'tractor', usuarios: 'users', perfil: 'users' };
+const NAV_SHORT = { dashboard: 'Início', 'resumo-dono': 'Resumo', ajuda: 'Ajuda', mercado: 'Mercado', financeiro: 'Financeiro', 'financeiro-gestao': 'Finanças', lancamentos: 'Lançar', estoque: 'Estoque', safras: 'Safras', gado: 'Gado', 'campo-completo': 'Campo', campo: 'Campo', 'colheita-campo': 'Colheita', 'meu-dia': 'Meu dia', 'fluxo-caixa': 'Caixa', manejos: 'Manejos', equipamentos: 'Máquinas', notas: 'Notas', usuarios: 'Equipe', perfil: 'Perfil', fazendas: 'Fazendas' };
+function navShort(id, label) { if (NAV_SHORT[id]) return NAV_SHORT[id]; const w = String(label).split(/s+/); return w[0].length > 11 ? w[0].slice(0, 10) + '.' : w[0]; }
 function ico(n) { return `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`; }
 
 
@@ -1301,7 +1310,7 @@ function renderNav() {
   }
   const helpItem = items.find(i=>i[0]==='ajuda');
   if(mobileNav.matches && helpItem && items.length>4){const primary=items.filter(i=>i[0]!=='ajuda').slice(0,3);if(activeId!=='ajuda'&&!primary.some(i=>i[0]===activeId)){const active=items.find(i=>i[0]===activeId);if(active)primary[2]=active;}shown=[...primary,helpItem];extra=items.filter(i=>!shown.includes(i));}
-  const button = ([id,icon,label]) => `<button class="nav-btn ${activeId===id?'active':''}" data-page="${escapeHTML(id)}" ${activeId===id?'aria-current="page"':''}>${mobileNav.matches?ico(icon):''}<span class="nav-label">${escapeHTML(label)}</span></button>`;
+  const button = ([id,icon,label]) => `<button class="nav-btn ${activeId===id?'active':''}" data-page="${escapeHTML(id)}" ${activeId===id?'aria-current="page"':''} ${mobileNav.matches?`aria-label="${escapeHTML(label)}"`:''}>${mobileNav.matches?ico(ICONS[NAV_ICON[id]]?NAV_ICON[id]:(ICONS[icon]?icon:'grid')):''}<span class="nav-label">${escapeHTML(mobileNav.matches?navShort(id,label):label)}</span></button>`;
   const groups = [...new Set(shown.map(i=>i[3]||''))];
   const menu = mobileNav.matches || groups.every(g=>!g) ? shown.map(button).join('') : groups.map(g=>{
     const list=shown.filter(i=>(i[3]||'')===g); if(!g)return list.map(button).join('');
@@ -1309,7 +1318,7 @@ function renderNav() {
     return `<details class="nav-group ${active?'has-current':''}" data-menu-category="${escapeHTML(g)}" ${open?'open':''}><summary>${escapeHTML(g)}<span class="menu-category-count" aria-label="${list.length} telas">${list.length}</span></summary>${list.map(button).join('')}</details>`;
   }).join('');
   const organize = '<button class="nav-btn menu-layout-btn" id="organizeMenu" type="button"><span class="nav-label">Organizar menu</span></button>';
-  const more = '<button class="nav-btn nav-more" id="navMore" type="button" aria-haspopup="dialog">'+ico('grid')+'<span class="nav-label">Mais</span></button>';
+  const more = '<button class="nav-btn nav-more" id="navMore" type="button" aria-haspopup="dialog">'+ico('dots')+'<span class="nav-label">Mais</span></button>';
   const modeSwitch = canSwitchMode && !mobileNav.matches ? `<button class="nav-btn mode-switch-btn" id="modeSwitchBtn" type="button"><span class="nav-label">${escapeHTML(modeLabel)}</span></button>` : '';
   $('#navMenu').innerHTML = menu + (mobileNav.matches?more:organize+modeSwitch);
   $$('#navMenu .nav-btn[data-page]').forEach(btn=>btn.onclick=()=>goToPage(btn.dataset.page));
@@ -1618,7 +1627,7 @@ function renderDashboard() {
       <div><span class="eyebrow">CENTRO DE COMANDO</span><h2>${isGeneralView() ? `Visão consolidada • ${farmTypeLabel()}` : contextName()}</h2><p>${isGeneralView() ? "Aqui você acompanha o consolidado de todas as fazendas desse tipo." : "Acompanhe indicadores, estoques, operação e desempenho desta fazenda."}</p></div>
       <div class="hero-badges"><span class="badge ${type === "cattle" ? "gold" : "green"}">${farmTypeLabel()}</span>${currentUser.role === "ceo" ? `<span class="badge">Modo ${isGeneralView() ? "geral" : "individual"}</span>` : ""}</div>
     </div>
-    <div class="grid kpis">${modeCards}${financeCard}${type === "coffee" ? `<div class="card ${quote ? "quote-card" : ""}"><div class="kpi-label"><span>Cotação estimada • saca 60 kg</span><span class="kpi-icon">${ico("bean")}</span></div><div class="kpi-value">${quote ? money(quote.brlPerSaca) : "Indisponível"}</div><div class="kpi-foot">referência Coffee C convertida para BRL</div></div>` : `<div class="card"><div class="kpi-label"><span>Valor em estoque</span><span class="kpi-icon">${ico("box")}</span></div><div class="kpi-value">${money(stockValue)}</div><div class="kpi-foot">baseado em quantidade × custo unitário</div></div>`}</div>
+    <div class="grid kpis">${financeCard}${type === "coffee" ? `<div class="card ${quote ? "quote-card" : ""}"><div class="kpi-label"><span>Cotação estimada • saca 60 kg</span><span class="kpi-icon">${ico("bean")}</span></div><div class="kpi-value">${quote ? money(quote.brlPerSaca) : "Indisponível"}</div><div class="kpi-foot">referência Coffee C convertida para BRL</div></div>` : `<div class="card"><div class="kpi-label"><span>Valor em estoque</span><span class="kpi-icon">${ico("box")}</span></div><div class="kpi-value">${money(stockValue)}</div><div class="kpi-foot">baseado em quantidade × custo unitário</div></div>`}${modeCards}</div>
     ${type === "coffee" ? `<div class="section-head"><h2>Produção de café</h2></div><div class="grid kpis">${ruralAgricultureSummary()}</div>` : ""}
 
     ${opsGettingStarted()}

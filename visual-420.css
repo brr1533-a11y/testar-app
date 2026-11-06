@@ -1,0 +1,40 @@
+/* 4.20 · Ajustes da crítica de design (carregado por último).
+   1. Título único: o cabeçalho de cima já mostra o nome da tela; a primeira faixa da página repetia o rótulo e o título.
+   2. Celular: cabeçalho mais baixo (o conteúdo aparece antes) e o "Centro de comando" mais enxuto.
+   3. Cotação legível: texto escuro sobre o dourado.
+   4. Espaço no fim da página para o botão "IA" não cobrir valores.
+   5. Aviso do Financeiro quando o mês atual está vazio. */
+
+/* 1. Título único (vale em todas as telas que abrem com a faixa .exp-head) */
+#pageContent > header.exp-head:first-of-type > div > .eyebrow,
+#pageContent > header.exp-head:first-of-type > div > h2 { display: none; }
+#pageContent > header.exp-head:first-of-type { margin-bottom: 18px; }
+#pageContent > header.exp-head:first-of-type p.muted { margin-top: 0; }
+
+/* 3. Cotação: o texto claro sobre o dourado não tinha contraste suficiente */
+.quote-card, .quote-card .kpi-value { color: #1f1a10 !important; }
+.quote-card .kpi-label, .quote-card .kpi-foot { color: #3b3220 !important; }
+.quote-card .kpi-icon { background: #1f1a1014 !important; color: #1f1a10 !important; }
+
+/* 4. O botão "IA" fica por cima do fim da página: deixa um respiro para não cobrir a última linha */
+#pageContent { padding-bottom: 96px; }
+
+/* 5. Aviso de mês trocado no Financeiro */
+.finance-month-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2, #ffffff0d); border: 1px solid var(--line, #ffffff1a); font-size: 14px; }
+
+/* 2. Celular */
+@media (max-width: 720px) {
+  .topbar { padding-top: 10px !important; padding-bottom: 10px !important; gap: 8px !important; }
+  .topbar #pageEyebrow { display: none; }                       /* a fazenda e a atividade já aparecem no seletor */
+  .topbar #pageTitle { font-size: 22px !important; line-height: 1.15; margin: 0; }
+  .topbar-actions { display: flex !important; flex-wrap: wrap; align-items: center; gap: 8px !important; }
+  .topbar-actions .farm-switcher { flex: 1 1 100%; order: -1; margin: 0; }
+  /* só o texto "Fazenda ativa" (o seletor personalizado também fica dentro de um span) */
+  .topbar-actions .farm-switcher > span:not(:has(select, button, [role])) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .topbar-actions .farm-switcher select { min-height: 42px; padding-top: 8px; padding-bottom: 8px; font-size: 14px; }
+  .hero-surface { padding: 18px !important; }
+  .hero-surface p, .hero-surface .hero-badges { display: none; }
+  .hero-surface h2 { font-size: 22px !important; margin: 4px 0 0 !important; }
+  .nav-btn .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  #pageContent { padding-bottom: 150px; }                        /* barra de baixo + botão IA */
+}
