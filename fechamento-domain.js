@@ -24,7 +24,9 @@ const LOCKED=[
  ['Serviço de prestador',f=>f.expansion?.contractors]
 ];
 // Situação (aberta/paga) fica de fora de propósito: pagar em novembro uma conta de outubro continua permitido.
-const KEYS=['date','type','value','amount','category','description','costCenter','cycleId','lotId','stockId','quantity','cost','archived','voided','saleId','installmentId','activity','litres','pricePerLitre','quantityKg','unitPrice','price','unit','units','costCategory'];
+const KEYS=['date','type','value','amount','category','description','costCenter','cycleId','lotId','stockId','quantity','cost','archived','voided','saleId','installmentId','activity','litres','pricePerLitre','quantityKg','unitPrice','price','unit','units','costCategory',
+ // vínculos que tiram uma saída da soma de custo: trocá-los num mês fechado mudaria o custo
+ 'sourceContractorId','sourceLeaseId','sourcePayableId','noteId','toStock','sourceLaborAdjustmentId'];
 const pick=r=>JSON.stringify([...KEYS.map(k=>r?.[k]??null),r?.status==='canceled']);   // cancelar tira o custo; pagar, não
 const list=f=>Array.isArray(f.monthClosings)?f.monthClosings:[];
 const closing=(f,month)=>list(f).find(c=>c.month===month);

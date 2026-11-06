@@ -143,3 +143,11 @@ test('4.23 · mês fechado trava também contas a pagar, manutenção, abastecim
   const cancelada = copy(fechado); cancelada.farms[0].management.payables[0].status = 'canceled';
   a.throws(() => F.prepare(fechado, cancelada, ceo, { X, hash }), /fechado/);
 });
+
+test('4.23 · mês fechado: ligar uma saída a um prestador (tirando ela do custo) também é barrado', () => {
+  const s = closedState(), after = copy(s);
+  after.farms[0].expansion.contractors = [{ id: 'k1', activity: 'coffee', date: new Date().toISOString().slice(0, 10), notes: '', archived: false, provider: 'X', service: 'colheita', unit: 'total', price: 1, quantity: 1 }];
+  F.prepare(s, after, ceo, { X, hash });
+  const liga = copy(after); liga.farms[0].finances.find(r => r.id === 'n1').sourceContractorId = 'k1';
+  a.throws(() => F.prepare(after, liga, ceo, { X, hash }), /fechado/);
+});

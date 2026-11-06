@@ -716,7 +716,9 @@ app.post("/api/auth/login", async (req, res, next) => {
     // 4.23: a tentativa é contada já na entrada, no mesmo instante da checagem acima. Antes só contava depois do bcrypt (~100 ms),
     // e uma rajada de 500 senhas erradas tinha 129 conferidas em vez de 30. Com a senha certa, a contagem é devolvida (acertos não gastam o limite).
     rateHit(userKey, 8, 15 * 60_000); rateHit(ipKey, 30, 15 * 60_000); rateHit(accountKey, 50, 15 * 60_000);
-    const devolve = () => { rateClear(userKey); rateUndo(ipKey); rateUndo(accountKey); };
+    // Devolve só no MESMO contador em que esta tentativa entrou: se a janela de 15 min virou no meio, não desconta erro de outra pessoa.
+    const contadores = [ipKey, accountKey].map(k => [k, rateBuckets.get(k)]);
+    const devolve = () => { rateClear(userKey); for (const [k, b] of contadores) if (rateBuckets.get(k) === b) rateUndo(k); };
     const fail = () => res.status(401).json({ error: "Código do Grupo, usuário ou senha incorretos" });
     const group = groupCode.length >= 4 ? await store.getGroupByCode(groupCode) : await store.getGroupBySlug(slugify(groupInput));
     // Mesmo sem Grupo ou usuário, roda um bcrypt: assim o tempo de resposta não revela quem existe.
