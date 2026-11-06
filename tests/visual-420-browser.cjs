@@ -34,6 +34,8 @@ const mesAnterior = (() => { const [y, m] = hoje.split('-').map(Number); return 
     assert.ok(nav.length >= 4, 'barra de baixo com atalhos');
     assert.equal(new Set(nav.map(n => n.icon)).size, nav.length, 'um ícone diferente por item: ' + nav.map(n => n.label).join(', '));
     for (const n of nav) assert.ok(n.label.length <= 11, 'nome curto na barra: ' + n.label);
+    // Tela sem nome curto na lista: usa a primeira palavra (corta no espaço, não na letra "s").
+    assert.equal(await p.evaluate(() => navShort('tela-nova', 'Desempenho e manejos')), 'Desempenho');
     await p.evaluate(() => goToPage('fluxo-caixa')); await p.locator('#mhCenario').waitFor();
     assert.equal(await p.locator('#pageContent > header.exp-head h2').isVisible(), false, 'título não se repete dentro da página');
     assert.equal(await p.locator('#pageTitle').textContent(), 'Fluxo de caixa projetado');

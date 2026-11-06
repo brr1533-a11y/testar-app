@@ -22,6 +22,10 @@
 /* 5. Aviso de mês trocado no Financeiro */
 .finance-month-note { margin: 0 0 14px; padding: 10px 14px; border-radius: 12px; background: var(--surface-2, #ffffff0d); border: 1px solid var(--line, #ffffff1a); font-size: 14px; }
 
+/* 4.21 · Centro de comando: a situação da semana */
+.hero-surface .hero-semana { display: block !important; margin: 10px 0 0; font-size: 15px; line-height: 1.45; }
+.hero-surface .hero-semana.alerta b { color: var(--red, #e07a6a); }
+
 /* 2. Celular */
 @media (max-width: 720px) {
   .topbar { padding-top: 10px !important; padding-bottom: 10px !important; gap: 8px !important; }
@@ -37,4 +41,6 @@
   .hero-surface h2 { font-size: 22px !important; margin: 4px 0 0 !important; }
   .nav-btn .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
   #pageContent { padding-bottom: 150px; }                        /* barra de baixo + botão IA */
+  /* 4.21: Sair e tema ficam no menu Mais (o Sair já estava lá); no cabeçalho ficam a fazenda, o IA e o "Salvo" */
+  .topbar-actions #logoutTop, .topbar-actions #panelThemeToggle { display: none !important; }
 }

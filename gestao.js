@@ -364,7 +364,7 @@ function renderReconciliation() {
   const fin = id => (farm.finances || []).find(x => x.id === id);
   const pending = entries.filter(e => !e.financeId);
   $('#pageContent').innerHTML = `
-    <div class="section-head" style="margin-top:0">${gestaoBack()}<button class="btn primary" id="gImportBank">Importar extrato (CSV ou OFX)</button></div>
+    <div class="section-head" style="margin-top:0">${gestaoBack()}<button class="btn primary" id="gImportBank">Importar extrato (CSV ou OFX)</button>${currentUser.role === 'ceo' ? '<button class="btn" id="gOpenFinance">Buscar extrato do banco (Open Finance)</button>' : ''}</div>
     <div class="hero-surface"><div><h2>Conferir se os lançamentos batem com o extrato do banco.</h2><p>Importe o extrato exportado pelo internet banking (OFX, ou CSV com data;descrição;valor). O sistema sugere o lançamento do Financeiro com o mesmo valor e data próxima (até 3 dias); confirme cada um. O que sobrar mostra o que falta lançar ou o que entrou/saiu sem registro.</p></div></div>
     <div class="grid kpis">${ruralKpi('Linhas do extrato', entries.length)}${ruralKpi('Conciliadas', entries.length - pending.length)}${ruralKpi('Pendentes', pending.length, pending.length ? money(pending.reduce((n, e) => n + e.amount, 0)) + ' em aberto' : '')}</div>
     ${entries.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Extrato</th><th>Valor</th><th>Lançamento do Financeiro</th><th>Ação</th></tr></thead><tbody>${entries.map(e => {
@@ -375,6 +375,27 @@ function renderReconciliation() {
     }).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum extrato importado.</div>'}`;
   bindBack();
   const link = (entryId, financeId, msg) => { if (gestaoChange(farm, f => { const e = f.management.bankEntries.find(x => x.id === entryId); if (financeId) e.financeId = financeId; else delete e.financeId; })) { toast(msg); renderReconciliation(); } };
+  // 4.21 · Extrato automático pelo Open Finance (Pluggy, só leitura): mesmas linhas do OFX, sem repetir o que já entrou.
+  const ofBtn = $('#gOpenFinance');
+  if (ofBtn) ofBtn.onclick = async () => {
+    const pedirConta = async () => {
+      const v = await askForm({ title: 'Conta do banco no Open Finance', text: 'Cole o código da conta desta fazenda na Pluggy (36 caracteres, aparece no painel da Pluggy depois de conectar o banco). É só leitura: o sistema não faz pagamentos.', fields: [{ name: 'accountId', label: 'Código da conta', required: true, wide: true }] });
+      if (!v) return false;
+      await api('/api/expansion/openfinance/account', { method: 'POST', body: JSON.stringify({ farmId: farm.id, accountId: String(v.accountId).trim() }) });
+      return true;
+    };
+    try {
+      ofBtn.disabled = true;
+      let r = await api('/api/expansion/openfinance/transactions?farmId=' + encodeURIComponent(farm.id) + '&days=30');
+      if (!r.configured) return toast('Open Finance ainda não ligado: o servidor precisa das chaves da Pluggy (PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET).');
+      if (!r.account) { if (!(await pedirConta())) return; r = await api('/api/expansion/openfinance/transactions?farmId=' + encodeURIComponent(farm.id) + '&days=30'); }
+      const existing = new Set(farm.management.bankEntries.map(e => e.fitid ? 'f' + e.fitid : `${e.date}|${e.amount}|${e.description}`));
+      const fresh = (r.rows || []).filter(x => !existing.has('f' + x.fitid));
+      if (!fresh.length) return toast('Nenhum lançamento novo do banco nos últimos 30 dias.');
+      if (gestaoChange(farm, f => fresh.forEach(x => f.management.bankEntries.push({ id: uid(), date: x.date, description: x.description, amount: x.amount, fitid: x.fitid, batch: 'Open Finance' })))) { toast(`${fresh.length} lançamento(s) do banco trazido(s).`); renderReconciliation(); }
+    } catch (e) { toast(e.message || 'Não foi possível buscar o extrato.'); }
+    finally { ofBtn.disabled = false; }
+  };
   $('#gImportBank').onclick = async () => {
     const file = await gestaoReadFile('.ofx,.csv,.txt,text/csv'); if (!file) return;
     const rows = FarmManagement.parseStatement(file.text, file.name);

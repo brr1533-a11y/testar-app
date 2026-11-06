@@ -1,3 +1,5 @@
+> **Versão 4.21.0:** resumo da semana no celular, Centro de comando com a semana, Sair e tema no menu Mais, balança por Bluetooth, Open Finance e WhatsApp prontos para receber as chaves. Leia [MELHORIAS-4.21.md](MELHORIAS-4.21.md).
+>
 > **Versão 4.20.0:** telas mais claras no celular (título uma vez só, cabeçalho mais baixo, barra de baixo com ícones e nomes curtos), Visão geral começando pelo dinheiro, Financeiro abrindo num mês com movimento, cotação legível e planos "Sob consulta". Leia [MELHORIAS-4.20.md](MELHORIAS-4.20.md).
 >
 > **Versão 4.19.3:** o dia de hoje passa a ser o de Brasília também no servidor (antes, das 21h à meia-noite o sistema já contava o dia seguinte: custo da mão de obra sumia, avisos e mês fechado erravam); botão Simular do fluxo de caixa com efeito de mola e preço arredondado. Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).

@@ -196,7 +196,37 @@ function cashGapAlerts(f,on=today()){const flow=cashFlow(f,{months:3,on}),items=
 function purchaseAlerts(f){return (f.management?.purchaseOrders||[]).filter(o=>o.status==='pending').map(o=>{const total=round((o.items||[]).reduce((n,i)=>n+(Number(i.quantity)||0)*(Number(i.unitPrice)||0),0));return {id:'po:'+o.id,page:'pedidos-compra',role:'ceo',severity:'attention',open:{page:'pedidos-compra',item:o.id},push:'Pedido de compra aguardando sua aprovação.',title:'Pedido de compra aguardando aprovação: '+(o.items||[]).map(i=>i.name).slice(0,3).join(', ')+(o.supplier?' · '+o.supplier:'')+(total?' · R$ '+brl(total):'')};});}
 // Endereço que a notificação abre: a tela do aviso e, quando houver, o item para conferir e decidir.
 function alertLink(a){const p=new URLSearchParams();p.set('abrir',a.open?.page||a.page||'alertas');if(a.open?.item)p.set('item',String(a.open.item));return '/app?'+p.toString();}
+// 4.21 · Balança por Bluetooth no padrão oficial (GATT Weight Scale 0x181D, característica Weight Measurement 0x2A9D).
+// Byte 0: opções (bit 0 = libras); bytes 1-2: peso em 16 bits (little endian), 0,005 kg ou 0,01 lb por unidade; 0xFFFF = falhou.
+function parseBleWeight(bytes){const b=Array.from(bytes||[]);if(b.length<3)return null;const raw=b[1]|(b[2]<<8);if(raw===0xFFFF)return null;const lb=(b[0]&1)===1;const kg=lb?raw*0.01*0.45359237:raw*0.005;return {kg:round(kg,1),unit:lb?'lb':'kg'};}
+// O padrão vai até 327 kg (16 bits × 0,005). Balanças de curral com Bluetooth costumam mandar texto, como pelo cabo
+// ("452,5 kg" + quebra de linha), num canal UART por Bluetooth: parseScaleText lê esse texto.
+function parseScaleText(text){const m=String(text||'').match(/(\d{1,4}(?:[.,]\d{1,3})?)\s*(?:kg)?\s*[\r\n]/i);if(!m)return null;const kg=Number(m[1].replace(',','.'));return kg>0&&kg<5000?round(kg,1):null;}
+// Peso estável: o mesmo valor (até 0,2 kg de diferença) em duas leituras seguidas, acima de 1 kg (balança vazia não conta).
+function stableWeight(readings){for(let i=1;i<readings.length;i++){const a=readings[i-1],b=readings[i];if(a>1&&b>1&&Math.abs(a-b)<=0.2)return round(b,1);}return null;}
+// 4.21 · Resumo da semana (segunda a quarta, uma vez por semana): o que vence nos próximos 7 dias, a colheita dos últimos
+// 7 dias, até quando o caixa fica positivo e o estoque no mínimo. O push sai a partir das 7h de Brasília, sem valores em R$
+// (aparece na tela bloqueada); o título, dentro do app, traz os valores.
+const MESES_CURTOS=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mesCurto=m=>MESES_CURTOS[Number(m.slice(5,7))-1]+'/'+m.slice(2,4);
+function weekStartOf(on){const d=new Date(on+'T12:00:00Z'),w=(d.getUTCDay()+6)%7;return addDays(on,-w);}
+function weeklySummary(f,on=today()){
+ const fim=addDays(on,6),ini=addDays(on,-7),ontem=addDays(on,-1);
+ const contas=(f.management?.payables||[]).filter(p=>p.status==='open'&&p.dueDate>=on&&p.dueDate<=fim);
+ const parcelas=[];for(const r of loansReport(f,on))for(const x of r.rows)if(x.status!=='paga'&&x.date>=on&&x.date<=fim)parcelas.push(x);
+ const recorrentes=recurringDue(f,on,fim).filter(r=>!(f.management?.payables||[]).some(p=>p.id===r.id));
+ const vencem=contas.length+parcelas.length+recorrentes.length,valor=round(contas.reduce((n,p)=>n+(Number(p.amount)||0),0)+parcelas.reduce((n,x)=>n+(Number(x.open)||0),0)+recorrentes.reduce((n,r)=>n+(Number(r.amount)||0),0));
+ const ciclos=new Map((f.agriculture?.cycles||[]).map(c=>[c.id,c]));
+ const sacas=round((f.agriculture?.harvests||[]).filter(h=>h.date>=ini&&h.date<=ontem).reduce((n,h)=>n+(Number(h.netKg)||0)/(ciclos.get(h.cycleId)?.bagKg||60),0),1);
+ const fluxo=cashFlow(f,{months:6,on}),neg=fluxo.firstNegative?.month||null;
+ const minimo=(f.stock||[]).filter(x=>Number(x.min)>0&&Number(x.quantity||0)<=Number(x.min)).length;
+ const partes=[vencem?vencem+' conta(s) vencem':'nenhuma conta vence',sacas?String(sacas).replace('.',',')+' sc colhidas':null,neg?'caixa fica negativo em '+mesCurto(neg):'caixa positivo nos próximos 6 meses',minimo?minimo+' item(ns) no estoque mínimo':null].filter(Boolean);
+ return {weekStart:weekStartOf(on),dueCount:vencem,dueAmount:valor,bags:sacas,firstNegative:neg,lowStock:minimo,
+  push:'Resumo da semana: '+partes.join(' · ')+'.',
+  title:'Resumo da semana: '+(vencem?vencem+' conta(s) vencem (R$ '+brl(valor)+')':'nenhuma conta vence nos próximos 7 dias')+(sacas?' · '+String(sacas).replace('.',',')+' sc colhidas nos últimos 7 dias':'')+' · '+(neg?'caixa fica negativo em '+mesCurto(neg):'caixa positivo nos próximos 6 meses')+(minimo?' · '+minimo+' item(ns) no estoque mínimo':'')};
+}
 function alerts(f,on=today()){const out=[...cashGapAlerts(f,on),...purchaseAlerts(f)];
+ const dow=(new Date(on+'T12:00:00Z').getUTCDay()+6)%7;if(dow<=2){const w=weeklySummary(f,on);out.push({id:'weekly:'+w.weekStart,page:'resumo-dono',role:'ceo',severity:'info',pushAfterHour:7,open:{page:'resumo-dono'},push:w.push,title:w.title});}
  const rp=recurringPending(f,on).filter(r=>r.dueDate<=addDays(on,5));if(rp.length)out.push({id:'recurring:'+on.slice(0,7)+':'+rp.map(r=>r.id).join(',').length,page:'fluxo-caixa',role:'ceo',severity:'attention',open:{page:'fluxo-caixa'},push:'Contas recorrentes do mês para lançar.',title:rp.length+' conta(s) recorrente(s) do mês ainda não lançada(s): '+rp.map(r=>r.supplier).slice(0,3).join(', ')});
  for(const x of expiringStock(f,on))out.push({id:'expires:'+x.item.id+':'+x.item.expires+':'+(x.left<0?'vencido':x.left<=7?7:30),page:'estoque',severity:x.left<=7?'high':'attention',title:x.item.item+(x.item.batch?' (lote '+x.item.batch+')':'')+(x.left<0?' está vencido':' vence em '+x.left+' dia(s)')+' · '+x.item.quantity+' '+x.item.unit+' em estoque'});
  // Checklist do trator: o último de cada equipamento, dos últimos 14 dias, com algum item com problema.
@@ -324,7 +354,7 @@ function marginReport(farms,X,{from,to,crop,general=false}){
  return out.sort((a,b)=>(b.marginHa??-Infinity)-(a.marginHa??-Infinity));
 }
 
-return {PAGES,META,recurringDue,recurringPending,expiringStock,monthClose,marginReport,monthEnd,cashGapAlerts,purchaseAlerts,alertLink,normSupplier,costCenterOf,costCenterOptions,suggestCostCenter,validateCosts,orderUseId,orderStockUses,orderInputDone,orderPendingInputs,orderLotOptions,orderFieldUsage,suggestedMin,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
+return {parseBleWeight,parseScaleText,stableWeight,weeklySummary,weekStartOf,PAGES,META,recurringDue,recurringPending,expiringStock,monthClose,marginReport,monthEnd,cashGapAlerts,purchaseAlerts,alertLink,normSupplier,costCenterOf,costCenterOptions,suggestCostCenter,validateCosts,orderUseId,orderStockUses,orderInputDone,orderPendingInputs,orderLotOptions,orderFieldUsage,suggestedMin,GLOBAL_KEYS,REGIMES,ENTRY_KINDS,LOAN_KINDS,LOAN_SYSTEMS,CONTRACTOR_SERVICES,CONTRACTOR_UNITS,ANIMAL_STATUS,EVENT_KINDS,TEMPLATES,CORE_PAGES,
  validate,partnershipReport,plotsArea,taxSetting,rates,funrural,funruralReport,loanSchedule,loansReport,leaseYearValue,leaseDueDates,leaseCostRows,contractorAmount,contractorCostRows,contractorComparison,
  animalHistory,animalWeight,milkIndicators,sisbovRows,csv,parseScale,cashFlow,alerts,hiddenPages,benchmark,farmIndicators,quantile,addMonths};
 });

@@ -38,7 +38,7 @@ const ICONS = {
 // 4.20 · Barra de baixo do celular: um ícone e um nome curto por tela (antes vários iguais e nomes cortados).
 const NAV_ICON = { dashboard: 'home', 'resumo-dono': 'summary', ajuda: 'help', mercado: 'chart', financeiro: 'wallet', 'financeiro-gestao': 'wallet', lancamentos: 'swap', estoque: 'box', safras: 'bean', gado: 'cattle', 'campo-completo': 'sprout', campo: 'sprout', 'colheita-campo': 'bean', 'meu-dia': 'sun', 'fluxo-caixa': 'chart', equipamentos: 'tractor', usuarios: 'users', perfil: 'users' };
 const NAV_SHORT = { dashboard: 'Início', 'resumo-dono': 'Resumo', ajuda: 'Ajuda', mercado: 'Mercado', financeiro: 'Financeiro', 'financeiro-gestao': 'Finanças', lancamentos: 'Lançar', estoque: 'Estoque', safras: 'Safras', gado: 'Gado', 'campo-completo': 'Campo', campo: 'Campo', 'colheita-campo': 'Colheita', 'meu-dia': 'Meu dia', 'fluxo-caixa': 'Caixa', manejos: 'Manejos', equipamentos: 'Máquinas', notas: 'Notas', usuarios: 'Equipe', perfil: 'Perfil', fazendas: 'Fazendas' };
-function navShort(id, label) { if (NAV_SHORT[id]) return NAV_SHORT[id]; const w = String(label).split(/s+/); return w[0].length > 11 ? w[0].slice(0, 10) + '.' : w[0]; }
+function navShort(id, label) { if (NAV_SHORT[id]) return NAV_SHORT[id]; const w = String(label).split(/\s+/); return w[0].length > 11 ? w[0].slice(0, 10) + '.' : w[0]; }
 function ico(n) { return `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[n] || ""}</svg>`; }
 
 
@@ -1330,10 +1330,10 @@ function renderNav() {
     const choicePromise=openDialog(()=>`<form class="dlg sheet menu-more-sheet" role="dialog" aria-modal="true" aria-labelledby="dlgTitle"><h3 id="dlgTitle">Mais opções</h3><div class="sheet-list">${groupNames.map(g=>{
       const list=extra.filter(i=>(i[3]||'Outras opções')===g),active=list.some(i=>i[0]===activeId);
       return `<details class="sheet-category" data-menu-category="${escapeHTML(g)}" ${menuCategoryOpen(g,active,menuLayoutRead())?'open':''}><summary>${escapeHTML(g)}<span class="menu-category-count">${list.length}</span></summary>${list.map(([id,icon,label])=>`<button type="submit" name="go" value="${escapeHTML(id)}" class="sheet-item">${ico(icon)}<span>${escapeHTML(label)}</span></button>`).join('')}</details>`;
-    }).join('')}<button type="submit" name="go" value="__organize" class="sheet-item menu-organize-link">${ico('grid')}<span>Organizar menu</span></button>${canSwitchMode?`<button type="submit" name="go" value="__mode" class="sheet-item">${ico('swap')}<span>${escapeHTML(modeLabel)}</span></button>`:''}<button type="submit" name="go" value="__logout" class="sheet-item danger">${ico('logout')}<span>Sair</span></button></div><div class="dlg-actions"><button type="button" class="btn" data-dlg-cancel>Fechar</button></div></form>`);
+    }).join('')}<button type="submit" name="go" value="__organize" class="sheet-item menu-organize-link">${ico('grid')}<span>Organizar menu</span></button>${canSwitchMode?`<button type="submit" name="go" value="__mode" class="sheet-item">${ico('swap')}<span>${escapeHTML(modeLabel)}</span></button>`:''}${document.getElementById('panelThemeToggle')?`<button type="submit" name="go" value="__theme" class="sheet-item">${ico('sun')}<span>${document.body.dataset.panelTheme==='light'?'Usar tema escuro':'Usar tema claro'}</span></button>`:''}<button type="submit" name="go" value="__logout" class="sheet-item danger">${ico('logout')}<span>Sair</span></button></div><div class="dlg-actions"><button type="button" class="btn" data-dlg-cancel>Fechar</button></div></form>`);
     const root=document.querySelector('.dlg-back:not(.closing) .menu-more-sheet'); if(root){menuRememberCategories(root);if(typeof bindMoreMenuSearch==='function')bindMoreMenuSearch(root);}
     const choice=await choicePromise,go=choice?.go;if(!go)return;
-    if(go==='__organize')return organizeMenu();if(go==='__mode')return switchInterfaceMode();if(go==='__logout')return logout();
+    if(go==='__organize')return organizeMenu();if(go==='__mode')return switchInterfaceMode();if(go==='__theme'){document.getElementById('panelThemeToggle')?.click();return;}if(go==='__logout')return logout();
     if(items.some(i=>i[0]===go))goToPage(go);
   };
 }
@@ -1583,6 +1583,16 @@ function renderCeoBalanceDonut(finances) {
     </div>`;
 }
 
+// 4.21 · Centro de comando com a situação da semana (o que vence, colheita, caixa), em vez de só repetir o nome da fazenda.
+function heroSemana() {
+  if (isGeneralView() || !canSee("financeiro") || typeof RuralMelhorias === "undefined" || !RuralMelhorias.weeklySummary) return "";
+  const f = activeFarm(); if (!f) return "";
+  try {
+    const w = RuralMelhorias.weeklySummary(f, todayISO());
+    const partes = [w.dueCount ? `${w.dueCount} conta(s) vencem em 7 dias (${money(w.dueAmount)})` : "Nenhuma conta vence em 7 dias", w.bags ? `${ruralNum(w.bags, 1)} sc colhidas na semana` : null, w.firstNegative ? `caixa fica negativo em ${w.firstNegative.split("-").reverse().join("/")}` : "caixa positivo nos próximos 6 meses", w.lowStock ? `${w.lowStock} item(ns) no estoque mínimo` : null].filter(Boolean);
+    return `<p class="hero-semana${w.firstNegative ? " alerta" : ""}" data-go="resumo-dono"><b>Esta semana:</b> ${escapeHTML(partes.join(" · "))}</p>`;
+  } catch (_) { return ""; }
+}
 function renderDashboard() {
   const farms = farmsInContext();
   const type = selectedType();
@@ -1624,7 +1634,7 @@ function renderDashboard() {
 
   $("#pageContent").innerHTML = `
     <div class="hero-surface">
-      <div><span class="eyebrow">CENTRO DE COMANDO</span><h2>${isGeneralView() ? `Visão consolidada • ${farmTypeLabel()}` : contextName()}</h2><p>${isGeneralView() ? "Aqui você acompanha o consolidado de todas as fazendas desse tipo." : "Acompanhe indicadores, estoques, operação e desempenho desta fazenda."}</p></div>
+      <div><span class="eyebrow">CENTRO DE COMANDO</span><h2>${isGeneralView() ? `Visão consolidada • ${farmTypeLabel()}` : contextName()}</h2><p>${isGeneralView() ? "Aqui você acompanha o consolidado de todas as fazendas desse tipo." : "Acompanhe indicadores, estoques, operação e desempenho desta fazenda."}</p>${heroSemana()}</div>
       <div class="hero-badges"><span class="badge ${type === "cattle" ? "gold" : "green"}">${farmTypeLabel()}</span>${currentUser.role === "ceo" ? `<span class="badge">Modo ${isGeneralView() ? "geral" : "individual"}</span>` : ""}</div>
     </div>
     <div class="grid kpis">${financeCard}${type === "coffee" ? `<div class="card ${quote ? "quote-card" : ""}"><div class="kpi-label"><span>Cotação estimada • saca 60 kg</span><span class="kpi-icon">${ico("bean")}</span></div><div class="kpi-value">${quote ? money(quote.brlPerSaca) : "Indisponível"}</div><div class="kpi-foot">referência Coffee C convertida para BRL</div></div>` : `<div class="card"><div class="kpi-label"><span>Valor em estoque</span><span class="kpi-icon">${ico("box")}</span></div><div class="kpi-value">${money(stockValue)}</div><div class="kpi-foot">baseado em quantidade × custo unitário</div></div>`}${modeCards}</div>

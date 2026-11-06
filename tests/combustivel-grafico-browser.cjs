@@ -12,7 +12,10 @@ const assert = require('node:assert/strict'), { chromium } = require('playwright
       await page.addInitScript(t => sessionStorage.setItem('gestaoRuralToken', t), ceo);
       await page.goto(s.url + '/app');
       await page.waitForFunction(() => typeof currentUser !== 'undefined' && currentUser && !document.querySelector('#appView').classList.contains('hidden'));
-      await page.evaluate(() => { activeFarmId = data.farms[0].id; localStorage.setItem(modeStorageKey(), 'coffee'); renderEquipmentAdmin(); });
+      // Entra pela navegação (como a pessoa): chamar renderEquipmentAdmin() direto deixava currentPage na Visão geral, e a cotação
+      // que chega depois redesenhava a Visão geral por cima do gráfico (falhava sob carga: 5 em 18).
+      await page.evaluate(() => { activeFarmId = data.farms[0].id; localStorage.setItem(modeStorageKey(), 'coffee'); goToPage('equipamentos'); });
+      await page.waitForLoadState('networkidle');
       const svg = page.locator('.equipment-fuel-chart .js-linha');
       await svg.waitFor();
       assert.equal(await page.locator('#fuelMonthCursor, .fuel-chart-reader').count(), 0, 'sem o controle deslizante');
