@@ -13,10 +13,14 @@ const MC = RuralMelhorias;
     if (!form || !farm) return;
     const activity = selectedType(), options = MC.costCenterOptions(farm, activity);
     const suppliers = [...new Set([...(farm.finances || []).map(r => r.supplier), ...(farm.management?.payables || []).map(r => r.supplier)].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR')).slice(0, 200);
+    // 4.23: pagar prestador ou arrendamento pelo Financeiro contava o custo duas vezes (o serviço já entra no custo).
+    const servicos = [...(farm.expansion?.contractors || []).filter(c => !c.archived && c.activity === activity).sort((a, b) => Number(a.paid !== false) - Number(b.paid !== false)).slice(0, 60).map(c => ['contractor:' + c.id, `Prestador · ${c.provider} · ${dateBR(c.date)} · ${money(MC.contractorAmount(c))}${c.paid === false ? '' : ' (pago)'}`]),
+      ...(farm.expansion?.leases || []).filter(l => !l.archived && l.direction === 'tomado').slice(0, 20).map(l => ['lease:' + l.id, `Arrendamento · ${l.party}`])];
     const box = document.createElement('div'); box.className = 'cost-center-box wide'; box.id = 'costCenterBox';
     box.innerHTML = `<label>Fornecedor<input name="supplier" list="supplierList" maxlength="120" autocomplete="off" placeholder="Ex.: Agro Loja"></label><datalist id="supplierList">${suppliers.map(s => `<option value="${escapeHTML(s)}">`).join('')}</datalist>
       <label>Centro de custo<select name="costCenter"><option value="">Escolha…</option>${options.map(([v, l]) => `<option value="${escapeHTML(v)}">${escapeHTML(l)}</option>`).join('')}</select></label>
-      <p class="muted cost-center-hint" aria-live="polite">Para onde vai este gasto: uma safra, um lote ou a fazenda toda (Geral).</p>`;
+      <p class="muted cost-center-hint" aria-live="polite">Para onde vai este gasto: uma safra, um lote ou a fazenda toda (Geral).</p>
+      ${servicos.length ? `<label class="wide">É pagamento de um serviço já lançado?<select name="pagaServico"><option value="">Não</option>${servicos.map(([v, l]) => `<option value="${escapeHTML(v)}">${escapeHTML(l)}</option>`).join('')}</select></label>` : ''}`;
     (form.querySelector('.form-grid') || form).appendChild(box);
     const type = form.querySelector('[name=type]'), supplier = box.querySelector('[name=supplier]'), select = box.querySelector('[name=costCenter]'), hint = box.querySelector('.cost-center-hint');
     const toggle = () => { box.hidden = type?.value !== 'saida'; };
@@ -31,15 +35,22 @@ const MC = RuralMelhorias;
     const original = form.onsubmit;
     form.onsubmit = async e => {
       e.preventDefault();
-      const isOut = type?.value === 'saida', cc = select.value, who = supplier.value.trim();
-      if (isOut && !cc) { toast('Escolha o centro de custo: uma safra, um lote ou Geral.'); select.focus(); return; }
+      const isOut = type?.value === 'saida', cc = select.value, who = supplier.value.trim(), paga = box.querySelector('[name=pagaServico]')?.value || '';
+      if (isOut && !cc && !paga) { toast('Escolha o centro de custo: uma safra, um lote ou Geral.'); select.focus(); return; }
       const f0 = activeFarm(), before = new Set((f0?.finances || []).map(r => String(r.id)));
       await original.call(form, e);
       const f = activeFarm(), rec = (f?.finances || []).find(r => !before.has(String(r.id)));
       if (!rec || rec.type !== 'saida') return;
-      rec.supplier = who || undefined; rec.costCenter = cc;
-      delete rec.cycleId; delete rec.lotId;
-      if (cc.startsWith('cycle:')) rec.cycleId = cc.slice(6); else if (cc.startsWith('lot:')) rec.lotId = cc.slice(4);
+      rec.supplier = who || undefined; delete rec.cycleId; delete rec.lotId;
+      if (paga) {
+        // O custo já entra pelo serviço: a saída fica ligada a ele e fora da soma de custo; o prestador fica como pago.
+        delete rec.costCenter;
+        if (paga.startsWith('contractor:')) { rec.sourceContractorId = paga.slice(11); const c = f.expansion?.contractors?.find(x => x.id === rec.sourceContractorId); if (c) c.paid = true; }
+        else if (paga.startsWith('lease:')) rec.sourceLeaseId = paga.slice(6);
+      } else {
+        rec.costCenter = cc;
+        if (cc.startsWith('cycle:')) rec.cycleId = cc.slice(6); else if (cc.startsWith('lot:')) rec.lotId = cc.slice(4);
+      }
       if (!rec.supplier) delete rec.supplier;
       saveData();
     };

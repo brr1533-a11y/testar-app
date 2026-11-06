@@ -21,3 +21,20 @@ jobs:
         run: npm test
       - name: Service worker (campo-sw.js) em dia com os arquivos do site
         run: npm run sw:conferir
+
+  # Roteiros de navegador que mais protegem o cliente: texto malicioso, fila sem internet, fechamento do mês,
+  # conta nova e alertas. Antes só os testes de unidade rodavam aqui.
+  navegador:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Chromium do Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Roteiros de navegador
+        run: npm run test:navegador -- xss-browser.cjs fila-campo-browser.cjs fechamento-mes-browser.cjs conta-nova-browser.cjs alertas-acao-browser.cjs

@@ -80,7 +80,7 @@ test('alerta de parcela sem caixa previsto (só CEO) e pedido de compra aguardan
   a.equal(gap.length, 1); a.equal(gap[0].role, 'ceo'); a.equal(gap[0].severity, 'high');
   a.match(gap[0].title, /Parcela Custeio \(1\) de R\$ 4\.000,00 vence em .* e o caixa previsto não cobre: faltam R\$ 3\.000,00/);
   a.doesNotMatch(gap[0].push, /\d/, 'o texto do push não leva valores');
-  a.equal(M.alertLink(gap[0]), '/app?abrir=fluxo-caixa');
+  a.equal(M.alertLink(gap[0]), '/app?abrir=fluxo-caixa'); a.equal(M.alertLink(gap[0], 'f2'), '/app?abrir=fluxo-caixa&fazenda=f2');
   f.management.purchaseOrders = [{ id: 'po1', status: 'pending', supplier: 'Agro Loja', items: [{ name: 'Adubo', quantity: 10, unit: 'sc', unitPrice: 180 }] }, { id: 'po2', status: 'approved', items: [{ name: 'X', quantity: 1, unit: 'un' }] }];
   const po = M.purchaseAlerts(f);
   a.equal(po.length, 1); a.match(po[0].title, /Adubo · Agro Loja · R\$ 1\.800,00/); a.equal(M.alertLink(po[0]), '/app?abrir=pedidos-compra&item=po1');

@@ -684,7 +684,8 @@ async function pushStateToServer(attempt = 0, manual = false) {
     if (error.status === 403 && error.payload?.status === "suspended") return logout(true);
     if (error.status === 402 && error.payload?.trialExpired) { logout(true); return showTrialEnded(error.message); }
     if (error.status === 428) return mustChangePasswordAgain();
-    if (error.status === 400 || error.status === 403 || error.status === 422) {
+    // 413 (dados grandes demais) também é recusa: antes caía em "falha de rede" e reenviava 12 MB a cada 15 s, para sempre.
+    if (error.status === 400 || error.status === 403 || error.status === 413 || error.status === 422) {
       // Recusa de validação pausa o envio, sem apagar os demais lançamentos offline.
       syncRejected = { message: error.message, status: error.status };
       cloudSaveAgain = false;
@@ -700,7 +701,8 @@ async function pushStateToServer(attempt = 0, manual = false) {
   } finally {
     cloudSaving = false;
     // A próxima tentativa só começa depois de liberar esta gravação.
-    if (retryAttempt !== null) return pushStateToServer(retryAttempt);
+    // Depois de um conflito (409), espera um tempo aleatório: com muitos aparelhos gravando juntos, 96% das tentativas batiam de novo.
+    if (retryAttempt !== null) { clearTimeout(syncRetryTimer); syncRetryTimer = setTimeout(() => { syncRetryTimer = null; pushStateToServer(retryAttempt); }, 150 + Math.random() * 600 * retryAttempt); return; }
     if (cloudSaveAgain) { cloudSaveAgain = false; if (!syncRetryTimer) pushStateToServer(); }
   }
 }

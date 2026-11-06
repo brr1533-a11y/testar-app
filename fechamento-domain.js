@@ -14,10 +14,18 @@ const LOCKED=[
  ['Lançamento do Financeiro',f=>f.finances],
  ['Despesa',f=>f.operations?.expenses],
  ['Consumo de estoque',f=>f.operations?.stockUses],
- ['Recebimento',f=>f.operations?.payments]
+ ['Recebimento',f=>f.operations?.payments],
+ // 4.23: as outras fontes de custo (costSources) com data própria. Antes, mudar uma delas mudava o custo de um mês já fechado.
+ ['Conta a pagar',f=>f.management?.payables],
+ ['Manutenção',f=>f.management?.maintenance],
+ ['Abastecimento',f=>f.management?.fuel],
+ ['Trabalho da equipe',f=>f.expansion?.yearWork],
+ ['Suplemento',f=>f.expansion?.supplements],
+ ['Serviço de prestador',f=>f.expansion?.contractors]
 ];
-const KEYS=['date','type','value','amount','category','description','costCenter','cycleId','lotId','stockId','quantity','cost','archived','voided','saleId','installmentId','activity'];
-const pick=r=>JSON.stringify(KEYS.map(k=>r?.[k]??null));
+// Situação (aberta/paga) fica de fora de propósito: pagar em novembro uma conta de outubro continua permitido.
+const KEYS=['date','type','value','amount','category','description','costCenter','cycleId','lotId','stockId','quantity','cost','archived','voided','saleId','installmentId','activity','litres','pricePerLitre','quantityKg','unitPrice','price','unit','units','costCategory'];
+const pick=r=>JSON.stringify([...KEYS.map(k=>r?.[k]??null),r?.status==='canceled']);   // cancelar tira o custo; pagar, não
 const list=f=>Array.isArray(f.monthClosings)?f.monthClosings:[];
 const closing=(f,month)=>list(f).find(c=>c.month===month);
 function isClosed(f,date){const c=closing(f,String(date||'').slice(0,7));return Boolean(c&&c.status==='closed');}

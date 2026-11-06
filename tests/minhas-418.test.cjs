@@ -78,3 +78,14 @@ test('fluxo de caixa: salário do fixo já lançado no mês não é projetado de
   f.management.payables.push({ id: 'yearwork_y1', activity: 'coffee', supplier: 'Zé', description: 'Trabalho da equipe', amount: 3000, dueDate: prox + '-01', status: 'open', annualWorkId: 'y1', workerId: 'w' });
   a.equal(mes().outflow, 3000, 'conta lançada substitui a projeção');
 });
+
+test('pagamento de prestador pelo Financeiro ligado ao serviço não dobra o custo da safra', () => {
+  const f = farm(); f.agriculture.harvests = [];
+  f.expansion.contractors = [{ id: 'k1', activity: 'coffee', date: T, notes: '', archived: false, provider: 'Colheita SA', service: 'colheita', unit: 'total', price: 24000, quantity: 1, cycleId: 'c1', paid: false }];
+  const custo = () => R.costLines(f, { targetType: 'cycle', targetId: 'c1' }).reduce((n, l) => n + l.amount, 0);
+  a.equal(custo(), 24000);
+  f.finances.push({ id: 'pg', activity: 'coffee', type: 'saida', category: 'Serviços', description: 'Pagamento Colheita SA', value: 24000, date: T, cycleId: 'c1', costCenter: 'cycle:c1', sourceContractorId: 'k1' });
+  a.equal(custo(), 24000, 'ligado ao serviço: não soma de novo (antes dava 48.000)');
+  R.validateFarm(f);
+  f.finances[0].sourceContractorId = 'nao-existe'; a.throws(() => R.validateFarm(f), /serviço não encontrado/);
+});

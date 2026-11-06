@@ -23,7 +23,7 @@ Object.assign(XHELP,{
  modulos:'Deixe no menu só o que a fazenda usa. Os dados das páginas escondidas continuam guardados e voltam quando você liga a página de novo.',
  'meus-dados':'Baixe uma cópia de todos os dados do Grupo, consulte os termos e, se quiser encerrar, peça a exclusão da conta.',
  clima:'Registre o pluviômetro e acompanhe os acumulados. A previsão de 7 dias vem do Open-Meteo (gratuito) pelo município cadastrado em Implantação.',
- 'comparador-coletivo':'Compare preços por produto, princípio ativo, embalagem e região. Entram compras verificadas e notas importadas por XML (chave de acesso válida) de pelo menos três fazendas de três grupos, com consentimento. Cada fazenda conta como um voto.',
+ 'comparador-coletivo':'Compare preços por produto, princípio ativo, embalagem e região. Entram compras verificadas e notas importadas por XML (chave de acesso válida) de pelo menos cinco fazendas de três grupos, com consentimento; só o preço do meio (mediana) é mostrado. Cada fazenda conta como um voto.',
  notificacoes:'Consulte os avisos no painel. Autorize este aparelho para receber push; o WhatsApp ainda depende da contratação do serviço.'
 });
 {const prior=xOptions;xOptions=function(f,key,field){

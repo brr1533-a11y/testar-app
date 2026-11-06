@@ -133,6 +133,16 @@ function rateBlocked(key, max) {
   return Boolean(b && b.reset > Date.now() && b.count >= max);
 }
 function rateClear(key) { rateBuckets.delete(key); }
+function rateUndo(key) { const b = rateBuckets.get(key); if (b && b.count > 0) b.count -= 1; }
+// 4.23: no máximo 4 conferências de senha (bcrypt, ~100 ms de CPU cada) ao mesmo tempo; as outras esperam na fila.
+// Antes, 50 logins juntos deixavam o servidor inteiro parado por 5 s, inclusive para quem já estava dentro.
+let senhasRodando = 0; const senhasFila = [];
+async function compareSenha(password, hash) {
+  if (senhasRodando >= 4) await new Promise(resolve => senhasFila.push(resolve));
+  senhasRodando++;
+  try { return await bcrypt.compare(password, hash); }
+  finally { senhasRodando--; senhasFila.shift()?.(); }
+}
 function rateRetryMinutes(key) {
   const b = rateBuckets.get(key);
   return b ? Math.max(1, Math.ceil((b.reset - Date.now()) / 60000)) : 1;
@@ -703,25 +713,30 @@ app.post("/api/auth/login", async (req, res, next) => {
     if (blockedKey) {
       return res.status(429).json({ error: `Muitas tentativas erradas. Tente de novo em ${rateRetryMinutes(blockedKey)} min ou use "Esqueci minha senha".` });
     }
-    const fail = () => { rateHit(userKey, 8, 15 * 60_000); rateHit(ipKey, 30, 15 * 60_000); rateHit(accountKey, 50, 15 * 60_000); return res.status(401).json({ error: "Código do Grupo, usuário ou senha incorretos" }); };
+    // 4.23: a tentativa é contada já na entrada, no mesmo instante da checagem acima. Antes só contava depois do bcrypt (~100 ms),
+    // e uma rajada de 500 senhas erradas tinha 129 conferidas em vez de 30. Com a senha certa, a contagem é devolvida (acertos não gastam o limite).
+    rateHit(userKey, 8, 15 * 60_000); rateHit(ipKey, 30, 15 * 60_000); rateHit(accountKey, 50, 15 * 60_000);
+    const devolve = () => { rateClear(userKey); rateUndo(ipKey); rateUndo(accountKey); };
+    const fail = () => res.status(401).json({ error: "Código do Grupo, usuário ou senha incorretos" });
     const group = groupCode.length >= 4 ? await store.getGroupByCode(groupCode) : await store.getGroupBySlug(slugify(groupInput));
     // Mesmo sem Grupo ou usuário, roda um bcrypt: assim o tempo de resposta não revela quem existe.
-    if (!group) { await bcrypt.compare(password, DUMMY_PASSWORD_HASH); return fail(); }
+    if (!group) { await compareSenha(password, DUMMY_PASSWORD_HASH); return fail(); }
     const user = (group.state.users || []).find(u => String(u.username || "").toLowerCase() === username && u.active !== false);
     if (!user) {
       // Cadastro ainda não aprovado: com a senha certa, avisa que está aguardando, em vez de "senha incorreta" (e não conta como erro).
       const pending = (group.state.pendingRegistrations || []).find(r => String(r.username || "").toLowerCase() === username);
-      if (pending?.passwordHash && await bcrypt.compare(password, pending.passwordHash)) {
+      if (pending?.passwordHash && await compareSenha(password, pending.passwordHash)) {
+        devolve();
         return res.status(403).json({ error: "Seu cadastro ainda está aguardando a aprovação do responsável da fazenda (CEO). Avise-o para liberar seu acesso.", pendingApproval: true });
       }
-      if (!pending) await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+      if (!pending) await compareSenha(password, DUMMY_PASSWORD_HASH);
       return fail();
     }
     let ok = false;
-    if (user.passwordHash) ok = await bcrypt.compare(password, user.passwordHash);
+    if (user.passwordHash) ok = await compareSenha(password, user.passwordHash);
     else if (user.password) ok = safeEqual(user.password, password);
     if (!ok) return fail();
-    rateClear(userKey);
+    devolve();
     if (group.status !== "active") return res.status(403).json({ error: "O acesso deste Grupo está suspenso.", status: group.status, suspended: true, isCeo: user.role === "ceo" });
     if (trialExpired(group.state)) return res.status(402).json(trialExpiredBody(group));
     // Senha vazada ou fácil: quem a conhece também conseguiria "trocá-la" e tomar a conta.
@@ -763,6 +778,8 @@ app.post("/api/auth/group-code-reminder", limitRequests("group-code-reminder", 5
     const resposta = { ok: true, message: "Se este e-mail estiver cadastrado, enviamos o código do Grupo para ele." };
     if (!validateEmail(email)) return res.status(400).json({ error: "Informe um e-mail válido." });
     if (!rateHit("group-code-email:" + email, 3, 60 * 60_000)) return res.json(resposta);
+    // Responde antes de procurar e enviar: o tempo da resposta não pode revelar se o e-mail existe.
+    res.json(resposta);
     const rows = [];
     for (const g of await store.listGroups()) {
       if (g.status !== "active") continue;
@@ -773,8 +790,7 @@ app.post("/api/auth/group-code-reminder", limitRequests("group-code-reminder", 5
       if (RESEND_API_KEY) { try { sent = await sendGroupCodesEmail({ to: email, rows: rows.slice(0, 10) }); } catch (mailError) { console.error("Falha no e-mail do código do Grupo:", mailError.message); } }
       if (!sent && !IS_PRODUCTION) console.log(`[desenvolvimento] Código do Grupo para ${email}: ${rows.map(r => r.code + "/" + r.username).join(", ")}`);
     }
-    res.json(resposta);
-  } catch (error) { next(error); }
+  } catch (error) { if (res.headersSent) console.error("Falha no envio do código do Grupo:", error.message); else next(error); }
 });
 
 app.post("/api/auth/password-reset/request", limitRequests("reset-request", 10, 15 * 60_000), async (req, res, next) => {
@@ -1299,7 +1315,8 @@ function auditChanges(before, after, user) {
 }
 
 // ---------- Estoque ligado ao banho ----------
-const normName = v => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+// Igual ao das regras (expansao-domain): pontuação vira espaço, para "Óleo-mineral" casar com "Óleo mineral".
+const normName = v => String(v || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 function unitFamily(u) {
   const x = normName(u).replace(/\./g, "");
   if (["l", "lt", "lts", "litro", "litros"].includes(x)) return "L";
@@ -1331,10 +1348,18 @@ function applyBathStockDeduction(before, after, who) {
    if(old?.status==='completed'||!old&&order.completedAt&&Date.parse(order.completedAt)<Date.now()-3600_000)continue;
    const used=[];
    for(const p of order.products||[]){
-    const item=(farm.stock||[]).find(s=>(s.activity||'coffee')==='coffee'&&normName(s.item)===normName(p.name)&&unitFamily(s.unit)===unitFamily(p.unit));if(!item)continue;
+    // 4.23: lotes do mesmo produto e unidade; gasta primeiro os com saldo, o que vence antes primeiro. Antes pegava o primeiro
+    // item do nome (podia ser um lote vazio e vencido, que ficava negativo enquanto o lote bom continuava cheio).
+    const lots=(farm.stock||[]).filter(s=>(s.activity||'coffee')==='coffee'&&normName(s.item)===normName(p.name)&&unitFamily(s.unit)===unitFamily(p.unit))
+     .sort((a,b)=>(Number(b.quantity||0)>0)-(Number(a.quantity||0)>0)||String(a.expires||'9999').localeCompare(String(b.expires||'9999')));
+    if(!lots.length)continue;
     const real=Array.isArray(order.usage)?order.usage.filter(u=>String(u.productId)===String(p.productId)):[],qty=real.length?Math.round(real.reduce((n,u)=>n+Number(u.quantity||0),0)*1000)/1000:Number(p.quantity||0);if(!(qty>0))continue;
-    item.quantity=Math.round((Number(item.quantity||0)-qty)*1000)/1000;item.moves||=[];
-    item.moves.push({id:uid(),at:nowIso(),delta:-qty,reason:'Banho: '+(order.title||'ordem'),by:order.completedByName||who.name||who.username});item.moves=item.moves.slice(-60);used.push(p.name+' '+qty+' '+p.unit);
+    let rest=qty;const by=order.completedByName||who.name||who.username;
+    const tira=(item,q)=>{item.quantity=Math.round((Number(item.quantity||0)-q)*1000)/1000;item.moves||=[];item.moves.push({id:uid(),at:nowIso(),delta:-q,reason:'Banho: '+(order.title||'ordem'),by});item.moves=item.moves.slice(-60);};
+    for(const item of lots){const q=Math.min(rest,Math.max(0,Number(item.quantity||0)));if(q>0){tira(item,Math.round(q*1000)/1000);rest=Math.round((rest-q)*1000)/1000;}if(!(rest>0))break;}
+    // O banho já aconteceu no campo: não dá para recusar. O que faltou fica negativo no primeiro lote e anotado.
+    if(rest>0)tira(lots[0],rest);
+    used.push(p.name+' '+qty+' '+p.unit+(rest>0?' (faltou '+rest+' '+p.unit+' no estoque)':''));
    }
    order.stockDeducted=true;order.stockDeductedItems=used;order.stockCostSnapshot=Expansion.bathCostSnapshot(farm,order);
   }
@@ -2797,10 +2822,13 @@ function validateProductionConfiguration() {
   }
   const HOST = process.env.HOST || (IS_PRODUCTION ? undefined : "127.0.0.1");
   startPriceWatch();
-  app.listen(PORT, HOST, ()=>{
+  const httpServer = app.listen(PORT, HOST, ()=>{
     console.log(`Gestão Rural v${APP_VERSION} em http://localhost:${PORT} • ${DATABASE_URL ? "PostgreSQL" : "armazenamento local de desenvolvimento"}`);
     // Resumo no log de cada deploy: dá para conferir de relance se as proteções estão ligadas.
     console.log(`[proteções] modo: ${IS_PRODUCTION ? "PRODUÇÃO" : "desenvolvimento"} (NODE_ENV=${NODE_ENV || "vazio"}) • compra de teste: ${testModeActive() ? (Number.isFinite(TEST_MODE_UNTIL) ? `LIGADA até ${new Date(TEST_MODE_UNTIL).toISOString()}` : "LIGADA (só desenvolvimento)") : "desligada"} • chave legada da plataforma: ${(!IS_PRODUCTION || ALLOW_LEGACY_PLATFORM_KEY) && PLATFORM_SETUP_KEY ? "ACEITA" : "recusada"} • 2FA do Super Admin: ${PLATFORM_REQUIRE_2FA ? "ligado" : "desligado"} • e-mail: ${RESEND_API_KEY ? "configurado" : "não configurado"} • assinatura do webhook: ${MP_WEBHOOK_SECRET ? "conferida" : (MP_ACCESS_TOKEN ? "NÃO conferida (defina MERCADOPAGO_WEBHOOK_SECRET)" : "sem Mercado Pago")} • trust proxy: ${app.get("trust proxy")} • escutando em: ${HOST || "todas as interfaces"}`);
   });
+  // 4.23: o padrão do Node (5 s) fechava conexões abertas enquanto o servidor ainda gravava outros PUTs (ECONNRESET sob carga);
+  // acima dos 60 s do proxy do Render, para ele não reaproveitar uma conexão que o Node já fechou.
+  httpServer.keepAliveTimeout = 65_000; httpServer.headersTimeout = 66_000;
 })().catch(err=>{console.error("Falha ao iniciar:",err);process.exit(1);});
 

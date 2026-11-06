@@ -1,3 +1,5 @@
+> **Versão 4.23.0:** correções dos relatórios dos agentes (segurança, carga e revisor sênior): limite de tentativas de login que vazava em rajada, login que travava o servidor, mês fechado travando todas as fontes de custo, preços da região sem revelar fazendas, banho baixando o lote certo, prestador pago sem custo em dobro, notificação abrindo na fazenda certa, service worker sem misturar versões, e roteiros de navegador no GitHub Actions. Leia [MELHORIAS-4.23.md](MELHORIAS-4.23.md).
+>
 > **Versão 4.22.0:** primeira impressão da conta nova: login sem o Grupo de outro cliente e com "Esqueci o código do Grupo", fazenda com o nome digitado, pergunta "Como é a sua fazenda?" (menu enxuto) e tela vazia sem alertas falsos; fluxo de caixa não conta mais o salário em dobro. Leia [MELHORIAS-4.22.md](MELHORIAS-4.22.md).
 >
 > **Versão 4.21.1:** correções da auditoria: aviso que falha no WhatsApp não é mais tentado a cada minuto, a caixa de saída dos avisos só é gravada quando muda, e o aviso de contas recorrentes não se confunde com outro. Teste de segurança do Open Finance com dois grupos.

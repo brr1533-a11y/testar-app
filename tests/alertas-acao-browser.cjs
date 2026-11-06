@@ -14,11 +14,15 @@ const day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'})
       f.management.purchaseOrders = [{ id: 'po1', activity: 'coffee', date: day(0), supplier: 'Agro Loja', status: 'pending', justification: 'Adubação de cobertura do talhão 1', items: [{ name: 'Adubo 20-05-20', quantity: 10, unit: 'sc', unitPrice: 180 }] }];
       f.expansion ||= {}; f.expansion.loans = [{ id: 'l1', activity: 'coffee', date: day(-300), notes: '', archived: false, name: 'Custeio café', kind: 'custeio', principal: 4000, annualRate: 0, installments: 1, periodMonths: 12, system: 'unica', due: day(10) }];
       st.admAccess = { pages: ['pedidos-compra', 'fluxo-caixa', 'financiamentos', 'financeiro-gestao'] };
+      // 4.23: outra fazenda na frente. A notificação do pedido precisa trocar para a fazenda dele (antes abria na ativa e dizia "já resolvido").
+      const sede = JSON.parse(JSON.stringify(f)); sede.id = 'sede'; sede.name = 'Fazenda Sede'; sede.finances = []; sede.management = { payables: [], purchaseOrders: [] }; sede.expansion.loans = [];
+      st.farms.unshift(sede);
     });
+    const fazendaPedido = (await call('/api/state', ceo)).json.state.farms[1].id;
     const ceoAlerts = (await call('/api/expansion/alerts', ceo)).json.alerts;
     const gap = ceoAlerts.find(x => x.id.startsWith('loan-cash:')), po = ceoAlerts.find(x => x.id === 'po:po1');
     assert.ok(gap && po, 'CEO recebe os dois alertas');
-    assert.match(gap.title, /faltam R\$ 3\.000,00/); assert.equal(gap.link, '/app?abrir=fluxo-caixa'); assert.equal(po.link, '/app?abrir=pedidos-compra&item=po1');
+    assert.match(gap.title, /faltam R\$ 3\.000,00/); assert.equal(gap.link, '/app?abrir=fluxo-caixa&fazenda=' + fazendaPedido); assert.equal(po.link, '/app?abrir=pedidos-compra&item=po1&fazenda=' + fazendaPedido);
     // ADM com acesso às mesmas telas não recebe os alertas de decisão do CEO.
     assert.equal((await call('/api/users', ceo, { username: 'adm1', name: 'ADM Um', email: 'adm1@example.invalid', password: s.password, role: 'adm' })).status, 200);
     let adm = (await call('/api/auth/login', '', { groupCode: '1001', username: 'adm1', password: s.password })).json.token;
@@ -37,12 +41,15 @@ const day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'})
     await page.locator('.item-destaque .g-approve').click();
     await page.locator('.dlg-back:not(.closing) button[type=submit]').click();
     await page.waitForFunction(() => activeFarm()?.management?.purchaseOrders?.[0]?.status === 'approved' && !hasLocalChanges(), null, { timeout: 15000 });
-    assert.equal((await call('/api/state', ceo)).json.state.farms[0].management.purchaseOrders[0].status, 'approved');
+    assert.equal(await page.evaluate(() => activeFarmId), fazendaPedido, 'trocou para a fazenda do pedido');
+    assert.equal((await call('/api/state', ceo)).json.state.farms.find(x => x.id === fazendaPedido).management.purchaseOrders[0].status, 'approved');
     assert.ok(!(await call('/api/expansion/alerts', ceo)).json.alerts.some(x => x.id === 'po:po1'), 'aprovado, o alerta some');
     // Endereço de tela não liberada não abre nada.
     const p2 = await browser.newPage(); await p2.addInitScript(t => sessionStorage.setItem('gestaoRuralToken', t), adm);
     await p2.goto(s.url + '/app?abrir=usuarios'); await p2.waitForFunction(() => typeof currentUser !== 'undefined' && currentUser && !document.querySelector('#appView').classList.contains('hidden'));
-    await p2.waitForTimeout(400); assert.notEqual(await p2.evaluate(() => currentPage), 'usuarios');
+    // Espera o aviso positivo (antes: 400 ms e "não está em usuarios", que passava mesmo se nada rodasse).
+    await p2.waitForFunction(() => /não está liberada/.test(document.querySelector('#toast')?.textContent || ''), null, { timeout: 8000 });
+    assert.notEqual(await p2.evaluate(() => currentPage), 'usuarios');
     assert.deepEqual(errors, []);
     console.log('PASS: alertas de decisão só para o CEO; a notificação abre o pedido destacado e a aprovação é feita no celular.');
   } finally { await browser.close(); await s.stop(); }

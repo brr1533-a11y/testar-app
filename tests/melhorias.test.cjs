@@ -156,10 +156,12 @@ test('comparador: nota importada por XML entra com chave válida, sem repetir a 
   ];
   a.equal(R.collective(rows, q).available, false, 'só duas fazendas valem');
   rows.push({ ...base, verified: true, unitPrice: 300, groupKey: 'g5', farmKey: 'g5:f' }, ...Array.from({ length: 20 }, () => ({ ...base, verified: true, unitPrice: 5000, groupKey: 'g5', farmKey: 'g5:f' })));
+  a.equal(R.collective(rows, q).available, false, '4.23: três fazendas não bastam (revelavam o preço de cada uma)');
+  rows.push({ ...base, verified: true, unitPrice: 150, groupKey: 'g6', farmKey: 'g6:f' }, { ...base, verified: true, unitPrice: 250, groupKey: 'g7', farmKey: 'g7:f' });
   const r = R.collective(rows, q);
   a.equal(r.available, true); a.equal(r.importedSamples, 1); a.match(r.note, /XML/);
-  // Fazendas: 2, 4 e 100 por kg (a g5 tem 21 compras, mas vale um voto: mediana dela = 100).
-  a.equal(r.median, 4); a.equal(r.max, 100);
+  // Fazendas: 2, 3, 4, 5 e 100 por kg (a g5 tem 21 compras, mas vale um voto: mediana dela = 100). Só a mediana sai.
+  a.equal(r.median, 4); a.equal(r.max, undefined); a.equal(r.min, undefined);
 });
 
 test('previsão do tempo: Open-Meteo pelo município e UF, com resumo em português e janela seca', async () => {

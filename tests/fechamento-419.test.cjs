@@ -127,3 +127,19 @@ test('API: CEO fecha o mês, o ADM não grava no mês fechado e só vê quais me
   const gid = (await call('/api/accountant/clients', acc)).json.clients[0].groupId, pack = (await call('/api/accountant/export/' + gid + '/' + fid, acc)).json;
   a.deepEqual(pack.closings.map(c => [c.month, c.status, c.versions.length, c.versions[0].report.spend, c.versions[0].hash]), [[prevMonth, 'closed', 1, 300, full.versions[0].hash]]);
 });
+
+test('4.23 · mês fechado trava também contas a pagar, manutenção, abastecimento e prestador; pagar continua livre', () => {
+  const s = closedState(), dia = prevMonth + '-15';
+  const tenta = mexe => { const after = copy(s); mexe(after.farms[0]); return () => F.prepare(s, after, ceo, { X, hash }); };
+  a.throws(tenta(f => { f.management.payables.push({ id: 'pz', activity: 'coffee', date: dia, supplier: 'Agro', description: 'Adubo', amount: 500, dueDate: dia, status: 'open' }); }), /fechado/);
+  a.throws(tenta(f => { f.management.maintenance = [{ id: 'm1', activity: 'coffee', date: dia, cost: 800, description: 'Pneu' }]; }), /fechado/);
+  a.throws(tenta(f => { f.management.fuel = [{ id: 'd1', activity: 'coffee', date: dia, litres: 100, pricePerLitre: 6 }]; }), /fechado/);
+  a.throws(tenta(f => { f.expansion.contractors = [{ id: 'c1', activity: 'coffee', date: dia, provider: 'Colheita SA', price: 10, quantity: 100, unit: 'saca' }]; }), /fechado/);
+  // Conta de outubro paga em novembro: permitido. Cancelada: barrado (tiraria o custo do mês fechado).
+  const base = copy(s); base.farms[0].management.payables = [{ id: 'po', activity: 'coffee', date: dia, supplier: 'Agro', description: 'Adubo', amount: 500, dueDate: dia, status: 'open' }];
+  base.farms[0].monthClosings = []; const fechado = copy(base); fechado.farms[0].monthClosings = s.farms[0].monthClosings;
+  const paga = copy(fechado); paga.farms[0].management.payables[0].status = 'paid'; paga.farms[0].management.payables[0].paidDate = new Date().toISOString().slice(0, 10);
+  F.prepare(fechado, paga, ceo, { X, hash });
+  const cancelada = copy(fechado); cancelada.farms[0].management.payables[0].status = 'canceled';
+  a.throws(() => F.prepare(fechado, cancelada, ceo, { X, hash }), /fechado/);
+});
