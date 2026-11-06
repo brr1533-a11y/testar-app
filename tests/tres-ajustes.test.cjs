@@ -4,7 +4,7 @@ const X = require('../expansao-domain');
 const H = require('../maodeobra-domain');
 const { startServer } = require('./support/server.cjs');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10), week = H.weekStart(iso(14)), date = H.weekEnd(week);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000)), week = H.weekStart(iso(14)), date = H.weekEnd(week);
 const ceo = { id: 'ceo', role: 'ceo', username: 'ceo', name: 'CEO', labor: 'manager' };
 function farm() { return { id: 'f', name: 'Fazenda de teste', talhoes: [{ id: 't', name: 'Talhão', areaHa: 1 }, { id: 't2', name: 'Talhão 2', areaHa: 1 }], stock: [], finances: [], management: { payables: [] }, operations: { expenses: [], stockUses: [] }, agriculture: { cycles: [{ id: 'c', activity: 'coffee', name: 'Café', crop: 'Café arábica', plotIds: ['t', 't2'], startDate: '2020-01-01', stage: 'Em colheita', plannedCost: 0, areaHa: 2, bagKg: 60 }], harvests: [{ id: 'h', cycleId: 'c', date, netKg: 60 }], sales: [] }, labor: { workers: [{ id: 'w', name: 'Pessoa', role: 'panhador', active: true }], plotRates: [{ id: 'r', plotId: 't', ratePerBag: 10, validFrom: '2020-01-01' }, { id: 'r2', plotId: 't2', ratePerBag: 10, validFrom: '2020-01-01' }], entries: [], adjustments: [], closings: [] } }; }
 const run = (state, mutate, user = ceo) => { const next = structuredClone(state); mutate(next.farms[0]); H.prepare(state, next, user); return next; };

@@ -15,11 +15,11 @@
   for(const log of farm.equipmentLogs||[]){
    const module=log.activityModule||'coffee';
    if((activity&&module!==activity)||!matches(farm,log,plot))continue;
-   rows.push({id:'work-'+log.id,plotId,activity:module,date:log.date||String(log.loggedAt||'').slice(0,10),createdAt:log.loggedAt||'',type:'Trabalho da equipe',title:log.activity||'Trabalho registrado',responsible:log.userName||log.user||'Não informado',inputs:[log.tractorName,log.implementName].filter(Boolean).join(' · '),notes:log.notes||'',source:'work',origin:'Log de equipamentos',status:'Trabalho registrado'});
+   rows.push({id:'work-'+log.id,plotId,activity:module,date:log.date||(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(log.loggedAt||''),createdAt:log.loggedAt||'',type:'Trabalho da equipe',title:log.activity||'Trabalho registrado',responsible:log.userName||log.user||'Não informado',inputs:[log.tractorName,log.implementName].filter(Boolean).join(' · '),notes:log.notes||'',source:'work',origin:'Log de equipamentos',status:'Trabalho registrado'});
   }
   if(!activity||activity==='coffee')for(const order of farm.banho?.orders||[]){
    if(order.status!=='completed'||!matches(farm,order,plot))continue;
-   rows.push({id:'bath-'+order.id,plotId,activity:'coffee',date:String(order.completedAt||order.date||'').slice(0,10),createdAt:order.completedAt||'',type:'Aplicação',title:order.title||'Aplicação concluída',responsible:order.completedByName||order.completedBy||'Não informado',inputs:(order.products||[]).map(p=>[p.name,p.quantity,p.unit].filter(v=>v!==undefined&&v!=='').join(' ')).join(' · '),notes:order.notes||'',source:'application',origin:'Ordem de aplicação concluída',status:'Concluído'});
+   rows.push({id:'bath-'+order.id,plotId,activity:'coffee',date:(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(order.completedAt||order.date||''),createdAt:order.completedAt||'',type:'Aplicação',title:order.title||'Aplicação concluída',responsible:order.completedByName||order.completedBy||'Não informado',inputs:(order.products||[]).map(p=>[p.name,p.quantity,p.unit].filter(v=>v!==undefined&&v!=='').join(' ')).join(' · '),notes:order.notes||'',source:'application',origin:'Ordem de aplicação concluída',status:'Concluído'});
   }
   const cycles=new Map((farm.agriculture?.cycles||[]).filter(c=>(c.plotId===plotId||(c.plotIds||[]).includes(plotId))&&(!activity||c.activity===activity)).map(c=>[c.id,c]));
   for(const h of farm.agriculture?.harvests||[]){
@@ -41,7 +41,7 @@
    if(!(farm.talhoes||[]).some(t=>t.id===p.plotId))fail('O talhão do procedimento não existe nesta fazenda.');
    if(!['coffee','grains'].includes(p.activity)||!TYPES.includes(p.type))fail('Atividade ou tipo de procedimento inválido.');
    if(typeof p.title!=='string'||!p.title.trim()||p.title.length>160)fail('Descreva o procedimento em até 160 caracteres.');
-   if(!validDate(p.date)||p.date>new Date().toISOString().slice(0,10))fail('Informe uma data válida, até hoje, para o procedimento realizado.');
+   if(!validDate(p.date)||p.date>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()))fail('Informe uma data válida, até hoje, para o procedimento realizado.');
    if(typeof p.responsible!=='string'||!p.responsible.trim()||p.responsible.length>160)fail('Informe o responsável pelo procedimento.');
    for(const k of ['notes','inputs'])if(p[k]!==undefined&&(typeof p[k]!=='string'||p[k].length>2000))fail('Observações e insumos devem ter até 2.000 caracteres.');
    if(p.voided&&(typeof p.voidReason!=='string'||p.voidReason.trim().length<3||p.voidReason.length>500))fail('Informe o motivo da anulação.');

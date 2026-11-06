@@ -2,7 +2,7 @@
 // (uma vez só) e mínimo de estoque pelo consumo, liberado só depois de conferir o saldo físico.
 // Uso: node tests/custos-estoque-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const T = new Date().toISOString().slice(0, 10);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

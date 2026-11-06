@@ -2,7 +2,7 @@
 // indo sozinho para o Financeiro e aviso de vale lançado à mão, lançamento repetido resolvido pelo escritório e Pix copia
 // e cola copiado nos Recibos. Uso: node tests/ajustes-browser.cjs (requer Chromium do Playwright ou outro Chromium).
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs'), H = require('../maodeobra-domain.js');
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

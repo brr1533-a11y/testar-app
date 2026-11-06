@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const H = require('../maodeobra-domain.js');
 const { startServer } = require('./support/server.cjs');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 // Semana fechável: a segunda-feira de duas semanas atrás.
 const week = H.weekStart(iso(14)), day = (n = 0) => { const d = new Date(week + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const farm = () => ({ id: 'f', talhoes: [{ id: 'carregado', name: 'Talhão carregado' }, { id: 'fraco', name: 'Talhão fraco' }], management: { payables: [] },

@@ -31,7 +31,7 @@ const bait = k => `"'><b data-xss-probe="${k}">x</b>`;
       }
     }
     // Registros novos com isca nas listas que não podem ser alteradas (histórico protegido): cada um gravado sozinho.
-    const day = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10), rec = (o, a = 'coffee') => ({ id: 'xss' + Math.random().toString(36).slice(2, 10), activity: a, date: day(0), notes: bait('notes'), archived: false, ...o });
+    const day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000)), rec = (o, a = 'coffee') => ({ id: 'xss' + Math.random().toString(36).slice(2, 10), activity: a, date: day(0), notes: bait('notes'), archived: false, ...o });
     const adds = [
       ['parceria', f => { f.expansion.partnerships.push(rec({ partner: 'Parceiro' + bait('partner'), plotIds: [f.talhoes.find(t => t.activity === 'coffee' && !f.expansion.partnerships.some(p => p.plotIds.includes(t.id)))?.id || f.talhoes[0].id], productionShare: 50, costShare: 50, start: '2020-01-01', end: '2020-12-31' })); }],
       ['financiamento', f => { f.expansion.loans.push(rec({ name: 'Custeio' + bait('loan.name'), kind: 'custeio', bank: 'Banco' + bait('bank'), principal: 1000, annualRate: 5, installments: 1, periodMonths: 12, system: 'unica', date: day(-10), due: day(200) })); }],

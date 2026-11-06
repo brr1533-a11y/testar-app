@@ -64,4 +64,29 @@
     el.style.setProperty("--lx", (ev.clientX - r.left) + "px");
     el.style.setProperty("--ly", (ev.clientY - r.top) + "px");
   }, { passive: true });
+
+  /* ---------- 3. Botão elástico ----------
+     Mola com velocidade e amortecimento (vitrine do canal Não Codei, efeito 14): cresce ao passar o mouse,
+     afunda ao apertar e assenta sozinho. Funciona com o dedo; a animação para quando o botão se acomoda
+     (não fica rodando à toa) e não anima para quem pediu menos movimento no aparelho. */
+  window.botaoElastico = function (btn) {
+    if (!btn || btn.dataset.elastico) return;
+    btn.dataset.elastico = "1";
+    if (reduz) return;
+    var escala = 1, vel = 0, alvo = 1, id = null;
+    function passo() {
+      var forca = (alvo - escala) * 0.22;   /* rigidez da mola */
+      vel = (vel + forca) * 0.72;           /* amortecimento */
+      escala += vel;
+      if (Math.abs(alvo - escala) < 0.0005 && Math.abs(vel) < 0.0005) { escala = alvo; id = null; }
+      btn.style.transform = escala === 1 ? "" : "scale(" + escala.toFixed(4) + ")";
+      if (id !== null) id = requestAnimationFrame(passo);
+    }
+    function para(v) { alvo = v; if (id === null) id = requestAnimationFrame(passo); }
+    btn.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") para(1.08); });
+    btn.addEventListener("pointerleave", function () { para(1); });
+    btn.addEventListener("pointerdown", function () { para(0.9); });
+    btn.addEventListener("pointerup", function (e) { para(e.pointerType === "mouse" ? 1.08 : 1); });
+    btn.addEventListener("pointercancel", function () { para(1); });
+  };
 })();

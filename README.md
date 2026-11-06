@@ -1,3 +1,5 @@
+> **Versão 4.19.3:** o dia de hoje passa a ser o de Brasília também no servidor (antes, das 21h à meia-noite o sistema já contava o dia seguinte: custo da mão de obra sumia, avisos e mês fechado erravam); botão Simular do fluxo de caixa com efeito de mola e preço arredondado. Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).
+>
 > **Versão 4.19.2:** só ferramentas de trabalho, sem mudança nas telas: entrega automática (/entregar), testes de navegador num comando só, conferência do service worker no GitHub Actions e fim de linha igual ao do servidor. Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).
 >
 > **Versão 4.19.1:** a cotação do café ou do mercado que chega depois de a tela abrir não apaga mais o formulário que está sendo preenchido (Financeiro, fluxo de caixa). Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).

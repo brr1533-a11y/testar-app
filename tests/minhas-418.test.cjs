@@ -1,6 +1,6 @@
 // 4.18: contas recorrentes, cenário "e se eu vender agora" no fluxo de caixa e validade dos insumos.
 const test = require('node:test'), a = require('node:assert/strict'), R = require('../expansao-domain.js'), M = require('../melhorias-domain.js');
-const T = new Date().toISOString().slice(0, 10), day = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 function farm() { const f = { id: 'f1', name: 'Fazenda', tractors: [], implements: [], talhoes: [], agriculture: { cycles: [{ id: 'c1', activity: 'coffee', crop: 'Café arábica', name: 'Safra', areaHa: 10, bagKg: 60, plannedCost: 0, stage: 'Em colheita', startDate: '2026-01-01' }], harvests: [], sales: [] }, cattle: { lots: [], paddocks: [] }, finances: [], stock: [], management: { payables: [] }, operations: { stockUses: [] } }; R.init(f); return f; }
 const bill = o => ({ id: 'b1', activity: 'coffee', date: T, notes: '', archived: false, supplier: 'Energisa', description: 'Energia', amount: 850, dayOfMonth: 10, costCenter: 'geral', start: '2026-01-01', active: true, ...o });
 

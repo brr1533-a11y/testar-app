@@ -54,7 +54,7 @@ module.exports = function registerMelhorias(ctx) {
     const attachments = [];
     for (const f of files) { const full = withData ? await store.getFile(f.id) : null; attachments.push({ id: f.id, name: f.name, mime: f.mime, size: f.size, createdAt: f.createdAt, ...(full?.data ? { base64: Buffer.from(full.data).toString('base64') } : {}) }); }
     const body = { format: 'gestao-rural-export', version: 1, exportedAt: now(), exportedBy: req.auth.user.username, group: { name: g.name, code: g.code, plan: g.plan, createdAt: g.createdAt }, attachmentsIncluded: withData, state: sanitizeState(g.state), attachments };
-    res.setHeader('Content-Disposition', `attachment; filename="gestao-rural-${g.code}-${now().slice(0, 10)}.json"`);
+    res.setHeader('Content-Disposition', `attachment; filename="gestao-rural-${g.code}-${new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date())}.json"`);
     res.json(body);
   }));
 
@@ -98,7 +98,7 @@ module.exports = function registerMelhorias(ctx) {
   app.post('/api/metrics/page', auth, wrap(async (req, res) => {
     const page = String(req.body.page || '');
     if (!/^[a-z0-9-]{2,40}$/.test(page) || !rateHit('metrics:' + req.auth.user.id, 120, 60000)) return res.json({ ok: true });
-    const k = now().slice(0, 7) + '|' + page, row = usage.get(k) || { views: 0, groups: new Set(), roles: {} };
+    const k = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()).slice(0,7) + '|' + page, row = usage.get(k) || { views: 0, groups: new Set(), roles: {} };
     row.views++; row.groups.add(crypto.createHash('sha256').update(salt + req.auth.group.id).digest('hex').slice(0, 12)); row.roles[req.auth.user.role] = (row.roles[req.auth.user.role] || 0) + 1;
     usage.set(k, row); res.json({ ok: true });
   }));
@@ -114,7 +114,7 @@ module.exports = function registerMelhorias(ctx) {
   }
   app.get('/api/platform/usage', platformAuth, wrap(async (req, res) => {
     await flushUsage();
-    const m = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : now().slice(0, 7), cur = await store.getConfig('usage:' + m) || { pages: {} };
+    const m = /^\d{4}-\d{2}$/.test(req.query.month || '') ? req.query.month : new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()).slice(0,7), cur = await store.getConfig('usage:' + m) || { pages: {} };
     res.json({ month: m, pages: Object.entries(cur.pages).map(([page, v]) => ({ page, views: v.views, groups: v.groups.length, roles: v.roles })).sort((a, b) => b.views - a.views) });
   }));
 

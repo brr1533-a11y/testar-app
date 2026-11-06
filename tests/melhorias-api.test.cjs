@@ -1,7 +1,7 @@
 // Melhorias 2027 pela API: push sem configuração manual, registros novos validados e protegidos por permissão,
 // exportação, exclusão a pedido, aceite dos termos, métricas, backup e comparação anônima.
 const test = require('node:test'), assert = require('node:assert/strict'), crypto = require('node:crypto'), { startServer } = require('./support/server.cjs');
-const today = new Date().toISOString().slice(0, 10);
+const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
 
 test('melhorias 2027 pela API', async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' });

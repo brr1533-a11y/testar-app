@@ -1,6 +1,6 @@
 // 4.18 · Contas recorrentes, cenário "e se eu vender agora?" e validade dos insumos, na tela. Uso: node tests/minhas-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const T = new Date().toISOString().slice(0, 10), day = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

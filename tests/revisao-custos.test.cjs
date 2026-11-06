@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const X = require('../expansao-domain.js');
 const M = require('../gestao-domain.js');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 const farm = () => ({ id: 'f', name: 'F', talhoes: [{ id: 't1', name: 'T1', areaHa: 6 }, { id: 't2', name: 'T2', areaHa: 4 }],
   agriculture: { cycles: [{ id: 'c1', activity: 'coffee', crop: 'Café arábica', name: 'Café', areaHa: 10, bagKg: 60, stage: 'Em colheita', startDate: iso(100), plotIds: ['t1', 't2'] }],
     harvests: [{ id: 'h1', cycleId: 'c1', date: iso(20), plotId: 't1', netKg: 6000 }], sales: [{ id: 's1', cycleId: 'c1', date: iso(5), kg: 1200, pricePerKg: 30 }] },

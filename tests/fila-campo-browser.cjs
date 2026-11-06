@@ -2,7 +2,7 @@
 // (cofre com PIN), a fila continua mostrando os lançamentos; ao reconectar — inclusive com a primeira resposta do
 // servidor perdida no caminho — cada lançamento chega ao servidor uma única vez. Uso: node tests/fila-campo-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const today = new Date().toISOString().slice(0, 10);
+const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

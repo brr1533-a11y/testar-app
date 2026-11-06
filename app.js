@@ -802,8 +802,8 @@ function escapeHTML(v = "") {
 }
 
 function todayISO() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  // Dia no horário de Brasília, o mesmo que o servidor usa (o Render roda em UTC; às 21h já seria "amanhã").
+  return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
 }
 
 function dateBR(iso) {

@@ -34,7 +34,7 @@
   }
   function apply(state,input,user,{id,at}){
     init(state);const kind=input.kind;check(can(state,user,kind==='tip'?'tipEdit':kind),'Sem permissão para esta operação.',403);
-    const today=at.slice(0,10),global=state.routine;
+    const today=(String(at).length<=10?String(at):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(at))),global=state.routine;
     if(kind==='feedback'){check(['bug','idea','difficulty','other'].includes(input.category)&&text(input.message,2000),'Informe categoria e mensagem (até 2.000 caracteres).');check(global.feedback.length<5000,'Limite de feedbacks atingido.');global.feedback.push({id,authorId:user.id,at,category:input.category,message:input.message.trim(),page:String(input.page||'').slice(0,80),status:'novo'});return;}
     if(kind==='feedbackStatus'){const r=global.feedback.find(r=>r.id===input.id);check(r&&['novo','em análise','resolvido'].includes(input.status),'Feedback ou situação inválida.');r.status=input.status;r.reviewedAt=at;r.reviewedBy=user.id;return;}
     if(kind==='tip'){check(['pre','post','treatment'].includes(input.phase)&&text(input.title,120)&&text(input.message,3000),'Informe fase, título e orientação.');const existing=input.id?global.tips.find(t=>t.id===input.id):null;check(!input.id||existing,'Orientação não encontrada.');if(existing)Object.assign(existing,{phase:input.phase,title:input.title.trim(),message:input.message.trim(),updatedAt:at,updatedBy:user.id});else{check(global.tips.length<1000,'Limite de orientações atingido.');global.tips.push({id,at,authorId:user.id,phase:input.phase,title:input.title.trim(),message:input.message.trim()});}return;}

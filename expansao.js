@@ -1,6 +1,6 @@
 /* Etapas 3–8. Formulários usam as mesmas regras e sincronização do painel. */
 const XR=RuralExpansion;
-const xEsc=v=>escapeHTML(v??''),xToday=()=>new Date().toISOString().slice(0,10),xNum=(n,d=2)=>n==null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:d}),xMoney=n=>n==null?'—':money(n);
+const xEsc=v=>escapeHTML(v??''),xToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()),xNum=(n,d=2)=>n==null?'—':Number(n).toLocaleString('pt-BR',{maximumFractionDigits:d}),xMoney=n=>n==null?'—':money(n);
 let xMarket=null,xCapabilities=null;
 const XHELP={
  'custos-unidade':'Ligue as despesas à safra, ao lote ou ao leite. Custos sem destino ficam separados. Contas pagas entram uma vez no cálculo.',

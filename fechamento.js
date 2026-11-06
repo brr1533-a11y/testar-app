@@ -1,7 +1,7 @@
 /* 4.18 · Fechamento do mês (PDF piloto) e margem por hectare.
    O fechamento destaca pendências e custos sem rateio, para o mês ficar limpo antes de ir ao contador.
    A margem compara as fazendas com o mesmo período, cultura e critério de custo. */
-let fechMes = new Date().toISOString().slice(0, 7), margemFiltro = null;
+let fechMes = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()).slice(0,7), margemFiltro = null;
 const fmBRL = v => money(Number(v) || 0), fmMes = m => { const [y, mm] = m.split('-'); return ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'][Number(mm) - 1] + ' de ' + y; };
 
 const MF = RuralFechamento;
@@ -9,7 +9,7 @@ const MF = RuralFechamento;
 function fechamentoHTML(f, r, print, version) {
   const t = (h, rows) => rows.length ? `<div class="table-wrap"><table><thead><tr>${h.map(x => `<th>${escapeHTML(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => '<tr>' + row.map(c => `<td>${c}</td>`).join('') + '</tr>').join('')}</tbody></table></div>` : '<p class="muted">Nada.</p>';
   const groups = [...new Set(r.pendencies.map(p => p.kind))];
-  const stamp = version ? `Versão ${version.n} · fechado em ${dateBR(version.closedAt.slice(0, 10))} por ${version.closedBy} · código de conferência ${MF.code(version.hash)}` : `gerado em ${dateBR(todayISO())} · mês ainda aberto, pode mudar`;
+  const stamp = version ? `Versão ${version.n} · fechado em ${dateBR((v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(version.closedAt))} por ${version.closedBy} · código de conferência ${MF.code(version.hash)}` : `gerado em ${dateBR(todayISO())} · mês ainda aberto, pode mudar`;
   return `${print ? `<h1>Fechamento de ${escapeHTML(fmMes(r.month))}</h1><small>${escapeHTML(r.farm || f.name)} · ${escapeHTML(stamp)} · Gestão Rural</small>` : ''}
     <h${print ? 2 : 3}>Resultado do mês</h${print ? 2 : 3}>
     ${print ? `<div class="k"><div>Entradas<b>${fmBRL(r.income)}</b></div><div>Saídas<b>${fmBRL(r.spend)}</b></div><div>Resultado<b>${fmBRL(r.result)}</b></div></div>` : xKpis([['Entradas', fmBRL(r.income)], ['Saídas', fmBRL(r.spend)], ['Resultado', fmBRL(r.result)], ['Pendências', String(r.pendencies.length)]])}
@@ -27,7 +27,7 @@ function fechamentoHTML(f, r, print, version) {
 function fechamentoSituacao(f) {
   const c = MF.closing(f, fechMes), v = MF.lastVersion(c), ceo = currentUser.role === 'ceo', ended = RuralMelhorias.monthEnd(fechMes) < todayISO();
   const hist = [...(c?.versions || []).map(x => ({ at: x.closedAt, text: `Fechado por ${x.closedBy} · versão ${x.n} · ${x.pendencies} pendência(s) · código ${MF.code(x.hash)}`, n: x.n })), ...(c?.reopenings || []).map(x => ({ at: x.at, text: `Reaberto por ${x.by}: ${x.reason}` }))].sort((a, b) => String(a.at).localeCompare(String(b.at)));
-  const state = c?.status === 'closed' ? (v?.hash ? `<p class="fech-status fechado"><b>Mês fechado</b> em ${escapeHTML(dateBR(v.closedAt.slice(0, 10)))} por ${escapeHTML(v.closedBy)} · versão ${v.n} · código ${escapeHTML(MF.code(v.hash))}</p>` : v?.pending ? '<p class="fech-status fechado"><b>Fechando…</b> aguardando o servidor confirmar.</p>' : '<p class="fech-status fechado"><b>Mês fechado pelo CEO.</b> Lançamentos com data neste mês ficam travados.</p>')
+  const state = c?.status === 'closed' ? (v?.hash ? `<p class="fech-status fechado"><b>Mês fechado</b> em ${escapeHTML(dateBR((v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(v.closedAt)))} por ${escapeHTML(v.closedBy)} · versão ${v.n} · código ${escapeHTML(MF.code(v.hash))}</p>` : v?.pending ? '<p class="fech-status fechado"><b>Fechando…</b> aguardando o servidor confirmar.</p>' : '<p class="fech-status fechado"><b>Mês fechado pelo CEO.</b> Lançamentos com data neste mês ficam travados.</p>')
     : `<p class="fech-status aberto"><b>${c?.status === 'reopened' ? 'Mês reaberto' : 'Mês aberto'}</b>${ended ? '' : ' · só dá para fechar depois que o mês terminar'}</p>`;
   const actions = [c?.status === 'closed' && v?.report ? `<button type="button" class="btn" data-fech-ver="${escapeHTML(f.id)}">PDF da versão ${v.n}</button>` : '',
     ceo && c?.status !== 'closed' && ended ? `<button type="button" class="btn primary" data-fech-fechar="${escapeHTML(f.id)}">Fechar mês</button>` : '',

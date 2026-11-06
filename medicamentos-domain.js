@@ -38,7 +38,7 @@
   }
   // O que vale hoje: vacas/lotes com leite para descarte e lotes que não podem ir para abate.
   function status(farm, on) {
-    const today = on || new Date().toISOString().slice(0, 10), w = windows(farm).filter(x => x.appliedOn <= today);
+    const today = on || new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), w = windows(farm).filter(x => x.appliedOn <= today);
     return { milk: w.filter(x => x.milkFree > today), slaughter: w.filter(x => x.slaughterFree > today && !x.cowId) };
   }
   // Leite entregue x descartado num dia (ordenhas marcadas pelo servidor).

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const M = require('../medicamentos-domain.js');
 const FieldOps = require('../campo-domain.js');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 // Vaca V1 (lote L1) tratada há 2 dias com antibiótico: 30 dias de abate, 4 de leite. Lote L2 vacinado sem carência.
 const farm = () => ({ id: 'f', name: 'Fazenda', cattle: { lots: [{ id: 'L1', name: 'Leiteiras' }, { id: 'L2', name: 'Recria' }] },
   operations: { cattleMoves: [] },

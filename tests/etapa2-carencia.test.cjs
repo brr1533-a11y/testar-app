@@ -4,7 +4,7 @@ const C = require('../carencia-domain.js');
 const H = require('../maodeobra-domain.js');
 const { startServer } = require('./support/server.cjs');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 // Banho concluído há 10 dias no talhão t1: produto A com 30 dias de carência e 24 h de reentrada, produto B com 15 dias.
 const applied = new Date(Date.now() - 10 * 86400000).toISOString();
 const farm = () => ({ id: 'f', name: 'Fazenda', talhoes: [{ id: 't1', name: 'Talhão 1' }, { id: 't2', name: 'Talhão 2' }], management: { payables: [] },

@@ -2,7 +2,7 @@
 // dá baixa com o usado já preenchido, no lote que vence antes, e a sobra fica no estoque.
 // Uso: node tests/insumo-usado-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const T = new Date().toISOString().slice(0, 10), plus = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), plus = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

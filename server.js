@@ -1498,9 +1498,9 @@ function mergeStateByRole(existing, incoming, user) {
     const date = String(a.date || "");
     const activityModule = moduleOf(a);
     if (!permitted.includes(activityModule)) throw httpError(422, "Essa atividade não está liberada para você.");
-    if (!RuralDomain.validDate(date) || date > nowIso().slice(0,10)) throw httpError(422, "A data do trabalho não confere. Informe uma data válida, sem ser futura.");
+    if (!RuralDomain.validDate(date) || date > new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date())) throw httpError(422, "A data do trabalho não confere. Informe uma data válida, sem ser futura.");
     if ([...keptMine, ...added].some(x => x.date === date && moduleOf(x) === activityModule)) throw httpError(422, "Você já confirmou o trabalho desse dia.");
-    const tractor = a.tractorId ? [...(oldFarm.tractors || []),...(oldFarm.equipmentArchive||[]).filter(t=>t.equipmentType==='tractor'&&a.date<String(t.transferredAt||'').slice(0,10))].find(t => String(t.id) === String(a.tractorId)) : null;
+    const tractor = a.tractorId ? [...(oldFarm.tractors || []),...(oldFarm.equipmentArchive||[]).filter(t=>t.equipmentType==='tractor'&&a.date<(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(t.transferredAt||''))].find(t => String(t.id) === String(a.tractorId)) : null;
     const implemento = a.implementId ? (oldFarm.implements || []).find(i => String(i.id) === String(a.implementId)) : null;
     if (a.tractorId && (!tractor || tractor.status !== "Disponível")) throw httpError(422, "Esse trator não está disponível. Atualize a tela e escolha outro.");
     if (a.implementId && (!implemento || implemento.status !== "Disponível")) throw httpError(422, "Esse implemento não está disponível. Atualize a tela e escolha outro.");
@@ -2605,7 +2605,7 @@ const PRICE_WATCH_MAX_PER_RUN = 300;
 async function checkGroupQuotes(groupId, pick, cache = new Map()) {
   const group = await store.getGroupById(groupId);
   if (!group) throw httpError(404, "Grupo não encontrado");
-  const today = nowIso().slice(0, 10), found = [];
+  const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), found = [];
   for (const f of group.state?.farms || []) for (const q of f.management?.quotes || []) if (PriceWatch.watchable(q, today) && pick(f, q)) found.push({ farmId: f.id, quoteId: q.id, link: q.link });
   const results = [];
   for (const job of found) {

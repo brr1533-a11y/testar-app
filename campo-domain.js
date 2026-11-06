@@ -22,7 +22,7 @@
   const optNum = (v, min, max) => v == null || num(v, min, max);
   const date = v => D.validDate(v);
   const optDate = v => v == null || v === '' || D.validDate(v);
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
   function init(farm) { farm.field ||= {}; for (const k of KEYS) farm.field[k] ||= []; return farm.field; }
 
   // ---- Pós-colheita ----

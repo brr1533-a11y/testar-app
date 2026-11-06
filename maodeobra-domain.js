@@ -21,7 +21,7 @@
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const clone = x => JSON.parse(JSON.stringify(x));
   const id = v => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,100}$/.test(v);
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
   function coffeePlots(farm){return (farm.talhoes||[]).filter(p=>p.activity?p.activity==='coffee':!['soja','milho','trigo'].includes(String(p.crop||p.culture||'').toLowerCase()));}
   function init(farm) { farm.labor ||= {}; for (const k of KEYS) farm.labor[k] ||= []; if (!farm.labor.settings || typeof farm.labor.settings !== 'object' || Array.isArray(farm.labor.settings)) farm.labor.settings = {}; return farm.labor; }
 
@@ -281,7 +281,7 @@
       workers: L.workers.filter(w => w.active !== false).map(w => ({ id: w.id, name: w.name, role: w.role, active: true, ...flag('pendingData', w.pendingData), ...flag('hasDaily', w.dailyRate > 0), ...flag('hasBagRate', w.bagRate > 0) })),
       plotRates: L.plotRates.map(r => ({ id: r.id, plotId: r.plotId, validFrom: r.validFrom })), adjustments: [],
       settings: flag('hasDefaultDaily', L.settings.defaultDailyRate > 0),
-      entries: L.entries.filter(e => e.date >= new Date(Date.now() - 35 * 86400000).toISOString().slice(0, 10)).map(({ rate, ...e }) => e),
+      entries: L.entries.filter(e => e.date >= new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - 35 * 86400000))).map(({ rate, ...e }) => e),
       closings: L.closings.map(c => ({ id: c.id, weekStart: c.weekStart, weekEnd: c.weekEnd, lines: [] }))
     };
   }

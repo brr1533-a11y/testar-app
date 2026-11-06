@@ -91,3 +91,32 @@ Versão só de ferramentas de trabalho. **Nada muda nas telas** nem nos dados.
 - **Revisão de segurança da 4.18 e da 4.19:**
   - nada de gravidade alta ou média;
   - conferidos: fechamento do mês, alertas e notificações, insumo informado pelo campo, contador e proteção contra código malicioso (XSS) nas telas novas.
+
+## 4.19.3
+
+- **Dia de hoje no horário de Brasília, no navegador e no servidor.**
+  - O Render roda em UTC. Das 21h à meia-noite o servidor já contava o dia seguinte.
+  - O que errava nesse horário:
+    - o custo da mão de obra de semana fechada sumia da safra, porque a data do fechamento caía "no futuro";
+    - os avisos de vencimento contavam um dia a menos;
+    - o "saldo conferido" do estoque não valia;
+    - o fechamento de mês aceitava fechar o mês na noite do último dia;
+    - o limite diário da IA virava à meia-noite UTC.
+  - A correção:
+    - todo cálculo de "hoje" usa `America/Sao_Paulo`, em 25 arquivos;
+    - os horários gravados (`closedAt`, `countedAt`, `completedAt` e outros) viram data pelo dia de Brasília;
+    - data simples (`AAAA-MM-DD`) continua como está.
+- **Testes novos** em `tests/datas-brasilia.test.cjs`:
+  - um impede voltar a calcular o dia em UTC;
+  - um simula 22h30 de Brasília;
+  - um simula a virada do mês às 22h de 30/11.
+  Os três falham no código antigo e passam no novo.
+- **Testes ajustados** para o mesmo dia de Brasília. Eles calculavam "hoje" em UTC e quebrariam à noite.
+- **Botão "Simular"** do cenário de venda:
+  - tem efeito de mola (vitrine do canal Não Codei, efeito 14);
+  - funciona com o dedo, para sozinho quando assenta e respeita "menos movimento";
+  - ficou menor e alinhado às caixas.
+- **Preço por saca** do cenário arredondado para 2 casas. Antes aparecia `2013,3854497008656`.
+- **Acompanhamento do Actions** (`tools/acompanhar-actions.cjs`):
+  - avisa quando o commit ainda não foi enviado;
+  - no limite da API do GitHub, usa o selo do workflow.

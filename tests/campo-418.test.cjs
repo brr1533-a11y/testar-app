@@ -1,6 +1,6 @@
 // 4.18: checklist do trator (validação e aviso ao escritório).
 const test = require('node:test'), a = require('node:assert/strict'), R = require('../expansao-domain.js');
-const T = new Date().toISOString().slice(0, 10), past = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), past = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 function farm() { const f = { id: 'f1', name: 'Fazenda', tractors: [{ id: 'tr1', name: 'Trator Azul' }], implements: [], talhoes: [], agriculture: { cycles: [], harvests: [], sales: [] }, cattle: { lots: [], paddocks: [] } }; R.init(f); return f; }
 const log = o => ({ id: 'c' + Math.random().toString(36).slice(2, 8), activity: 'coffee', date: T, notes: '', archived: false, kind: 'checklist', equipmentId: 'tr1', checks: [{ item: 'Pneus', ok: true }, { item: 'Óleo do motor', ok: true }], ...o });
 
@@ -70,7 +70,7 @@ test('mínimo sugerido pelo consumo de 90 dias; só vale com saldo conferido nos
 });
 
 test('alerta de parcela sem caixa previsto (só CEO) e pedido de compra aguardando, com endereço para decidir', () => {
-  const ahead = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+  const ahead = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
   const f = custos();
   f.finances.push({ id: 'e1', activity: 'coffee', type: 'entrada', value: 10000, date: past(5) });
   f.expansion.loans.push({ id: 'l1', activity: 'coffee', date: past(300), notes: '', archived: false, name: 'Custeio', kind: 'custeio', principal: 4000, annualRate: 0, installments: 1, periodMonths: 12, system: 'unica', due: ahead(10) });

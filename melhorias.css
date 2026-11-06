@@ -36,3 +36,8 @@
 @media(prefers-reduced-motion:reduce){.mh-tile{transition:none}}
 /* Valores dos quadros de resumo não quebram no meio do número em telas estreitas (só nos espaços). */
 @media(max-width:650px){.exp-kpi strong{font-size:clamp(15px,4.8vw,21px);overflow-wrap:normal}}
+
+/* 4.19.3 · botão Simular do cenário: alinhado às caixas de texto (antes esticava na altura toda), com a mola do fx.js */
+#mhCenario{align-items:flex-end}
+#mhCenario .mh-simular{align-self:flex-end;min-height:42px;height:42px;padding:0 20px;font-size:14px}
+.js-elastico{will-change:transform;transform-origin:center}

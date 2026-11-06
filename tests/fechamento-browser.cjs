@@ -1,6 +1,6 @@
 // 4.18 · Fechamento do mês (tela e PDF) e margem por hectare comparando duas fazendas. Uso: node tests/fechamento-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const T = new Date().toISOString().slice(0, 10), M0 = T.slice(0, 7) + '-01', Y = T.slice(0, 4);
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), M0 = T.slice(0, 7) + '-01', Y = T.slice(0, 4);
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

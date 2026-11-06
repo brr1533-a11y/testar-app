@@ -12,7 +12,7 @@
   const check = (ok, m, s) => { if (!ok) fail(m, s); };
   const clone = x => JSON.parse(JSON.stringify(x));
   const isNum = (v, min, max) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max;
-  const addDays = (iso, n) => { const d = new Date(iso.slice(0, 10) + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const addDays = (iso, n) => { const d = new Date((String(iso).length<=10?String(iso):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(iso))) + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
   const DECIDERS = ['ceo', 'adm'];
 
   // Quando o banho foi aplicado: a hora informada pelo celular (feito sem sinal) vale mais que a hora do envio.
@@ -34,7 +34,7 @@
         hours = Math.max(hours, Number(p.reentryHours ?? cur.reentryHours ?? 0) || 0);
       }
       if (!days && !hours) continue;
-      for (const plotId of o.talhaoIds || []) out.push({ plotId, orderId: o.id, order: o.title || 'Banho', appliedOn: at.slice(0, 10), harvestFrom: addDays(at, days), reentryUntil: new Date(Date.parse(at) + hours * 3600_000).toISOString() });
+      for (const plotId of o.talhaoIds || []) out.push({ plotId, orderId: o.id, order: o.title || 'Banho', appliedOn: (String(at).length<=10?String(at):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(at))), harvestFrom: addDays(at, days), reentryUntil: new Date(Date.parse(at) + hours * 3600_000).toISOString() });
     }
     return out;
   }
@@ -45,7 +45,7 @@
   }
   // Situação atual de cada talhão: até quando não colher e até quando não entrar (só o que ainda vale).
   function plotStatus(farm, now = new Date()) {
-    const today = now.toISOString().slice(0, 10), iso = now.toISOString(), map = {};
+    const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(now), iso = now.toISOString(), map = {};
     for (const w of windows(farm)) {
       const s = map[w.plotId] ||= { plotId: w.plotId };
       if (w.harvestFrom > today && (!s.harvestFrom || w.harvestFrom > s.harvestFrom)) Object.assign(s, { harvestFrom: w.harvestFrom, harvestOrder: w.order });

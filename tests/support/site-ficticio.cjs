@@ -2,7 +2,7 @@
 // Uso: npm run demo:ficticio  (Ctrl+C encerra e apaga a cópia). Nada toca no banco real nem no .env.
 const path = require('path'), fs = require('fs');
 const dir = path.resolve(__dirname, '..', '..'), { startServer } = require(path.join(dir, 'tests/support/server.cjs')), H = require(path.join(dir, 'maodeobra-domain.js'));
-const iso = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 const nfe = base => { let s = 0, w = 2; for (let i = 42; i >= 0; i--) { s += Number(base[i]) * w; w = w === 9 ? 2 : w + 1; } const r = s % 11; return base + (r < 2 ? 0 : 11 - r); };
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0', WEATHER_PROVIDER: 'open-meteo', SUPPORT_WHATSAPP: '5535900000000', SUPPORT_VIDEO_URL: 'https://exemplo.invalid/videos', BACKUP_HOURS: '0' });

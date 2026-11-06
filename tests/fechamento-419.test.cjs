@@ -2,8 +2,8 @@
 const test = require('node:test'), a = require('node:assert/strict'), crypto = require('node:crypto');
 const X = require('../expansao-domain.js'), M = require('../melhorias-domain.js'), F = require('../fechamento-domain.js');
 const { startServer } = require('./support/server.cjs');
-const T = new Date().toISOString().slice(0, 10), plus = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
-const prevMonth = (() => { const d = new Date(); d.setUTCDate(1); d.setUTCMonth(d.getUTCMonth() - 1); return d.toISOString().slice(0, 7); })();
+const T = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), plus = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
+const prevMonth = (() => { const [y, m] = T.split("-").map(Number); return new Date(Date.UTC(y, m - 2, 1)).toISOString().slice(0, 7); })();
 function farm() {
   const f = { id: 'f1', name: 'Fazenda', tractors: [], implements: [], talhoes: [], agriculture: { cycles: [{ id: 'c1', activity: 'coffee', crop: 'Café arábica', name: 'Safra', areaHa: 10, bagKg: 60, plannedCost: 0, stage: 'Em colheita', startDate: '2026-01-01' }], harvests: [], sales: [] }, cattle: { lots: [], paddocks: [] }, finances: [], management: { payables: [] }, operations: { stockUses: [] },
     stock: [{ id: 'a', activity: 'coffee', item: 'Fungicida X', unit: 'L', quantity: 12, unitCost: 50, batch: 'A1', expires: plus(200) }, { id: 'b', activity: 'coffee', item: 'fungicida x', unit: 'L', quantity: 10, unitCost: 55, batch: 'B2', expires: plus(20) }, { id: 'c', activity: 'coffee', item: 'Adubo', unit: 'sc', quantity: 40, unitCost: 180 }] };
@@ -113,7 +113,7 @@ test('API: CEO fecha o mês, o ADM não grava no mês fechado e só vê quais me
   const view = (await call('/api/state', admT)).json;
   a.deepEqual(view.state.farms[0].monthClosings, [{ id: 'close_' + prevMonth, month: prevMonth, status: 'closed' }]);
   // O ADM devolve o que recebeu (sem as versões) e lança algo de hoje: grava, e o histórico do CEO continua inteiro.
-  view.state.farms[0].finances.push({ id: 'n3', activity: 'coffee', type: 'saida', category: 'Outros', description: 'Hoje', value: 5, date: new Date().toISOString().slice(0, 10), costCenter: 'geral' });
+  view.state.farms[0].finances.push({ id: 'n3', activity: 'coffee', type: 'saida', category: 'Outros', description: 'Hoje', value: 5, date: new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), costCenter: 'geral' });
   r = await call('/api/state', admT, { state: view.state, baseRev: view.rev }, 'PUT'); a.equal(r.status, 200, JSON.stringify(r.json));
   const full = (await call('/api/state', ceoT)).json.state.farms[0].monthClosings[0]; a.equal(full.versions.length, 1); a.equal(full.versions[0].report.spend, 300);
   const late = (await call('/api/state', admT)).json; late.state.farms[0].finances.push({ id: 'n4', activity: 'coffee', type: 'saida', category: 'Outros', description: 'Atrasada', value: 5, date: prevMonth + '-12', costCenter: 'geral' });

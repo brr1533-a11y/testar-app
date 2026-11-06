@@ -9,8 +9,8 @@
  // Cotação sem conferência automática (WhatsApp, telefone...) é considerada velha depois destes dias.
  const QUOTE_STALE_DAYS=7;
  // Data do preço: a da cotação ou a da última troca de preço (a mais nova); no link conferido, a da conferência.
- function priceDate(q){const a=String(q.date||''),b=String(q.priceUpdatedAt||'').slice(0,10);return b>a?b:a;}
- function quoteAgeDays(q,on=today()){const ref=String(q.priceCheck?.status==='ok'&&q.priceCheck.checkedAt||priceDate(q)).slice(0,10);if(!D.validDate(ref))return null;return Math.max(0,Math.round((Date.parse(on)-Date.parse(ref))/86400000));}
+ function priceDate(q){const a=String(q.date||''),b=(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(q.priceUpdatedAt||'');return b>a?b:a;}
+ function quoteAgeDays(q,on=today()){const ref=(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(q.priceCheck?.status==='ok'&&q.priceCheck.checkedAt||priceDate(q));if(!D.validDate(ref))return null;return Math.max(0,Math.round((Date.parse(on)-Date.parse(ref))/86400000));}
  function quoteStale(q,on=today()){const age=quoteAgeDays(q,on);return age!=null&&age>QUOTE_STALE_DAYS;}
  function whatsappLink(q,itemName){const n=String(q.whatsapp||'').replace(/\D/g,'');if(!n)return '';const full=n.length<=11?'55'+n:n;return 'https://wa.me/'+full+'?text='+encodeURIComponent(`Olá! Pode me passar o preço atualizado de ${itemName||q.itemName} (${q.unit})?`);}
  // Só o CEO vê e altera estes (dinheiro da fazenda). O ADM continua sem acesso ao balanço.
@@ -28,7 +28,7 @@
  const num=v=>typeof v==='number'&&Number.isFinite(v);
  const pos=v=>num(v)&&v>0;
  const id=v=>typeof v==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(v);
- const today=()=>new Date().toISOString().slice(0,10);
+ const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
  const norm=v=>String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 
  function init(f){f.management||={};for(const k of KEYS)if(!Array.isArray(f.management[k]))f.management[k]=[];return f.management;}

@@ -2,7 +2,7 @@
 // leite, módulos, comparação anônima, comparador com XML importado, previsão do tempo, backup e exclusão a pedido.
 const test = require('node:test'), a = require('node:assert/strict'), fs = require('node:fs'), os = require('node:os'), path = require('node:path'), zlib = require('node:zlib');
 const R = require('../expansao-domain.js'), M = require('../melhorias-domain.js');
-const iso = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10), T = iso(0);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000)), T = iso(0);
 const rec = (o) => ({ activity: 'coffee', date: T, notes: '', archived: false, ...o });
 function farm() {
   const f = { id: 'f1', name: 'Boa Vista', talhoes: [{ id: 't1', name: 'Talhão 1', areaHa: 4 }, { id: 't2', name: 'Talhão 2', areaHa: 6 }], agriculture: { cycles: [{ id: 'c1', activity: 'coffee', crop: 'Café arábica', name: 'Safra 26', areaHa: 10, bagKg: 60, plannedCost: 0, stage: 'Em colheita', startDate: '2026-01-01', plotIds: ['t1', 't2'] }], harvests: [], sales: [] }, cattle: { lots: [{ id: 'l1', name: 'Lote 1', heads: 3 }], paddocks: [], weighings: [] }, finances: [], management: { payables: [], salesContracts: [] }, operations: {} };

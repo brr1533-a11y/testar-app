@@ -6,7 +6,7 @@
 (function(root,factory){const node=typeof module==='object'&&module.exports,api=factory(node?require('./melhorias-domain'):root.RuralMelhorias);if(node)module.exports=api;else root.RuralFechamento=api;})(globalThis,function(M){
 'use strict';
 const clone=x=>JSON.parse(JSON.stringify(x)),check=(ok,message)=>{if(!ok)throw Object.assign(new Error(message),{statusCode:422});};
-const today=()=>new Date().toISOString().slice(0,10);
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
 const MONTHS=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
 const monthName=m=>MONTHS[Number(m.slice(5,7))-1]+' de '+m.slice(0,4);
 // O que o mês fechado trava: listas da fazenda com data e os campos que mudam valor, destino ou quantidade.
@@ -42,7 +42,7 @@ function violation(before,after){
 // Servidor: carimba versões e reaberturas, recusa o que não pode e trava o mês fechado.
 // X é a API de RuralExpansion (para o relatório) e hash(texto) devolve o SHA-256 em hexadecimal.
 function prepare(before,after,user,{X,hash,now=new Date().toISOString()}={}){
- const on=now.slice(0,10);
+ const on=(String(now).length<=10?String(now):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(now)));
  for(const f of after.farms||[]){
   const old=(before.farms||[]).find(x=>x.id===f.id)||{},prior=list(old);
   if(user.role!=='ceo'){if(old.monthClosings===undefined)delete f.monthClosings;else f.monthClosings=clone(old.monthClosings);}

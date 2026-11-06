@@ -44,7 +44,7 @@ test('IA limita chamadas simultâneas e totais diários; erros não vazam segred
   const second = a.ask('other', q); await settle(); resolve({ ok: false, status: 429 });
   await assert.rejects(second, e => e.statusCode === 429 && /créditos/.test(e.message));
   await assert.rejects(a.ask('g', q), /Limite diário/);
-  now = new Date('2026-11-03T01:00:00Z'); assert.equal((await a.status('g')).usedToday, 0);
+  now = new Date('2026-11-03T04:00:00Z'); assert.equal((await a.status('g')).usedToday, 0); // o dia vira à meia-noite de Brasília
   const broken = createAssistant({ env, fetchImpl: async () => { throw Error('secret-value'); } });
   await assert.rejects(broken.ask('g', q), e => e.statusCode === 502 && !e.message.includes('secret-value'));
 });

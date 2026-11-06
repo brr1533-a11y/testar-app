@@ -109,7 +109,7 @@ const G_CHANNEL = { site: 'Site', whatsapp: 'WhatsApp', telefone: 'Telefone', vi
 // De onde veio o preço e quando foi conferido pela última vez.
 function gQuoteSource(q) {
   const pc = q.priceCheck;
-  if (q.link && q.autoUpdate !== false && pc?.checkedAt && ['ok', 'review'].includes(pc.status)) return `site conferido ${dateBR(String(pc.checkedAt).slice(0, 10))}`;
+  if (q.link && q.autoUpdate !== false && pc?.checkedAt && ['ok', 'review'].includes(pc.status)) return `site conferido ${dateBR((v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(pc.checkedAt))}`;
   return `${G_CHANNEL[q.channel] || (q.link ? 'Site' : 'Cotação')} · ${dateBR(FarmManagement.priceDate(q))}`;
 }
 // Selos: subiu/caiu desde o preço anterior, preço velho, conferência com problema.

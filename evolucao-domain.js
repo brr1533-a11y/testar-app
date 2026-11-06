@@ -20,7 +20,7 @@ for(const r of mg.traceLots){check(r.activity!=='cattle'&&cycles.has(r.cycleId)&
 for(const r of mg.mapAreas){check(r.name&&Array.isArray(r.points)&&r.points.length>=3&&r.points.length<=60&&r.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(n=>num(n)&&n<=100)),'Desenhe uma área com pelo menos três pontos.');check(r.activity==='cattle'?(f.cattle?.paddocks||[]).some(p=>p.id===r.paddockId):plots.has(r.plotId),'Vincule o desenho ao talhão ou piquete.');}
 return f;
 }
-function prepare(before,after,user){const stamp=new Date().toISOString(),today=stamp.slice(0,10);
+function prepare(before,after,user){const stamp=new Date().toISOString(),today=(String(stamp).length<=10?String(stamp):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(stamp)));
 for(const old of before.farms||[])if(KEYS.some(k=>old.management?.[k]?.length)&&!(after.farms||[]).some(f=>f.id===old.id))fail('A fazenda tem registros integrados. Preserve o histórico.',403);
 for(const f of after.farms||[]){const old=(before.farms||[]).find(p=>p.id===f.id)||{},prior=clone(old.management||{}),mg=init(f);for(const k of KEYS)prior[k]||=[];
 

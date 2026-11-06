@@ -9,7 +9,7 @@ test('novas atribuições respeitam atividade do talhão e preservam café legad
  assert.equal((await api('/api/state',ceo,{baseRev:v.rev,state:v.state},'PUT')).status,200);
  assert.equal((await api('/api/users',ceo,{name:'Campo',username:'plotworker',email:'plot@example.invalid',password:s.password,role:'contribuinte',function:'Campo',allowedFarmId:fid,allowedActivity:'all'})).status,200);
  let worker=await login();await api('/api/auth/change-password',worker,{currentPassword:s.password,newPassword:s.password+'K9'});worker=await login(s.password+'K9');
- const save=async(id,activityModule,plotId)=>{const st=await api('/api/state',worker),farm=st.state.farms.find(f=>f.id===fid);farm.assignments.push({id,date:new Date().toISOString().slice(0,10),user:'plotworker',activityModule,activity:'Teste',talhaoIds:[plotId]});return api('/api/state',worker,{baseRev:st.rev,state:st.state},'PUT');};
+ const save=async(id,activityModule,plotId)=>{const st=await api('/api/state',worker),farm=st.state.farms.find(f=>f.id===fid);farm.assignments.push({id,date:new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()),user:'plotworker',activityModule,activity:'Teste',talhaoIds:[plotId]});return api('/api/state',worker,{baseRev:st.rev,state:st.state},'PUT');};
  assert.equal((await save('wrong','coffee','grain')).status,422);
  assert.equal((await save('legacy-ok','coffee','legacy')).status,200);
  assert.equal((await save('wrong-grain','grains','coffee')).status,422);

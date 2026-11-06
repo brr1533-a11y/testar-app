@@ -140,7 +140,7 @@
         requireValue(validDate(e.date) && ['scheduled', 'done'].includes(e.status), 'Confira a data e o status do manejo.');
         requireValue(!e.completedDate || validDate(e.completedDate), 'Data de conclusão inválida.');
         requireValue(e.status !== 'done' || validDate(e.completedDate), 'Informe a data em que o manejo foi realizado.');
-        requireValue(e.status !== 'done' || e.completedDate <= new Date().toISOString().slice(0, 10), 'A realização do manejo não pode estar no futuro.');
+        requireValue(e.status !== 'done' || e.completedDate <= new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()), 'A realização do manejo não pode estar no futuro.');
       }
     }
     for (const lot of cattle?.lots || []) {

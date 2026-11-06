@@ -1,7 +1,7 @@
 // 4.18 · Alertas que pedem decisão: parcela sem caixa previsto e pedido de compra aguardando. Só o CEO recebe;
 // o endereço da notificação abre o pedido destacado, e o CEO aprova ali mesmo. Uso: node tests/alertas-acao-browser.cjs
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const day = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const day = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0' }), browser = await chromium.launch();
   try {

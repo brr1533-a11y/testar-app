@@ -40,7 +40,7 @@ test('API: ADM não vê o dinheiro da fazenda, pede compra; só o CEO aprova; re
   const api = async (path, token, body, method) => { const r = await fetch(s.url + path, { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); return { status: r.status, json: await r.json() }; };
   const put = async (token, mutate) => { const st = await api('/api/state', token); mutate(st.json.state); return api('/api/state', token, { state: st.json.state, baseRev: st.json.rev }, 'PUT'); };
   const ceo = (await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password })).json.token;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
   assert.equal((await put(ceo, st => { const f = st.farms[0]; f.stock.push({ id: 'adubo', activity: 'coffee', item: 'Adubo', unit: 'saco', quantity: 2, min: 10, unitCost: 100 }); f.management = { payables: [{ id: 'p1', activity: 'coffee', date: today, supplier: 'Coop', description: 'Adubo', amount: 1500.5, dueDate: today, status: 'open' }] }; })).status, 200);
 
   // ADM

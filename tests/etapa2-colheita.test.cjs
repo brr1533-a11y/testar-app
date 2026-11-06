@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const H = require('../maodeobra-domain.js');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 const farm = () => ({ id: 'f', talhoes: [{ id: 'carregado', name: 'Talhão carregado' }, { id: 'novo', name: 'Talhão novo' }], management: { payables: [] },
   labor: { workers: [{ id: 'ana', name: 'Ana', role: 'panhador', dailyRate: 90, active: true }, { id: 'caio', name: 'Caio', role: 'diarista', active: true }],
     plotRates: [{ id: 'r1', plotId: 'carregado', ratePerBag: 12.5, validFrom: '2020-01-01' }], entries: [], adjustments: [], closings: [] } });

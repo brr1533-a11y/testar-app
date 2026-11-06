@@ -28,7 +28,7 @@ test('API: atribuição combinada revoga sessão, preserva limites e protege cad
  r=await call('/api/team',ceo,{kind:'role',name:'Todas as rotinas',level:'contribuinte',operationalFunctions:T.functions});assert.equal(r.status,200,r.json.error);
  const role=r.json.state.workforce.roles.find(r=>r.name==='Todas as rotinas');await assign(role.id);token=await login('combinado',s.password+'Z9');
  st=(await call('/api/state',token)).json.state;assert.equal(st.farms[0].tractors.length,1);assert.equal(st.farms[0].labor.workers[0].pix,undefined);assert.equal(st.farms[0].labor.workers[0].bagRate,undefined);assert.deepEqual(st.farms[0].finances,[]);
- const date=new Date().toISOString().slice(0,10);
+ const date=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
  r=await put(token,st=>{st.users[0].role='ceo';st.users[0].operationalFunctions=['CEO'];st.farms[0].labor.entries.push({id:'colhido',date,plotId:'plot',workerId:'worker',kind:'saco',bags:2});st.farms[0].labor.workers[0].bagRate=999;});assert.equal(r.status,200,r.json.error);
  const full=(await call('/api/state',ceo)).json.state;assert.equal(full.users.find(u=>u.id===uid).role,'contribuinte');assert.deepEqual(T.routines(full.users.find(u=>u.id===uid)),T.functions);assert.equal(full.farms[0].labor.workers[0].bagRate,12);assert.equal(full.farms[0].labor.entries[0].rate,12);assert.equal(full.farms[0].labor.entries[0].bags,2);
  assert.equal((await call('/api/team',token,{kind:'role',name:'Administrador',level:'adm'})).status,403);

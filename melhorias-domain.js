@@ -6,7 +6,7 @@
 'use strict';
 const num=x=>typeof x==='number'&&Number.isFinite(x),round=(x,n=2)=>Math.round((x+Number.EPSILON)*10**n)/10**n;
 const check=(ok,message)=>{if(!ok)throw Object.assign(new Error(message),{statusCode:422});};
-const today=()=>new Date().toISOString().slice(0,10),days=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000);
+const today=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date()),days=(a,b)=>Math.round((Date.parse(b)-Date.parse(a))/86400000);
 const active=(f,key)=>(f.expansion?.[key]||[]).filter(r=>!r.archived);
 const addDays=(iso,n)=>new Date(Date.parse(iso)+n*86400000).toISOString().slice(0,10);
 // Soma meses mantendo o dia (ou o último dia do mês, quando ele não existe).
@@ -253,7 +253,7 @@ function validateCosts(f){
  }
  // 4.19: o funcionário do campo não recebe o estoque, e um item pode ter sido removido depois; só confere o item quando ele está na lista.
  for(const o of f.expansion?.workOrders||[]){if(o.inputs==null)continue;check(Array.isArray(o.inputs)&&o.inputs.length<=30,'Insumos da ordem inválidos.');for(const i of o.inputs){const s=stock.get(i?.stockId);check(typeof i?.stockId==='string'&&i.stockId&&i.stockId.length<=100&&(!s||(s.activity||'coffee')===o.activity)&&(s||!stock.size||i.itemName)&&num(i.quantity)&&i.quantity>0&&i.quantity<=1e7&&(i.itemName==null||typeof i.itemName==='string'&&i.itemName.length<=120)&&(i.unit==null||typeof i.unit==='string'&&i.unit.length<=20)&&(i.skipped==null||typeof i.skipped==='boolean'),'Insumo da ordem de serviço inválido.');}check(new Set(o.inputs.map(i=>i.stockId)).size===o.inputs.length,'Insumo repetido na ordem de serviço.');}
- for(const s of f.stock||[])if(s.countedAt!=null)check(D.validDate(String(s.countedAt).slice(0,10)),'Data da conferência do estoque inválida.');
+ for(const s of f.stock||[])if(s.countedAt!=null)check(D.validDate((v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(s.countedAt)),'Data da conferência do estoque inválida.');
 }
 // Baixa dos insumos de uma ordem concluída: um consumo por item, com identificador fixo (não baixa duas vezes).
 const orderUseId=(orderId,stockId)=>('os_'+orderId+'_'+stockId).replace(/[^a-zA-Z0-9_-]/g,'').slice(0,100);
@@ -289,7 +289,7 @@ function orderStockUses(f,order,date,usage){
 }
 // Mínimo sugerido pelo consumo real: média diária dos últimos 90 dias × dias de cobertura (padrão 30). Só vale
 // usar depois de conferir o saldo físico nos últimos 30 dias.
-function suggestedMin(f,item,on=today(),coverDays=30){const from=addDays(on,-90),uses=(f.operations?.stockUses||[]).filter(u=>u.stockId===item.id&&u.date>=from&&u.date<=on),used=uses.reduce((n,u)=>n+(Number(u.quantity)||0),0),perDay=used/90;const counted=item.countedAt?String(item.countedAt).slice(0,10):null;return {used90:round(used,3),perMonth:round(perDay*30,3),suggested:used>0?Math.ceil(perDay*coverDays*100)/100:null,countedAt:counted,countedRecently:Boolean(counted&&days(counted,on)<=30&&counted<=on)};}
+function suggestedMin(f,item,on=today(),coverDays=30){const from=addDays(on,-90),uses=(f.operations?.stockUses||[]).filter(u=>u.stockId===item.id&&u.date>=from&&u.date<=on),used=uses.reduce((n,u)=>n+(Number(u.quantity)||0),0),perDay=used/90;const counted=item.countedAt?(v=>{v=String(v??'');return v.length<=10||isNaN(Date.parse(v))?v.slice(0,10):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(v))})(item.countedAt):null;return {used90:round(used,3),perMonth:round(perDay*30,3),suggested:used>0?Math.ceil(perDay*coverDays*100)/100:null,countedAt:counted,countedRecently:Boolean(counted&&days(counted,on)<=30&&counted<=on)};}
 
 // ---------- 4.18: fechamento do mês e margem por hectare ----------
 const monthEnd=m=>{const [y,mm]=m.split('-').map(Number);return new Date(Date.UTC(y,mm,0)).toISOString().slice(0,10);};

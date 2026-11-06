@@ -3,7 +3,7 @@ const {reveal}=require('./support/navigation.cjs');
 // talhões marcados), esconde módulos pelo modelo pronto, abre a ajuda e o resumo do dono num celular fraco
 // (CPU 4x mais lenta e rede 3G). Uso: node tests/melhorias-browser.cjs (requer um Chromium para o Playwright).
 const assert = require('node:assert/strict'), { chromium } = require('playwright'), { startServer } = require('./support/server.cjs');
-const iso = n => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() + n * 86400000));
 (async () => {
   const s = await startServer({ PRICE_WATCH_HOURS: '0', SUPPORT_WHATSAPP: '5535999990000' }), browser = await chromium.launch();
   try {

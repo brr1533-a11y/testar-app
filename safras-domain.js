@@ -6,7 +6,7 @@
    const old=(before.farms||[]).find(f=>f.id===farm.id)?.agriculture||{};
    const a=farm.agriculture;if(!a)continue;
    a.history=JSON.parse(JSON.stringify(old.history||[]));
-   const append=(cycle,type,title,notes='')=>a.history.push({id:now+'-'+a.history.length,cycleId:cycle.id,activity:cycle.activity,date:now.slice(0,10),createdAt:now,type,title,notes,responsible:user.name||user.username});
+   const append=(cycle,type,title,notes='')=>a.history.push({id:now+'-'+a.history.length,cycleId:cycle.id,activity:cycle.activity,date:(String(now).length<=10?String(now):new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(now))),createdAt:now,type,title,notes,responsible:user.name||user.username});
    for(const cycle of a.cycles||[]){
     const prior=(old.cycles||[]).find(c=>c.id===cycle.id);
     if(!prior)append(cycle,'Cadastro','Safra cadastrada',cycle.name+' · '+cycle.stage);
@@ -24,7 +24,7 @@
    }
   }
  }
- function events(farm,cycle,plotEvents=[],today=new Date().toISOString().slice(0,10)){
+ function events(farm,cycle,plotEvents=[],today=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date())){
   const a=farm.agriculture||{},rows=(a.history||[]).filter(e=>e.cycleId===cycle.id&&e.activity===cycle.activity).map(e=>({...e,source:'Diário da safra'}));
   if(!rows.some(e=>e.type==='Cadastro'&&e.title==='Safra cadastrada'))rows.push({id:'legacy-'+cycle.id,date:String(cycle.createdAt||cycle.startDate).slice(0,10),type:'Cadastro',title:'Safra cadastrada',notes:'Registro anterior ao diário de alterações; etapas antigas não foram reconstruídas.',source:'Cadastro existente'});
   for(const kind of ['harvests','sales'])for(const r of a[kind]||[])if(r.cycleId===cycle.id)rows.push({id:kind+'-'+r.id,date:r.date,createdAt:r.createdAt,type:kind==='harvests'?'Colheita':'Venda',title:kind==='harvests'?'Colheita registrada':'Venda registrada',notes:(r.netKg??r.kg)+' kg · '+(kind==='harvests'?[r.storage,r.notes]:[r.buyer,r.notes]).filter(Boolean).join(' · '),responsible:r.recordedByName||r.recordedBy,source:'Produção da safra'});

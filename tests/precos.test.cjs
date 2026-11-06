@@ -49,7 +49,7 @@ test('API: histórico de preço é do servidor, preço à mão entra no históri
   const api = async (path, token, body, method) => { const r = await fetch(s.url + path, { method: method || (body ? 'POST' : 'GET'), headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) }); let json = null; try { json = await r.json(); } catch {} return { status: r.status, json }; };
   const put = async (token, mutate) => { const st = await api('/api/state', token); mutate(st.json.state); return api('/api/state', token, { state: st.json.state, baseRev: st.json.rev }, 'PUT'); };
   const ceo = (await api('/api/auth/login', '', { groupCode: '1001', username: 'testceo', password: s.password })).json.token;
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date());
   const quote = { id: 'qx', activity: 'coffee', itemName: 'Adubo', supplier: 'Loja', channel: 'site', unitPrice: 150, unit: 'saco', date: today, link: 'https://127.0.0.1/adubo', autoUpdate: true,
     priceHistory: [{ at: '2020-01-01', unitPrice: 1, source: 'auto' }], priceCheck: { status: 'ok', checkedAt: '2099-01-01' } };
   let farmId;

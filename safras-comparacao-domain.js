@@ -2,7 +2,7 @@
 (function(root,factory){if(typeof module==='object'&&module.exports)module.exports=factory();else root.SeasonComparison=factory();})(globalThis,function(){
  'use strict';
  const month=d=>{if(typeof d!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(d)||!Number.isFinite(Date.parse(d+'T12:00:00Z')))return null;return Number(d.slice(0,4))*12+Number(d.slice(5,7))-1;};
- function series(farm,cycle,{bagKg=60,metric='sacks',asOf=new Date().toISOString().slice(0,10)}={}){
+ function series(farm,cycle,{bagKg=60,metric='sacks',asOf=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date())}={}){
   if(!cycle||!['coffee','grains'].includes(cycle.activity)||!Number.isFinite(bagKg)||bagKg<=0||!['sacks','yield'].includes(metric))return null;
   const start=month(cycle.startDate),today=month(asOf),area=Number(cycle.areaHa);
   if(start===null||today===null||metric==='yield'&&!(Number.isFinite(area)&&area>0))return null;

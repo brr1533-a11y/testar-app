@@ -4,7 +4,7 @@ const P = require('../pix-brcode.js');
 const H = require('../maodeobra-domain.js');
 const { startServer } = require('./support/server.cjs');
 
-const iso = n => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
+const iso = n => new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo'}).format(new Date(Date.now() - n * 86400000));
 const week = H.weekStart(iso(14)), day = (n = 0) => { const d = new Date(week + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const farm = () => ({ id: 'f', talhoes: [{ id: 't1', name: 'T1' }, { id: 't2', name: 'T2' }], management: { payables: [] },
   labor: { workers: [{ id: 'ana', name: 'Ana Souza', role: 'safrista', cpf: '52998224725', pix: '52998224725', dailyRate: 90, active: true }, { id: 'beto', name: 'Beto', role: 'diarista', pix: 'beto@pix.com', dailyRate: 80, active: true }, { id: 'cida', name: 'Cida', role: 'panhador', active: true }],
