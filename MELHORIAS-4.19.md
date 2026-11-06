@@ -68,3 +68,26 @@
 - **Formulário apagado pela cotação.** A cotação do café chega alguns instantes depois de a tela abrir e redesenhava a página inteira. Quem já estava preenchendo uma saída no Financeiro perdia o que tinha digitado, principalmente com internet lenta. A cotação do mercado fazia o mesmo nas telas de gestão (por exemplo, no cenário do fluxo de caixa). Agora, se houver um formulário sendo preenchido, a tela só se atualiza depois que ele for salvo ou deixado de lado (`app.js`, `refreshQuote`; `expansao.js`, `xLoadMarket`).
 - Esse defeito era a causa das falhas de vez em quando do teste `tests/custos-estoque-browser.cjs`: depois da correção, passou 15 vezes seguidas.
 - Teste novo: `tests/cotacao-formulario-browser.cjs` segura a cotação, preenche o formulário e só então solta a cotação. Ele falha sem a correção e passa com ela.
+
+## 4.19.2
+
+Versão só de ferramentas de trabalho. **Nada muda nas telas** nem nos dados.
+
+- **Entrega pelo git.** O projeto passou a ser trabalhado no clone do GitHub Desktop. A entrega agora é um commit e um envio (`/entregar`), e não mais o envio de arquivos pelo site do GitHub.
+- **Fim de linha igual ao do servidor (`.gitattributes`).** O Git do Windows trocava o fim de linha dos arquivos ao baixar. Com isso, o `campo-sw.js` calculado no computador saía diferente do calculado no Render e no GitHub Actions.
+- **GitHub Actions confere o `campo-sw.js`** (`npm run sw:conferir`). Um service worker desatualizado não passa mais despercebido, como aconteceu no zip da 4.19.0.
+- **Comandos novos:**
+  - `npm run test:navegador` roda os roteiros de navegador; com `REPETIR=10` repete o mesmo roteiro para achar teste instável.
+  - `npm run versao -- X.Y.Z` troca a versão e gera de novo o service worker.
+  - `node tools/acompanhar-actions.cjs` espera o GitHub Actions terminar.
+  - Os scripts saíram de pastas temporárias e agora ficam em `tools/`.
+- **Claude Code** (`CLAUDE.md` e `.claude/`):
+  - regras do projeto;
+  - hooks que conferem a sintaxe dos `.js`, atualizam o service worker e bloqueiam edição de `.env` e `.local-cloud.json`;
+  - agentes `revisor-seguranca`, `cacador-teste-instavel` e `revisor-campo` (texto simples, celular, sem internet);
+  - hook que roda os testes de unidade de uma regra (`*-domain.js`) assim que ela é editada;
+  - trava contra edição direta do `campo-sw.js`;
+  - skill `/nova-tela` com o passo a passo de uma tela nova.
+- **Revisão de segurança da 4.18 e da 4.19:**
+  - nada de gravidade alta ou média;
+  - conferidos: fechamento do mês, alertas e notificações, insumo informado pelo campo, contador e proteção contra código malicioso (XSS) nas telas novas.

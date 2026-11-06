@@ -12,7 +12,8 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/depois-de-editar.cjs\"", "timeout": 30 }
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/depois-de-editar.cjs\"", "timeout": 30 },
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/tools/hooks/testes-da-regra.cjs\"", "timeout": 120 }
         ]
       }
     ]

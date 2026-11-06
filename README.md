@@ -1,3 +1,5 @@
+> **Versão 4.19.2:** só ferramentas de trabalho, sem mudança nas telas: entrega automática (/entregar), testes de navegador num comando só, conferência do service worker no GitHub Actions e fim de linha igual ao do servidor. Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).
+>
 > **Versão 4.19.1:** a cotação do café ou do mercado que chega depois de a tela abrir não apaga mais o formulário que está sendo preenchido (Financeiro, fluxo de caixa). Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).
 >
 > **Versão 4.19.0:** insumo realmente usado na ordem de serviço (o campo informa, o escritório escolhe o lote e a sobra fica no estoque) e fechamento do mês confirmado pelo CEO (versão guardada com código, mês travado, reabertura com motivo, contador vê a versão). Leia [MELHORIAS-4.19.md](MELHORIAS-4.19.md).

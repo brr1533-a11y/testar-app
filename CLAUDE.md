@@ -39,13 +39,17 @@ e `.local-cloud.json` localmente. Publicado no Render a partir do `main` deste r
 - **Redesenho que vem da internet** (sincronização, cotação, mercado) **nunca** pode apagar formulário meio preenchido:
   confira `isUserEditing()` e use `pendingRerender`. Foi a causa do defeito da 4.19.1.
 - **Papéis:** CEO, ADM (com páginas liberadas pelo CEO), contribuinte (campo) e contador. Cada grupo só vê os próprios dados.
-- **`campo-sw.js`** é gerado por `gerar-worker.cjs` (o servidor também gera ao iniciar). Um hook atualiza sozinho.
+- **`campo-sw.js`** é gerado por `gerar-worker.cjs` (o servidor também gera ao iniciar). Um hook atualiza sozinho e outro
+  bloqueia edição direta dele.
+- **Tela nova:** siga `/nova-tela` (regra + teste, menu, ADM, `app.html`, `PUBLIC_FILES`, roteiro em celular).
 - **Fim de linha LF** em tudo (`.gitattributes`); não volte para CRLF, senão o service worker sai diferente do servidor.
 
 ## Testes
 
 - Cada mudança de regra ganha teste em `tests/*.test.cjs`; cada mudança de tela ganha (ou atualiza) um roteiro
   `tests/*-browser.cjs` com Playwright, usando `tests/support/server.cjs` (servidor de teste em pasta temporária).
+- Ao editar um `*-domain.js`, um hook roda na hora os testes de unidade que usam aquele arquivo.
+- Antes de entregar tela nova: agente `revisor-campo` (texto e celular); mexeu em dinheiro ou permissão: `revisor-seguranca`.
 - Teste que falha "de vez em quando" é defeito até prova em contrário: investigue a causa (veja o agente
   `cacador-teste-instavel`) em vez de só aumentar o tempo de espera.
 - Documente cada versão em `MELHORIAS-<versão>.md` e numa linha no topo do `README.md`.

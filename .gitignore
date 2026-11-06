@@ -13,3 +13,7 @@ test-results/
 
 # foto de tela gerada pelos testes
 validacao-campo-mobile.png
+
+# estado local do Claude Code (ralph loop, etc.)
+.claude/*.local.md
+.claude/settings.local.json
