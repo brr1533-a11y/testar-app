@@ -1210,7 +1210,9 @@ function renderFarmSelector() {
   select.title = currentUser.role === "contribuinte" ? "Fazenda definida pelo CEO no perfil" : "Selecionar fazenda";
   if (currentUser) localStorage.setItem(activeFarmStorageKey(currentUser), activeFarmId);
 
-  select.onchange = () => {
+  select.onchange = async () => {
+    // 4.24: formulário pela metade não some sem aviso ao trocar de fazenda.
+    if (formDirty && typeof ask === "function" && !(await ask("Você tem um formulário preenchido pela metade. Trocar de fazenda apaga o que foi digitado.", { title: "Trocar de fazenda?", okText: "Trocar mesmo assim" }))) { select.value = activeFarmId; return; }
     activeFarmId = select.value;
     localStorage.setItem(activeFarmStorageKey(currentUser), activeFarmId);
     currentPage = currentUser.role === "contribuinte"

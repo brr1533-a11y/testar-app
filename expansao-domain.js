@@ -59,7 +59,7 @@ function validateFarm(f,qualities=[]){
   check(r&&typeof r.id==='string'&&/^[a-zA-Z0-9_-]{1,100}$/.test(r.id)&&!ids.has(r.id),'Identificação inválida em '+META[key].name);ids.add(r.id);
   check(D.ACTIVITIES.includes(r.activity)&&D.validDate(r.date),'Confira atividade e data de '+META[key].name);
   check(typeof (r.archived??false)==='boolean','Situação inválida.');
-  for(const [field,type]of Object.entries(META[key].fields)){const v=r[field];if(v==null||v==='')continue;check(type==='number'?num(v)&&v>=0&&v<=1e12:type==='boolean'?typeof v==='boolean':type==='array'?Array.isArray(v)&&v.length<=500:typeof v==='string'&&v.length<=2000,'Campo inválido: '+field);}
+  for(const [field,type]of Object.entries(META[key].fields)){const v=r[field];if(v==null||v==='')continue;check(type==='number'?num(v)&&v>=0&&v<=1e12:type==='boolean'?typeof v==='boolean':type==='array'?Array.isArray(v)&&v.length<=500:typeof v==='string'&&v.length<=2000,type==='number'?'Confira os números: use valores de 0 até 1 trilhão.':type==='string'?'Texto longo demais: use até 2.000 letras.':'Confira os dados do formulário.');}
   check(!r.notes||typeof r.notes==='string'&&r.notes.length<=4000,'Observações longas demais.');
   if(r.cycleId)check(cycles.get(r.cycleId)?.activity===r.activity,'Safra não pertence à atividade.');if(r.lotId)check(r.activity==='cattle'&&lots.has(r.lotId),'Lote não encontrado.');if(r.cowId)check(r.activity==='cattle'&&cows.has(r.cowId),'Vaca não encontrada.');if(r.plotId)check(plots.has(r.plotId),'Talhão não encontrado.');if(r.equipmentId)check(equipment.has(r.equipmentId),'Equipamento não encontrado.');
  }}

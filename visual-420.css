@@ -44,3 +44,6 @@
   /* 4.21: Sair e tema ficam no menu Mais (o Sair já estava lá); no cabeçalho ficam a fazenda, o IA e o "Salvo" */
   .topbar-actions #logoutTop, .topbar-actions #panelThemeToggle { display: none !important; }
 }
+
+/* 4.24 · valor enorme não alarga a tela do celular (quebra a linha no cartão) */
+.kpi-value, .kpi-foot { overflow-wrap: anywhere; min-width: 0; }

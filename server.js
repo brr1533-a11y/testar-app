@@ -19,6 +19,7 @@ const Carencia = require("./carencia-domain.js");
 const Medicamentos = require("./medicamentos-domain.js");
 const Expansion = require("./expansao-domain.js");
 const MonthClosing = require("./fechamento-domain.js");
+const Lancamentos = require("./lancamentos-domain.js");
 const FarmPriorities = require('./prioridades-domain');
 const RuralRoutine = require('./rotina-rural-domain');
 const EquipmentRegistry = require("./equipamentos-domain.js");
@@ -1682,6 +1683,8 @@ async function saveStateRoute(req, res, next) {
     SeasonHistory.recordChanges(before, allowedState, user);
     validateSubscriptionWrites(before, allowedState);
     RuralDomain.validateState(allowedState);
+    // 4.24: Financeiro, despesas, Estoque e Talhões novos ou alterados também são conferidos (antes, lixo era gravado).
+    Lancamentos.prepare(before, allowedState);
     // Fechamento do mês: só o CEO fecha e reabre; o relatório guardado é calculado aqui, e o mês fechado fica travado.
     MonthClosing.prepare(before, allowedState, user, { X: Expansion, hash: text => crypto.createHash("sha256").update(text).digest("hex"), now: nowIso() });
     await extractInlineFiles(group, allowedState, user.username);
