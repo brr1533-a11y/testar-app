@@ -86,4 +86,10 @@ function podeTentar(prev, agora = Date.now()) {
   return !(agora - Date.parse(prev.at) < 3600000);
 }
 
-module.exports = { configure, whatsapp, pluggy, podeTentar };
+// Aviso com hora mínima (o resumo da semana sai a partir das 7h de Brasília): antes disso fica para a próxima volta.
+function jaPodeEnviar(aviso, agora = new Date()) {
+  if (aviso?.pushAfterHour == null) return true;
+  return Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'America/Sao_Paulo', hour: '2-digit', hourCycle: 'h23' }).format(agora)) >= aviso.pushAfterHour;
+}
+
+module.exports = { configure, whatsapp, pluggy, podeTentar, jaPodeEnviar };

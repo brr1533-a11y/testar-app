@@ -90,3 +90,12 @@ test('aviso que falhou: recusa de vez não repete; erro passageiro espera 1 hora
     await a.rejects(I.get('whatsapp').send({ phone: '5535999990000', parameters: {} }), e => e.statusCode === esperado);
   }
 });
+
+test('resumo da semana só sai a partir das 7h de Brasília (o servidor roda em UTC)', () => {
+  const resumo = { pushAfterHour: 7 };
+  a.equal(P.jaPodeEnviar(resumo, new Date('2026-11-09T09:59:00Z')), false, '06h59 em Brasília');
+  a.equal(P.jaPodeEnviar(resumo, new Date('2026-11-09T10:00:00Z')), true, '07h00 em Brasília');
+  a.equal(P.jaPodeEnviar(resumo, new Date('2026-11-10T02:00:00Z')), true, '23h de segunda em Brasília (já terça em UTC)');
+  a.equal(P.jaPodeEnviar(resumo, new Date('2026-11-09T05:00:00Z')), false, '02h em Brasília');
+  a.equal(P.jaPodeEnviar({}, new Date('2026-11-09T05:00:00Z')), true, 'aviso comum não tem hora mínima');
+});

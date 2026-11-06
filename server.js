@@ -119,6 +119,7 @@ app.use((req, res, next) => (BIG_BODY_ROUTES.has(`${req.method} ${req.path}`) ? 
 const clone = v => JSON.parse(JSON.stringify(v));
 
 // Limite de tentativas por chave (IP, IP+usuário...). Fica em memória: reinicia junto com o servidor.
+// shortcut: só vale com 1 servidor no Render; com 2 ou mais, cada um conta à parte — mover para o Postgres.
 const rateBuckets = new Map();
 function rateHit(key, max, windowMs) {
   const now = Date.now();
