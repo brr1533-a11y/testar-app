@@ -17,13 +17,13 @@ Um agente navegou por todas as telas, no celular e no computador, como CEO, ADM 
 - **Trocar de fazenda com formulário pela metade** pergunta antes.
 - **Avisos sem nome técnico.** "Campo inválido: mm" virou "Confira os números: use valores de 0 até 1 trilhão." ou "Texto longo demais: use até 2.000 letras."
 
-## Ainda pendente
-- Os diálogos da Gestão (conta a pagar, pedido de compra, contrato, NF-e) ainda fecham quando os dados são recusados, porque usam outro caminho.
-- O botão Voltar do celular com um diálogo aberto sai do sistema.
-- No Financeiro, a categoria não muda quando o tipo muda.
-- Número com vírgula ("1.234,56") não é aceito.
+## 4.24.1 · o que faltava
+- **Diálogos da Gestão reabrem com o que foi digitado** quando a gravação é recusada: conta a pagar, pedido de compra, cotação, NF-e/MDF-e, contrato e entrega.
+- **Voltar do celular fecha o diálogo aberto** em vez de sair do sistema.
+- **No Financeiro, a categoria acompanha o tipo.** Entrada fica com "Venda de ...", despesa com uma categoria de gasto.
+- **Número com vírgula fica como está**, a pedido do dono.
 
 ## Testes
 - `tests/lancamentos-validacao.test.cjs`: os casos do relatório no servidor.
-- `tests/bagunca-424-browser.cjs`: celular.
-- **Resultado:** 372 de unidade e 35 roteiros de navegador.
+- `tests/bagunca-424-browser.cjs` e `tests/bagunca-4241-browser.cjs`: celular.
+- **Resultado:** 372 de unidade e 36 roteiros de navegador.

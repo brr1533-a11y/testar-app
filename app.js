@@ -43,6 +43,18 @@ function ico(n) { return `<svg class="ico" viewBox="0 0 24 24" fill="none" strok
 
 
 // ---------- Janelas próprias (substituem confirm/prompt/alert do navegador) ----------
+// "Voltar" do celular fecha a janela de cima em vez de sair do sistema: enquanto houver janela aberta fica uma
+// entrada a mais no histórico. Ao fechar normalmente ela é tirada (uma janela que reabre logo em seguida a reaproveita).
+let dlgOwnBack = false;
+const dlgOpenNow = () => document.querySelector('.dlg-back:not(.closing)');
+function dlgHistoryHold() { if (!history.state?.dlg) history.pushState({ ...(history.state || {}), dlg: 1 }, ''); }
+function dlgHistoryRelease() { setTimeout(() => { if (!dlgOpenNow() && history.state?.dlg) { dlgOwnBack = true; history.back(); } }, 0); }
+window.addEventListener('popstate', () => {
+  if (dlgOwnBack) { dlgOwnBack = false; if (dlgOpenNow()) dlgHistoryHold(); return; }
+  const top = [...document.querySelectorAll('.dlg-back:not(.closing)')].at(-1);
+  if (top?._dlgClose) top._dlgClose(null);
+  if (dlgOpenNow()) dlgHistoryHold();
+});
 function openDialog(build) {
   return new Promise(resolve => {
     const back = document.createElement("div");
@@ -52,7 +64,8 @@ function openDialog(build) {
     const form = back.querySelector("form");
     const previous = document.activeElement;
     let closed = false;
-    const close = value => { if (closed) return; closed = true; back.classList.add("closing"); setTimeout(() => back.remove(), 160); if (previous && previous.isConnected && previous.focus) previous.focus(); resolve(value); };
+    const close = value => { if (closed) return; closed = true; back.classList.add("closing"); setTimeout(() => back.remove(), 160); if (previous && previous.isConnected && previous.focus) previous.focus(); dlgHistoryRelease(); resolve(value); };
+    back._dlgClose = close; dlgHistoryHold();
     back.addEventListener("mousedown", e => { if (e.target === back) close(null); });
     back.querySelectorAll("[data-dlg-cancel]").forEach(b => b.onclick = () => close(null));
     back.addEventListener("keydown", e => {
@@ -2083,6 +2096,12 @@ function financeForm(admin = false) {
 
 function bindFinanceForm(after) {
   const coffee = selectedType() === "coffee";
+  // Categoria acompanha o tipo: entrada fica com "Venda de ...", despesa com uma categoria de gasto.
+  const fitCategory = () => {
+    const sel = $("#financeCategory"), income = $("#financeType").value === "entrada", fits = o => /^Venda/.test(o.value) === income;
+    if (!fits(sel.selectedOptions[0] || {})) { const o = [...sel.options].find(fits); if (o) sel.value = o.value; }
+  };
+  $("#financeType").addEventListener("change", fitCategory);
   if (coffee) {
     const sync = () => {
       const visible = $("#financeType").value === "entrada" && $("#financeCategory").value === "Venda de café";

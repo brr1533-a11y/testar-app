@@ -35,6 +35,14 @@ function gestaoChange(farm, change) {
     saveData(); return true;
   } catch (e) { toast(e.message); return false; }
 }
+// Diálogo que reabre com o que foi digitado enquanto a gravação for recusada (save devolve false).
+async function gestaoPergunta(opts, save) {
+  for (;;) {
+    const v = await askForm(opts);
+    if (!v || await save(v) !== false) return v;
+    opts = { ...opts, fields: opts.fields.map(f => (f.name in v ? { ...f, value: v[f.name] } : f)) };
+  }
+}
 // Telas de cadastro pedem uma fazenda específica (na visão geral só há consulta).
 function gestaoFarmOrNotice() {
   // 4.19: o funcionário do campo não recebe a Gestão; criar a seção vazia aqui fazia a tela regravar sem parar.
@@ -133,7 +141,7 @@ async function gestaoCheckPrices(farm, quoteId, button) {
   finally { if (button && button.isConnected) { button.disabled = false; button.textContent = 'Conferir preços agora'; } }
 }
 async function gestaoQuoteDialog(farm, item) {
-  const v = await askForm({ title: item ? `Cotação · ${item.item}` : 'Nova cotação', wide: true, text: 'Registre o preço que o fornecedor passou. Com o link da oferta, o sistema confere o preço do site sozinho e atualiza quando mudar. Com o WhatsApp do fornecedor, você pede o preço novo com um toque.', fields: [
+  await gestaoPergunta({ title: item ? `Cotação · ${item.item}` : 'Nova cotação', wide: true, text: 'Registre o preço que o fornecedor passou. Com o link da oferta, o sistema confere o preço do site sozinho e atualiza quando mudar. Com o WhatsApp do fornecedor, você pede o preço novo com um toque.', fields: [
     ...(item ? [] : [{ name: 'itemName', label: 'Produto', required: true, placeholder: 'Ex.: Diesel S10, Adubo 20-05-20' }]),
     { name: 'supplier', label: 'Fornecedor', required: true },
     { name: 'channel', label: 'Como o preço chegou', type: 'select', value: 'whatsapp', options: Object.entries(G_CHANNEL) },
@@ -147,8 +155,7 @@ async function gestaoQuoteDialog(farm, item) {
     { name: 'autoUpdate', label: 'Conferir o preço do link sozinho', type: 'select', value: 'true', options: [['true', 'Sim, atualizar quando o site mudar'], ['false', 'Não']] },
     { name: 'whatsapp', label: 'WhatsApp do fornecedor (opcional)', type: 'tel', placeholder: 'DDD + número, ex.: 35999998888' },
     { name: 'notes', label: 'Observações', type: 'textarea', wide: true, placeholder: 'Prazo de entrega, forma de pagamento...' }
-  ] });
-  if (!v) return;
+  ] }, v => {
   const quote = { id: uid(), activity: selectedType(), stockId: item?.id || '', itemName: item?.item || String(v.itemName || '').trim(), supplier: String(v.supplier).trim(), channel: v.channel, unitPrice: Number(v.unitPrice), unit: String(v.unit).trim(), date: v.date, notes: String(v.notes || '').trim() };
   if (v.quantity) quote.quantity = Number(v.quantity);
   if (v.freight) quote.freight = Number(v.freight);
@@ -156,11 +163,11 @@ async function gestaoQuoteDialog(farm, item) {
   if (String(v.link || '').trim()) { quote.link = String(v.link).trim(); quote.autoUpdate = v.autoUpdate !== 'false'; }
   const phone = String(v.whatsapp || '').replace(/\D/g, '');
   if (phone) quote.whatsapp = phone;
-  if (gestaoChange(farm, f => f.management.quotes.push(quote))) {
-    toast(quote.link && quote.autoUpdate ? 'Cotação registrada. O preço do site será conferido em seguida.' : 'Cotação registrada.');
-    renderInputs();
-    if (quote.link && quote.autoUpdate) setTimeout(() => gestaoCheckPrices(farm, quote.id, null), 1500);
-  }
+  if (!gestaoChange(farm, f => f.management.quotes.push(quote))) return false;
+  toast(quote.link && quote.autoUpdate ? 'Cotação registrada. O preço do site será conferido em seguida.' : 'Cotação registrada.');
+  renderInputs();
+  if (quote.link && quote.autoUpdate) setTimeout(() => gestaoCheckPrices(farm, quote.id, null), 1500);
+  });
 }
 // Preço novo à mão (ex.: o fornecedor respondeu no WhatsApp). Entra no histórico da cotação.
 async function gestaoNewPrice(farm, q) {
@@ -230,7 +237,7 @@ function renderPurchaseOrders() {
   bindBack();
   $('#gNewOrder').onclick = async () => {
     const stock = (farm.stock || []).filter(s => (s.activity || 'coffee') === selectedType());
-    const v = await askForm({ title: 'Novo pedido de compra', text: 'O pedido vai para aprovação do CEO.', fields: [
+    await gestaoPergunta({ title: 'Novo pedido de compra', text: 'O pedido vai para aprovação do CEO.', fields: [
       { name: 'stockId', label: 'Item do estoque', type: 'select', options: [['', 'Outro (digitar abaixo)'], ...stock.map(s => [s.id, s.item])] },
       { name: 'name', label: 'Produto (se não for do estoque)' },
       { name: 'quantity', label: 'Quantidade', type: 'number', min: '0.001', step: '0.001', required: true },
@@ -238,13 +245,14 @@ function renderPurchaseOrders() {
       { name: 'unitPrice', label: 'Preço por unidade (R$, opcional)', type: 'number', min: '0.01', step: '0.01' },
       { name: 'supplier', label: 'Fornecedor (opcional)' },
       { name: 'justification', label: 'Por que comprar', type: 'textarea', required: true }
-    ] });
-    if (!v) return;
+    ] }, v => {
     const s = stock.find(x => x.id === v.stockId);
     const item = { name: s ? s.item : String(v.name || '').trim(), quantity: Number(v.quantity), unit: String(v.unit).trim() };
     if (s) item.stockId = s.id;
     if (v.unitPrice) item.unitPrice = Number(v.unitPrice);
-    if (gestaoChange(farm, f => f.management.purchaseOrders.push({ id: uid(), activity: selectedType(), date: todayISO(), items: [item], supplier: String(v.supplier || '').trim(), justification: String(v.justification).trim(), status: 'pending' }))) { toast('Pedido enviado para aprovação.'); renderPurchaseOrders(); }
+    if (gestaoChange(farm, f => f.management.purchaseOrders.push({ id: uid(), activity: selectedType(), date: todayISO(), items: [item], supplier: String(v.supplier || '').trim(), justification: String(v.justification).trim(), status: 'pending' }))) return false;
+    toast('Pedido enviado para aprovação.'); renderPurchaseOrders();
+    });
   };
   const setStatus = async (id, status, opts = {}) => {
     let note = '';
@@ -275,8 +283,7 @@ function renderFinanceHub() {
   if ($('#gGoReceive')) $('#gGoReceive').onclick = () => goToPage('recebimentos');
   $('#gGoCosts').onclick = () => goToPage('resultados');
   $('#gGoBalance').onclick = () => goToPage('financeiro');
-  $('#gNewPayable').onclick = async () => {
-    const v = await askForm({ title: 'Nova conta a pagar', wide: true, fields: [
+  $('#gNewPayable').onclick = () => gestaoPergunta({ title: 'Nova conta a pagar', wide: true, fields: [
       { name: 'supplier', label: 'Fornecedor', required: true },
       { name: 'description', label: 'Descrição', required: true, placeholder: 'Ex.: Adubo 20-05-20, frete, manutenção do trator' },
       { name: 'category', label: 'Categoria', placeholder: 'Ex.: Insumos, Combustível, Mão de obra' },
@@ -286,13 +293,13 @@ function renderFinanceHub() {
       { name: 'target', label: 'Rateio (safra ou lote), só para custo direto', type: 'select', options: opsTargetOptions(farm, activity) },
       { name: 'document', label: 'Nº do documento / boleto (opcional)' },
       { name: 'notes', label: 'Observações', type: 'textarea', wide: true }
-    ] });
-    if (!v) return;
+    ] }, v => {
     const p = { id: uid(), activity, date: todayISO(), supplier: String(v.supplier).trim(), description: String(v.description).trim(), category: String(v.category || '').trim(), amount: Math.round(Number(v.amount) * 100) / 100, dueDate: v.dueDate, status: 'open', document: String(v.document || '').trim(), notes: String(v.notes || '').trim() };
     if (v.toStock === 'yes') p.toStock = true;
     else if (v.target) p[activity === 'cattle' ? 'lotId' : 'cycleId'] = v.target;
-    if (gestaoChange(farm, f => f.management.payables.push(p))) { toast(p.toStock ? 'Conta registrada. O custo entra na safra quando o insumo for consumido.' : 'Conta a pagar registrada.'); renderFinanceHub(); }
-  };
+    if (!gestaoChange(farm, f => f.management.payables.push(p))) return false;
+    toast(p.toStock ? 'Conta registrada. O custo entra na safra quando o insumo for consumido.' : 'Conta a pagar registrada.'); renderFinanceHub(); return true;
+  });
   $$('.g-pay').forEach(b => b.onclick = async () => {
     const p = farm.management.payables.find(x => x.id === b.dataset.id);
     const v = await askForm({ title: 'Marcar como paga', text: `${p.supplier} · ${money(p.amount)}. A saída será lançada no Financeiro; não lance de novo manualmente.`, fields: [{ name: 'paidDate', label: 'Data do pagamento', type: 'date', value: todayISO(), required: true }] });
@@ -319,7 +326,7 @@ function renderFiscal() {
     <div class="grid kpis">${ruralKpi('NF-e recebidas', docs.filter(d => d.kind === 'nfe-entrada' && !d.canceled).length)}${ruralKpi('NF-e emitidas', docs.filter(d => d.kind === 'nfe-saida' && !d.canceled).length)}${ruralKpi('MDF-e', docs.filter(d => d.kind === 'mdfe' && !d.canceled).length)}</div>
     ${docs.length ? `<div class="table-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Número</th><th>Emitente / destinatário</th><th>Valor</th><th>Itens</th><th></th></tr></thead><tbody>${docs.map(d => `<tr class="${d.canceled ? 'muted' : ''}"><td>${dateBR(d.date)}</td><td>${G_FISCAL[d.kind]}${d.canceled ? '<br><span class="badge">Cancelada</span>' : ''}</td><td>${gEsc(d.number)}${d.series ? '/' + gEsc(d.series) : ''}${d.key ? `<br><span class="muted g-key">${gEsc(d.key)}</span>` : ''}</td><td>${gEsc(d.party)}${d.partyDoc ? `<br><span class="muted">${gEsc(d.partyDoc)}</span>` : ''}${d.kind === 'mdfe' ? `<br><span class="muted">${gEsc(d.plate || '')} ${gEsc(d.route || '')}</span>` : ''}</td><td>${d.total != null ? money(d.total) : '—'}</td><td>${(d.items || []).length ? (d.items || []).slice(0, 3).map(i => gEsc(i.name)).join('<br>') + ((d.items || []).length > 3 ? `<br><span class="muted">+${d.items.length - 3}</span>` : '') : '—'}</td><td>${d.canceled ? '' : `<button class="btn small g-fcancel" data-id="${gEsc(d.id)}">Marcar cancelada</button>`}</td></tr>`).join('')}</tbody></table></div>` : '<div class="card empty">Nenhum documento fiscal registrado.</div>'}`;
   bindBack();
-  const save = (doc, msg) => { if (gestaoChange(farm, f => f.management.fiscalDocs.push(doc))) { toast(msg); renderFiscal(); } };
+  const save = (doc, msg) => { if (!gestaoChange(farm, f => f.management.fiscalDocs.push(doc))) return false; toast(msg); renderFiscal(); return true; };
   $('#gImportXml').onclick = async () => {
     const file = await gestaoReadFile('.xml,text/xml,application/xml'); if (!file) return;
     let n; try { n = FarmManagement.parseNFeXML(file.text); } catch (e) { return toast(e.message); }
@@ -329,7 +336,7 @@ function renderFiscal() {
     save({ id: uid(), activity: selectedType(), kind, number: n.number || '—', series: n.series, key: /^\d{44}$/.test(n.key) ? n.key : '', date: RuralDomain.validDate(n.date) ? n.date : todayISO(), party: (kind === 'nfe-entrada' ? n.emitName : n.destName) || 'Não informado', partyDoc: kind === 'nfe-entrada' ? n.emitDoc : n.destDoc, total: n.total, items: n.items, city:n.city,uf:n.uf,municipalityCode:n.municipalityCode, source: 'xml', fileName: file.name.slice(0, 120) }, 'NF-e importada.');
   };
   const manual = async kind => {
-    const v = await askForm({ title: kind === 'mdfe' ? 'Registrar MDF-e' : 'Registrar NF-e', wide: true, fields: [
+    await gestaoPergunta({ title: kind === 'mdfe' ? 'Registrar MDF-e' : 'Registrar NF-e', wide: true, fields: [
       ...(kind === 'mdfe' ? [] : [{ name: 'kind', label: 'Tipo', type: 'select', options: [['nfe-entrada', G_FISCAL['nfe-entrada']], ['nfe-saida', G_FISCAL['nfe-saida']]] }]),
       { name: 'number', label: 'Número', required: true }, { name: 'series', label: 'Série' },
       { name: 'key', label: 'Chave de acesso (44 dígitos, opcional)', placeholder: 'Somente números' },
@@ -339,12 +346,12 @@ function renderFiscal() {
       { name: 'total', label: 'Valor total (R$)', type: 'number', min: '0', step: '0.01' },
       ...(kind === 'mdfe' ? [{ name: 'plate', label: 'Placa do veículo' }, { name: 'route', label: 'Percurso (UF de início → fim)' }] : []),
       { name: 'notes', label: 'Observações', type: 'textarea', wide: true }
-    ] });
-    if (!v) return;
-    const doc = { id: uid(), activity: selectedType(), kind: kind === 'mdfe' ? 'mdfe' : v.kind, number: String(v.number).trim(), series: String(v.series || '').trim(), key: String(v.key || '').replace(/\D/g, ''), date: v.date, party: String(v.party).trim(), partyDoc: String(v.partyDoc || '').trim(), notes: String(v.notes || '').trim(), items: [], source: 'manual' };
+    ] }, v => {
+    const doc ={ id: uid(), activity: selectedType(), kind: kind === 'mdfe' ? 'mdfe' : v.kind, number: String(v.number).trim(), series: String(v.series || '').trim(), key: String(v.key || '').replace(/\D/g, ''), date: v.date, party: String(v.party).trim(), partyDoc: String(v.partyDoc || '').trim(), notes: String(v.notes || '').trim(), items: [], source: 'manual' };
     if (v.total !== '' && v.total != null) doc.total = Math.round(Number(v.total) * 100) / 100;
     if (kind === 'mdfe') { doc.plate = String(v.plate || '').trim().toUpperCase(); doc.route = String(v.route || '').trim(); }
-    save(doc, 'Documento registrado.');
+    return save(doc, 'Documento registrado.');
+    });
   };
   $('#gNewNfe').onclick = () => manual('nfe');
   $('#gNewMdfe').onclick = () => manual('mdfe');
@@ -443,7 +450,7 @@ function renderContracts() {
   bindBack();
   $('#gNewContract').onclick = async () => {
     const cycles = (farm.agriculture?.cycles || []).filter(c => c.activity === activity && !c.archived);
-    const v = await askForm({ title: 'Novo contrato de venda', wide: true, fields: [
+    await gestaoPergunta({ title: 'Novo contrato de venda', wide: true, fields: [
       { name: 'buyer', label: 'Comprador', required: true }, { name: 'number', label: 'Nº do contrato (opcional)' },
       { name: 'product', label: 'Produto', required: true, value: activity === 'cattle' ? 'Boi gordo' : '', placeholder: activity === 'coffee' ? 'Ex.: Café arábica bica corrida' : 'Ex.: Soja' },
       ...(activity === 'cattle' ? [] : [{ name: 'cycleId', label: 'Safra (opcional)', type: 'select', options: [['', 'Sem vínculo'], ...cycles.map(c => [c.id, c.name])] }, { name: 'bagKg', label: 'Peso da saca (kg)', type: 'number', min: '1', step: '0.01', value: 60, required: true }]),
@@ -452,23 +459,25 @@ function renderContracts() {
       { name: 'deliveryStart', label: 'Entrega a partir de', type: 'date', value: todayISO(), required: true },
       { name: 'deliveryEnd', label: 'Entrega até', type: 'date', value: todayISO(), required: true },
       { name: 'notes', label: 'Condições (frete, local de entrega, pagamento...)', type: 'textarea', wide: true }
-    ] });
-    if (!v) return;
+    ] }, v => {
     const bagKg = activity === 'cattle' ? null : Number(v.bagKg);
     const c = { id: uid(), activity, date: todayISO(), buyer: String(v.buyer).trim(), number: String(v.number || '').trim(), product: String(v.product).trim(), quantityKg: Math.round(Number(v.quantity) * (bagKg || 1) * 1000) / 1000, pricePerKg: Number(v.price) / (bagKg || 1), deliveryStart: v.deliveryStart, deliveryEnd: v.deliveryEnd, status: 'open', notes: String(v.notes || '').trim(), deliveries: [] };
     if (bagKg) c.bagKg = bagKg;
     if (v.cycleId) c.cycleId = v.cycleId;
-    if (gestaoChange(farm, f => f.management.salesContracts.push(c))) { toast('Contrato registrado.'); renderContracts(); }
+    if (!gestaoChange(farm, f => f.management.salesContracts.push(c))) return false;
+    toast('Contrato registrado.'); renderContracts();
+    });
   };
   $$('.g-deliver').forEach(b => b.onclick = async () => {
     const c = farm.management.salesContracts.find(x => x.id === b.dataset.id), balance = FarmManagement.contractBalance(c), unit = activity === 'cattle' ? 1 : bag(c);
-    const v = await askForm({ title: 'Registrar entrega', text: `Falta entregar ${qty(c, balance)}.`, fields: [
+    await gestaoPergunta({ title: 'Registrar entrega', text: `Falta entregar ${qty(c, balance)}.`, fields: [
       { name: 'date', label: 'Data da entrega', type: 'date', value: todayISO(), required: true },
       { name: 'qty', label: activity === 'cattle' ? 'Peso entregue (kg)' : 'Sacas entregues', type: 'number', min: '0.01', step: '0.01', required: true },
       { name: 'note', label: 'Romaneio / observação' }
-    ] });
-    if (!v) return;
-    if (gestaoChange(farm, f => f.management.salesContracts.find(x => x.id === c.id).deliveries.push({ id: uid(), date: v.date, kg: Math.round(Number(v.qty) * unit * 1000) / 1000, note: String(v.note || '').trim() }))) { toast('Entrega registrada.'); renderContracts(); }
+    ] }, v => {
+    if (!gestaoChange(farm, f => f.management.salesContracts.find(x => x.id === c.id).deliveries.push({ id: uid(), date: v.date, kg: Math.round(Number(v.qty) * unit * 1000) / 1000, note: String(v.note || '').trim() }))) return false;
+    toast('Entrega registrada.'); renderContracts();
+    });
   });
   const setStatus = async (id, status, msg) => { if (!(await ask(status === 'closed' ? 'Encerrar este contrato? Ele continua no histórico.' : 'Cancelar este contrato? Ele continua no histórico.', { title: status === 'closed' ? 'Encerrar contrato' : 'Cancelar contrato', okText: 'Confirmar' }))) return; if (gestaoChange(farm, f => { f.management.salesContracts.find(x => x.id === id).status = status; })) { toast(msg); renderContracts(); } };
   $$('.g-close').forEach(b => b.onclick = () => setStatus(b.dataset.id, 'closed', 'Contrato encerrado.'));
