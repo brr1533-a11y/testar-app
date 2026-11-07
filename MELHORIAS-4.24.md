@@ -23,7 +23,13 @@ Um agente navegou por todas as telas, no celular e no computador, como CEO, ADM 
 - **No Financeiro, a categoria acompanha o tipo.** Entrada fica com "Venda de ...", despesa com uma categoria de gasto.
 - **Número com vírgula fica como está**, a pedido do dono.
 
+## 4.24.2 · achados 7 e 13 do revisor sênior
+- **Módulo desligado esconde todas as telas dele.** Algumas telas (Ponto da equipe, Café no chão e outras) eram acrescentadas por arquivos carregados depois do filtro e continuavam no menu. O filtro agora roda depois de todos.
+- **Histórico de alterações não some mais.** O grupo guarda os 1.500 mais recentes. Ao passar de 2.000, os antigos vão para um arquivo do grupo. Na tela Histórico, o botão "Baixar histórico completo" traz tudo numa planilha. O limite, antes copiado em 15 lugares, ficou num lugar só.
+- **Revisão de segurança:** o arquivo é gravado antes do grupo (se algo falhar no meio, nada some), blocos antigos que saem do índice são apagados, a exclusão definitiva do grupo apaga o arquivo (LGPD), e página da Gestão escondida por módulo não abre nem por alerta ou atalho.
+
 ## Testes
 - `tests/lancamentos-validacao.test.cjs`: os casos do relatório no servidor.
 - `tests/bagunca-424-browser.cjs` e `tests/bagunca-4241-browser.cjs`: celular.
-- **Resultado:** 372 de unidade e 36 roteiros de navegador.
+- `tests/modulos-historico-browser.cjs`: módulo desligado e histórico arquivado.
+- **Resultado:** 372 de unidade e 37 roteiros de navegador.

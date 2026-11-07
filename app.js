@@ -1408,7 +1408,9 @@ function renderPage({ animate = true } = {}) {
   const allowed = navItems().map(n => n[0]);
   const financeDetailPages = canSee("financeiro") ? ["finance-entradas", "finance-gastos"] : [];
   // Páginas abertas a partir da central de Gestão (cada perfil só vê as suas; veja gestao.js).
-  const managementPages = typeof gestaoExtraPages === "function" ? gestaoExtraPages() : [];
+  // Módulo desligado também tranca as páginas da Gestão (alerta ou atalho não reabre o que o CEO escondeu).
+  const hiddenByModule = typeof RuralMelhorias !== "undefined" && data?.farms ? RuralMelhorias.hiddenPages(farmsInContext()) : new Set();
+  const managementPages = (typeof gestaoExtraPages === "function" ? gestaoExtraPages() : []).filter(p => !hiddenByModule.has(p));
   if (![...allowed, ...financeDetailPages, ...managementPages].includes(currentPage)) currentPage = allowed[0];
   const pages = {
     'assistente-ia': () => renderRuralAssistant(),
@@ -2510,6 +2512,14 @@ function renderAudit() {
     <div class="card soft"><span class="eyebrow dark">QUEM MUDOU O QUÊ</span><h2>${list.length} registro${list.length === 1 ? "" : "s"}</h2><p class="muted">Cada inclusão, alteração ou exclusão feita por você ou pela equipe fica registrada aqui, com data e nome. Visível só para o CEO.</p></div>
     <div class="section-head"><h2>Registros</h2></div>
     ${list.length ? `<div class="table-wrap"><table data-date-col="0"><thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Área</th><th>Item</th><th>Fazenda</th></tr></thead><tbody>${list.map(e => `<tr><td>${new Date(e.at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</td><td><b>${escapeHTML(e.user)}</b></td><td><span class="badge ${actionClass(e.action)}">${escapeHTML(e.action)}</span></td><td>${escapeHTML(e.area)}</td><td>${escapeHTML(e.label || "—")}</td><td>${escapeHTML(e.farm || "—")}</td></tr>`).join("")}</tbody></table></div>` : `<div class="card empty">Ainda não há registros. Eles começam a aparecer a partir desta versão.</div>`}`;
+  // A tela mostra os mais recentes; a planilha traz o histórico inteiro, inclusive o arquivado.
+  $("#pageContent .section-head").insertAdjacentHTML("beforeend", `<button class="btn" id="auditFullCsv" type="button">Baixar histórico completo</button>`);
+  $("#auditFullCsv").onclick = async () => {
+    try {
+      const { entries } = await api("/api/audit/completo");
+      downloadCSV("historico-completo.csv", ["Quando", "Quem", "Ação", "Área", "Item", "Fazenda"], entries.map(e => [new Date(e.at).toLocaleString("pt-BR"), e.user, e.action, e.area, e.label || "", e.farm || ""]));
+    } catch (e) { toast(e.message); }
+  };
 }
 
 // ---------- Busca e planilha em qualquer tabela ----------

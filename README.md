@@ -1,3 +1,5 @@
+> **Versão 4.24.2:** módulo desligado esconde todas as telas dele; histórico de alterações antigo vai para um arquivo em vez de sumir, com o botão "Baixar histórico completo". Leia [MELHORIAS-4.24.md](MELHORIAS-4.24.md).
+>
 > **Versão 4.24.1:** diálogos da Gestão (conta a pagar, pedido, cotação, NF-e, contrato, entrega) reabrem com o que foi digitado quando recusados; Voltar do celular fecha o diálogo em vez de sair; no Financeiro a categoria acompanha o tipo. Leia [MELHORIAS-4.24.md](MELHORIAS-4.24.md).
 >
 > **Versão 4.24.0:** achados do teste "usuário bagunceiro": o servidor passa a conferir Financeiro, custos, Estoque e Talhões (valor, data, tipo, texto, id repetido); campos de número e data com limite e obrigatório só com espaços barrados na tela; diálogo recusado reabre com o que foi digitado; trocar de fazenda com formulário pela metade pergunta antes; avisos sem nome técnico de campo; valor enorme não alarga a tela do celular. Leia [MELHORIAS-4.24.md](MELHORIAS-4.24.md).

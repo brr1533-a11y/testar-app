@@ -37,4 +37,4 @@ jobs:
       - name: Chromium do Playwright
         run: npx playwright install --with-deps chromium
       - name: Roteiros de navegador
-        run: npm run test:navegador -- xss-browser.cjs fila-campo-browser.cjs fechamento-mes-browser.cjs conta-nova-browser.cjs alertas-acao-browser.cjs
+        run: npm run test:navegador -- xss-browser.cjs fila-campo-browser.cjs fechamento-mes-browser.cjs conta-nova-browser.cjs alertas-acao-browser.cjs modulos-historico-browser.cjs

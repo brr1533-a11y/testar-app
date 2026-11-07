@@ -548,6 +548,30 @@ class PgStore {
 }
 
 const store = DATABASE_URL ? new PgStore(DATABASE_URL) : new LocalStore(LOCAL_DB_PATH);
+// Histórico de alterações: o grupo guarda os últimos 1.500; ao passar de 2.000, os mais antigos vão em bloco para o
+// arquivo do grupo (baixado na tela Histórico) em vez de sumir. O bloco evita regravar o arquivo a cada gravação.
+const AUDIT_KEEP = 1500, AUDIT_FLUSH = 2000, AUDIT_ARCHIVE_BLOCKS = 200;
+const auditArchiveKey = groupId => `auditArchive:${groupId}`;
+for (const method of ["saveGroup", "saveGroupIfRev"]) {
+  const original = store[method].bind(store);
+  store[method] = async (group, ...rest) => {
+    const audit = group?.state?.audit, old = Array.isArray(audit) && audit.length > AUDIT_FLUSH ? audit.slice(0, -AUDIT_KEEP) : [];
+    if (!old.length) return original(group, ...rest);
+    // O bloco é gravado ANTES do grupo: se algo falhar no meio, os registros ficam no bloco e nunca somem.
+    const key = `${auditArchiveKey(group.id)}:${Date.now()}`;
+    await store.setConfig(key, old);
+    group.state.audit = audit.slice(-AUDIT_KEEP);
+    let saved = null;
+    try { saved = await original(group, ...rest); } finally { if (!saved) { group.state.audit = audit; await store.setConfig(key, null).catch(() => {}); } }
+    try {
+      // shortcut: duas gravações sem baseRev (partida/migração) no mesmo instante podem perder um bloco do índice; raro.
+      const index = [...((await store.getConfig(auditArchiveKey(group.id))) || []), key];
+      for (const gone of index.slice(0, -AUDIT_ARCHIVE_BLOCKS)) await store.setConfig(gone, null);
+      await store.setConfig(auditArchiveKey(group.id), index.slice(-AUDIT_ARCHIVE_BLOCKS));
+    } catch (e) { console.error("Índice do arquivo do histórico não gravado:", e.message); }
+    return saved;
+  };
+}
 
 const httpError = (statusCode, message) => Object.assign(new Error(message), { statusCode });
 
@@ -956,6 +980,17 @@ function groupUsage(group) {
     perFarm: farms.map(f => ({ id: f.id, name: f.name, contributors: contributors.filter(u => String(u.allowedFarmId) === String(f.id)).length }))
   };
 }
+// Histórico completo (arquivo + atuais) para baixar; mesmas regras de quem vê o histórico na tela.
+app.get("/api/audit/completo", auth, requireRole("ceo", "adm"), async (req, res, next) => {
+  try {
+    const group = req.auth.group, state = group.state || {};
+    if (!PlanFeatures.has(group.plan, "audit") || (req.auth.user.role === "adm" && !AdmAccess.can(state, "historico"))) throw httpError(403, "Histórico não liberado para você.");
+    const index = (await store.getConfig(auditArchiveKey(group.id))) || [], entries = [];
+    for (const key of index) entries.push(...((await store.getConfig(key)) || []));
+    res.json({ entries: [...entries, ...(state.audit || [])] });
+  } catch (e) { next(e); }
+});
+
 app.get("/api/account", auth, requireRole("ceo"), async (req, res, next) => {
   try {
     const group = req.auth.group;
@@ -1043,7 +1078,7 @@ app.post("/api/field-devices/:id/revoke", auth, requireRole("ceo", "adm"), async
       await store.setConfig(fieldDevicesKey(req.auth.group.id), list);
       // Sessões da pessoa encerradas: a sessão lembrada no aparelho perdido para de valer na hora.
       await store.deleteSessionsForUser(req.auth.group.id, d.userId);
-      await mutateGroup(req.auth.group.id, g => { g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "desconectou", area: "Aparelho do modo de campo", label: `${d.userName} · ${d.label || "aparelho"}`.slice(0, 200), farm: "" }].slice(-1500); });
+      await mutateGroup(req.auth.group.id, g => { g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "desconectou", area: "Aparelho do modo de campo", label: `${d.userName} · ${d.label || "aparelho"}`.slice(0, 200), farm: "" }]; });
     }
     res.json({ ok: true, devices: list.slice().reverse() });
   } catch (e) { next(e); }
@@ -1691,7 +1726,7 @@ async function saveStateRoute(req, res, next) {
     applyBathStockDeduction(before, allowedState, user);
     validateStatePlanLimits(group, allowedState);
     const changes = [...auditChanges(before, allowedState, user), ...graceAudit.map(e => ({ id: uid(), at: nowIso(), user: user.name || user.username, username: user.username, ...e }))];
-    allowedState.audit = [...(before.audit || []), ...changes].slice(-1500);
+    allowedState.audit = [...(before.audit || []), ...changes];
     // Senha de outra pessoa definida pelo CEO por aqui vale como temporária, igual à rota /api/users/:id/password.
     const existingIds = new Set((before.users || []).map(u => String(u.id)));
     const passwordResetIds = user.role === "ceo" ? (allowedState.users || []).filter(u => u.password && existingIds.has(String(u.id)) && String(u.id) !== String(user.id)).map(u => String(u.id)) : [];
@@ -1782,7 +1817,7 @@ app.patch("/api/account/email", auth, async (req, res, next) => {
       const u = (g.state.users || []).find(x => String(x.id) === String(user.id));
       if (!u || u.passwordHash !== user.passwordHash) throw httpError(409, "Sua senha foi alterada em outro lugar. Entre novamente.");
       u.email = newEmail;
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: u.name, username: u.username, action: "alterou", area: "E-mail de acesso", label: maskEmail(newEmail), farm: "" }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: u.name, username: u.username, action: "alterou", area: "E-mail de acesso", label: maskEmail(newEmail), farm: "" }];
     });
     // Aviso ao e-mail antigo: se não foi a própria pessoa (sessão roubada), ela fica sabendo antes de perder a recuperação de senha.
     if (oldEmail && oldEmail !== newEmail) sendSecurityNotice({ to: oldEmail, groupName: group.name, text: `O e-mail de recuperação de senha do usuário ${user.username} foi trocado para ${maskEmail(newEmail)}. Se não foi você, avise o responsável pela fazenda e o suporte imediatamente.` }).catch(e => console.error("Aviso de troca de e-mail:", e.message));
@@ -1805,7 +1840,7 @@ app.patch("/api/users/:id/password", auth, requireRole("ceo"), async (req, res, 
       t.passwordHash = newHash;
       t.mustChangePassword = true;
       delete t.password;
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "redefiniu senha de", area: "Usuário", label: t.name, farm: "" }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "redefiniu senha de", area: "Usuário", label: t.name, farm: "" }];
     });
     // Depois de gravar: assim ninguém abre uma sessão nova com a senha antiga no meio do caminho.
     await store.deleteSessionsForUser(group.id, target.id);
@@ -1853,7 +1888,7 @@ app.post("/api/users", auth, requireRole("ceo"), async (req, res, next) => {
         createdAt: nowIso(), createdBy: req.auth.user.username
       };
       g.state.users ||= []; g.state.users.push(user);
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "adicionou", area: "Usuário", label: name, farm: "" }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "adicionou", area: "Usuário", label: name, farm: "" }];
       return user;
     });
     res.json({ ok: true, user: sanitizeState({ users: [user] }).users[0], ...statePayload(saved, req.auth.user) });
@@ -1887,7 +1922,7 @@ app.post("/api/registrations/:id/approve", auth, requireRole("ceo"), async (req,
       };
       g.state.users ||= []; g.state.users.push(user);
       g.state.pendingRegistrations = regs.filter(r => r.id !== reg.id);
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "aprovou", area: "Usuário", label: user.name, farm: "" }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name, username: req.auth.user.username, action: "aprovou", area: "Usuário", label: user.name, farm: "" }];
     });
     res.json({ ok: true, ...statePayload(saved, req.auth.user) });
   } catch (e) { next(e); }
@@ -2214,7 +2249,8 @@ app.delete("/api/platform/groups/:id", platformAuth, async (req, res, next) => {
     if (cleanGroupCode(req.body.confirmCode) !== cleanGroupCode(group.code) || String(req.body.confirmText || "").trim().toUpperCase() !== "EXCLUIR") return res.status(400).json({ error: "Confirmação inválida" });
     await recordPlatformAudit(req, "excluiu-grupo", group, "Exclusão definitiva");
     await store.deleteGroup(group.id);
-    await Promise.all([store.setConfig(`commercial:${group.id}`, null), store.setConfig(`archivedAt:${group.id}`, null), store.setConfig(`planRequest:${group.id}`, null), store.setConfig(`lastLogin:${group.id}`, null), store.setConfig(`manualSuspension:${group.id}`, null)]);
+    const auditBlocks = (await store.getConfig(auditArchiveKey(group.id))) || [];
+    await Promise.all([...[...auditBlocks, auditArchiveKey(group.id)].map(k => store.setConfig(k, null)),store.setConfig(`commercial:${group.id}`, null), store.setConfig(`archivedAt:${group.id}`, null), store.setConfig(`planRequest:${group.id}`, null), store.setConfig(`lastLogin:${group.id}`, null), store.setConfig(`manualSuspension:${group.id}`, null)]);
     res.json({ ok: true, message: "Grupo excluído definitivamente" });
   } catch (e) { next(e); }
 });
@@ -2631,7 +2667,7 @@ app.post("/api/banho/preco-epoca", auth, requireRole("ceo", "adm"), async (req, 
       if (!snap.estimated) throw httpError(409, "Este banho já tem o preço registrado na baixa do estoque.");
       const next = Expansion.informBathPrice(farm, order, prices, req.auth.user.name || req.auth.user.username, nowIso());
       order.stockCostSnapshot = next;
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "informou preço da época", area: "Custo do banho", label: `${order.title || "Banho"} · estimado R$ ${Number(snap.total).toFixed(2)} → R$ ${Number(next.total).toFixed(2)}`.slice(0, 200), farm: farm.name }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "informou preço da época", area: "Custo do banho", label: `${order.title || "Banho"} · estimado R$ ${Number(snap.total).toFixed(2)} → R$ ${Number(next.total).toFixed(2)}`.slice(0, 200), farm: farm.name }];
     });
     res.json(statePayload(saved, req.auth.user));
   } catch (e) { next(e); }
@@ -2651,7 +2687,7 @@ app.post("/api/farms/:id/reset", auth, requireRole("ceo"), async (req, res, next
       if (i < 0) throw httpError(404, "Fazenda não encontrada.");
       const old = g.state.farms[i];
       g.state.farms[i] = { ...makeFarm(old.name), id: old.id, type: old.type || "mixed", photo: old.photo || "" };
-      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "limpou", area: "Fazenda", label: `${old.name} · todos os dados da fazenda apagados`, farm: old.name }].slice(-1500);
+      g.state.audit = [...(g.state.audit || []), { id: uid(), at: nowIso(), user: req.auth.user.name || req.auth.user.username, username: req.auth.user.username, action: "limpou", area: "Fazenda", label: `${old.name} · todos os dados da fazenda apagados`, farm: old.name }];
     });
     res.json(statePayload(saved, req.auth.user));
   } catch (e) { next(e); }
@@ -2688,7 +2724,7 @@ async function checkGroupQuotes(groupId, pick, cache = new Map()) {
       else if (outcome === "review") count.review++;
       else if (outcome !== "same") count.failed++;
     }
-    if (changes.length) g.state.audit = [...(g.state.audit || []), ...changes].slice(-1500);
+    if (changes.length) g.state.audit = [...(g.state.audit || []), ...changes];
   });
   return count;
 }
